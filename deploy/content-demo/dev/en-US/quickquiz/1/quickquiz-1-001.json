@@ -1,0 +1,10 @@
+{
+  "prompt": "What does the Docker Compose demo content allow you to test immediately?",
+  "correctOptions": [
+    "Starting a quiz through the local API and SPA"
+  ],
+  "wrongOptions": [
+    "Running a production database migration",
+    "Publishing content to an external object store"
+  ]
+}

@@ -1,0 +1,8 @@
+# terraform.tfvars.example
+ami_id   = "ami-0152204c1a187337c"
+key_name = "your-key-ec2"
+
+public_key_path = "~/.ssh/your-key-file.pub"
+
+# your public IP, discovery it in the terminal with: curl ifconfig.me
+ssh_allowed_cidr = "0.0.0.0/32"

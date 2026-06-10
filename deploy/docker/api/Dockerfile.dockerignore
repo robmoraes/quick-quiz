@@ -1,0 +1,14 @@
+**
+
+!apps/
+!apps/api/
+!apps/api/go.mod
+!apps/api/cmd/
+!apps/api/cmd/**
+!apps/api/internal/
+!apps/api/internal/**
+
+!deploy/
+!deploy/docker/
+!deploy/docker/api/
+!deploy/docker/api/**
