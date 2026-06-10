@@ -1,0 +1,25 @@
+{
+  "extends": "./.quasar/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "src": ["./src"],
+      "src/*": ["./src/*"],
+      "app": ["."],
+      "app/*": ["./*"],
+      "components": ["./src/components"],
+      "components/*": ["./src/components/*"],
+      "layouts": ["./src/layouts"],
+      "layouts/*": ["./src/layouts/*"],
+      "pages": ["./src/pages"],
+      "pages/*": ["./src/pages/*"],
+      "assets": ["./src/assets"],
+      "assets/*": ["./src/assets/*"],
+      "boot": ["./src/boot"],
+      "boot/*": ["./src/boot/*"],
+      "stores": ["./src/stores"],
+      "stores/*": ["./src/stores/*"],
+      "#q-app": ["./node_modules/@quasar/app-vite/types/index.d.ts"],
+      "#q-app/wrappers": ["./node_modules/@quasar/app-vite/types/app-wrappers.d.ts"]
+    }
+  }
+}

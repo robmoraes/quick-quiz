@@ -1,0 +1,45 @@
+# OS files
+.DS_Store
+Thumbs.db
+.thumbs.db
+
+# Editor and workspace noise
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment files
+.env
+.env.*
+!.env-example
+!.env.sample
+!.env.template
+
+# Dependencies and generated caches
+**/node_modules/
+**/.cache/
+
+# Local scratch files
+_temp/
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Local API content and build output
+apps/api/.local/
+apps/api/bin/
+
+# docs de dominio local
+docs/.local

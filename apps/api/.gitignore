@@ -1,0 +1,31 @@
+# Local environment files
+.env
+.env.*
+!.env-example
+!.env.sample
+!.env.template
+
+# Local question content
+.local/
+
+# Local Docker runtime files
+deploy/docker/api.env
+
+# Local systemd runtime files
+deploy/systemd/quickquiz-api.env
+
+# Build output
+bin/
+
+# Go test and coverage artifacts
+*.test
+*.out
+coverage.out
+*.coverprofile
+*.prof
+
+# Local scratch files
+tmp/
+temp/
+.tmp/
+.temp/

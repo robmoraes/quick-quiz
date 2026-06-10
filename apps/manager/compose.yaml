@@ -1,0 +1,17 @@
+services:
+  manager:
+    build:
+      context: .
+      args:
+        MANAGER_DOCKER_PHP_VERSION: ${MANAGER_DOCKER_PHP_VERSION:-8.3}
+    working_dir: /app
+    command: php -S 0.0.0.0:8081 -t public public/dev-router.php
+    env_file:
+      - .env
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/app
+      - ../api/.local:/content
+    environment:
+      MANAGER_CONTENT_ROOT: /content

@@ -1,0 +1,229 @@
+Quick Quiz Dev Team                                         C. R. Moraes
+Request for Comments: 0001                        about.robmoraes.dev.br
+Category: Player Guide                                     QuickQuiz Dev
+Status: Active                                                June 2026
+
+
+             Quick Quiz Dev - Game Rules Protocol
+
+Status of This Document
+
+   This document explains the Quick Quiz Dev rules for players.  It
+   describes what happens during a run, how a session works, what
+   changes in each severity, and what happens in FATAL mode, without
+   covering technical installation or implementation details.
+
+Summary
+
+   Quick Quiz Dev is a software-development-themed quiz.  You select a
+   topic, select a severity, and start a run.  Each answer counts toward
+   the current run result and the current session.
+
+   The session remains open between runs until you end it, lose
+   everything in FATAL mode, or start a new session.
+
+Table of Contents
+
+   1.  Game Objective
+   2.  Topics
+   3.  Severities
+   4.  Runs
+   5.  Number of Questions
+   6.  Answers
+   7.  Run Result
+   8.  Session
+   9.  Session Result
+   10. Question Exhaustion
+   11. FATAL Mode
+   12. Quick Tips
+
+1.  Game Objective
+
+   The objective is to answer as many questions correctly as possible
+   within the selected topic and severity.
+
+   In the Dev theme, the game uses software-development language:
+
+      correct answer    Tests Passed
+      wrong answer      Tests Failed
+      result            Pull requests and code review
+      history           Session syslog
+
+2.  Topics
+
+   A topic is the subject of the run.
+
+   Examples:
+
+      Go
+      PHP
+      Symfony
+      The Pragmatic Programmer
+
+   You select a topic before selecting a severity.  During the same
+   session, a topic can become unavailable when its available questions
+   run out.
+
+3.  Severities
+
+   Severity defines the risk level and the number of answer options
+   shown for each question.
+
+      INFO     3 options. Best for warming up.
+      WARN     5 options. Normal game pace.
+      ERROR    7 options. More demanding, with less room for guessing.
+      FATAL    7 options. One wrong answer ends everything.
+
+   In general, higher severities show more options per question.
+
+4.  Runs
+
+   A run is one quiz attempt in one topic and one severity.
+
+   During the run:
+
+      one question appears at a time;
+      you choose one option;
+      the game tells you whether you passed or failed;
+      the next question appears when the run has not ended;
+      at the end, the game shows the run result unless there was a
+      fatal loss.
+
+   A normal run ends when you answer the run's maximum number of
+   questions, when there are no more available questions, or when you
+   end the session.
+
+   If you end the session in the middle of a run, the active run is
+   finalized with the answers already recorded and is included in the
+   session result.
+
+5.  Number of Questions
+
+   The maximum number of questions per run is defined by the current
+   game configuration.
+
+   During the run, the progress indicator shows the total for that
+   attempt:
+
+      Question 1 of 5
+      Question 2 of 5
+      ...
+
+   The run also depends on the number of questions still available for
+   that topic and severity within the session.
+
+   This means a run can have fewer questions when the session has
+   already used part of the available set.
+
+6.  Answers
+
+   To answer, click an option.
+
+   After the click, the answer is recorded and the game shows immediate
+   feedback:
+
+      Tests Passed    you were correct;
+      Tests Failed    you were wrong.
+
+   In normal runs, a wrong answer does not automatically end the
+   session.  In INFO, WARN, and ERROR, the run continues until it reaches
+   a normal ending rule.
+
+7.  Run Result
+
+   The run result appears when a run ends normally.
+
+   It shows:
+
+      total answered questions;
+      correct answers;
+      wrong answers;
+      accuracy percentage;
+      review of answered questions.
+
+   The run result helps you understand that specific attempt.  It does
+   not automatically end the session.
+
+8.  Session
+
+   The session is the player's current progress.
+
+   While the session is open, you can start new runs and keep building
+   history.  The session remembers which questions have already been
+   used so you do not keep repeating the same set.
+
+   The session can end when:
+
+      you choose to end the session;
+      you lose in FATAL mode;
+      you start a new session after the session result.
+
+9.  Session Result
+
+   The session result is different from the run result.
+
+   Run result:
+
+      shows only the attempt that just ended.
+
+   Session result:
+
+      aggregates the completed runs in the current session;
+      includes the active run if you end the session during a question;
+      shows accumulated performance;
+      ends the current session.
+
+   Use the session result when you want to close the game cycle and see
+   your overall performance before starting again.
+
+   A FATAL loss does not generate a session result.  It erases progress
+   and returns you to a new session.
+
+10. Question Exhaustion
+
+   Questions used in a session become unavailable for new runs with the
+   same topic and severity combination.
+
+   Example:
+
+      If you play Go in ERROR and use some questions, the next Go ERROR
+      run in the same session starts with fewer available questions.
+
+   This behavior is part of the game.  It avoids excessive repetition
+   and makes the session feel more like a progress track.  Passing or
+   failing does not change this: if the question appeared, it already
+   counts as used in the session.
+
+   When all available questions for a topic or severity are used, that
+   option can remain locked until a new session.
+
+11. FATAL Mode
+
+   FATAL is the maximum-risk mode.
+
+   Before starting a FATAL run, the game warns you that one wrong answer
+   resets the entire session.
+
+   If you miss any question in FATAL:
+
+      the entire session is lost;
+      accumulated progress is erased;
+      the run does not show a normal result;
+      the next play starts in a new session.
+
+   This loss is intentional.  In FATAL mode, missing is not just losing
+   the run: it is losing the session.
+
+12. Quick Tips
+
+   If you want to explore a topic calmly, start with INFO or WARN.
+
+   If you want to test real command of the subject, use ERROR.
+
+   If you choose FATAL, play knowing there is no recovery after a
+   mistake.
+
+   If a topic becomes unavailable, end the current session or start a
+   new session to refresh the question set.
+
+End of RFC 0001.

@@ -1,0 +1,29 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}Localized catalog - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <h1 class="h3 mb-3">Localized catalog: {{ locale }} / {{ topic.key }}</h1>
+  <section class="card">
+    <div class="card-body">
+    {% if error is defined %}
+      <p class="alert alert-danger">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="{{ path('catalog_localization_save', {locale: locale, key: topic.key}) }}">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <div class="mb-3">
+        <label class="form-label" for="name">Localized name</label>
+        <input class="form-control" id="name" name="name" value="{{ topic.name|default('') }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="description">Localized description</label>
+        <textarea class="form-control" id="description" name="description">{{ topic.description|default('') }}</textarea>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary" type="submit">Save</button>
+        <a class="btn btn-outline-secondary" href="{{ path('catalog') }}">Cancel</a>
+      </div>
+    </form>
+    </div>
+  </section>
+{% endblock %}

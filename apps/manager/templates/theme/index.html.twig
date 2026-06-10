@@ -1,0 +1,67 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}Themes - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <h1 class="h3 mb-0">Themes</h1>
+    <a class="btn btn-primary" href="{{ path('theme_new') }}">New theme</a>
+  </div>
+
+  {% if error is defined %}
+    <p class="alert alert-danger">{{ error }}</p>
+  {% endif %}
+
+  {% if not selectedTheme %}
+    <section class="alert alert-info">
+      Select a theme before managing catalog topics, questions, translations, or recommendations.
+    </section>
+  {% endif %}
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle bg-white">
+      <thead class="table-light">
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Weight</th>
+        <th>Created</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for theme in themes %}
+        <tr>
+          <td><code>{{ theme.id }}</code></td>
+          <td>
+            <strong>{{ theme.name|default(theme.id) }}</strong>
+            <div class="text-muted small">{{ theme.description|default('') }}</div>
+          </td>
+          <td>{{ theme.weight }}</td>
+          <td>{{ theme.createdAt }}</td>
+          <td>
+            {% if theme.active %}
+              <span class="badge text-bg-info">active for API</span>
+            {% else %}
+              <span class="badge text-bg-secondary">inactive for API</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" action="{{ path('theme_select') }}" class="d-inline">
+              <input type="hidden" name="_csrf" value="{{ csrf }}">
+              <input type="hidden" name="theme" value="{{ theme.id }}">
+              <button class="btn btn-sm {% if selectedTheme == theme.id %}btn-success{% else %}btn-outline-primary{% endif %}" type="submit">
+                {% if selectedTheme == theme.id %}Selected{% else %}Select{% endif %}
+              </button>
+            </form>
+            <a class="ms-2" href="{{ path('theme_edit', {id: theme.id}) }}">Edit</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6">No themes configured.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}Questions - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <h1 class="h3 mb-3">Questions</h1>
+  <section class="card mb-3">
+    <div class="card-body">
+      {% if error is defined %}
+        <p class="alert alert-danger">{{ error }}</p>
+      {% endif %}
+      <form method="get" action="{{ path('questions') }}">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label" for="locale">Locale</label>
+          <select class="form-select" id="locale" name="locale">
+            {% for locale in locales %}
+              <option value="{{ locale }}" {% if locale == selectedLocale %}selected{% endif %}>{{ locale }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label" for="topic">Topic</label>
+          <select class="form-select" id="topic" name="topic">
+            {% for topic in topics %}
+              <option value="{{ topic.key }}" {% if topic.key == selectedTopic %}selected{% endif %}>
+                {{ topic.key }}{% if not topic.active %} (inactive){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label" for="difficulty">Difficulty</label>
+          <select class="form-select" id="difficulty" name="difficulty">
+            {% for id, difficulty in difficulties %}
+              <option value="{{ id }}" {% if id == selectedDifficulty %}selected{% endif %}>{{ id }} - {{ difficulty.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="d-flex align-items-center">
+        <button
+          class="btn btn-primary"
+          type="submit"
+          formmethod="get"
+          formaction="{{ path('questions') }}">
+          Filter
+        </button>
+
+        <div class="ms-auto d-flex gap-2">
+          <a
+            class="btn btn-outline-secondary"
+            href="{{ path('question_edit', {locale: selectedLocale, topic: selectedTopic, difficulty: selectedDifficulty}) }}">
+            New question
+          </a>
+
+          <a
+            class="btn btn-outline-primary"
+            href="{{ path('question_ai_new', {topic: selectedTopic, difficulty: selectedDifficulty}) }}">
+            New question with AI
+          </a>
+
+          <button
+              class="btn btn-outline-primary"
+              type="submit"
+              formmethod="post"
+              formaction="{{ path('question_ai_recommend') }}">
+              Recommend question with AI
+          </button>
+        </div>
+      </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle bg-white">
+      <thead class="table-light">
+      <tr>
+        <th>ID</th>
+        <th>Prompt</th>
+        <th>Correct</th>
+        <th>Wrong</th>
+        <th>Actions</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for question in questions %}
+        <tr>
+          <td><code>{{ question.id }}</code></td>
+          <td>{{ question.prompt }}</td>
+          <td>{{ question.correctCount }}</td>
+          <td>{{ question.wrongCount }}</td>
+          <td style="min-width: 150px;">
+            <a href="{{ path('question_edit', {locale: selectedLocale, topic: selectedTopic, difficulty: selectedDifficulty, id: question.id}) }}">Edit</a>
+            <form class="d-inline ms-2" method="post" action="{{ path('question_delete') }}" onsubmit="return confirm('Delete question {{ question.id }}? This cannot be undone.');">
+              <input type="hidden" name="_csrf" value="{{ csrf }}">
+              <input type="hidden" name="locale" value="{{ selectedLocale }}">
+              <input type="hidden" name="topic" value="{{ selectedTopic }}">
+              <input type="hidden" name="difficulty" value="{{ selectedDifficulty }}">
+              <input type="hidden" name="questionId" value="{{ question.id }}">
+              <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5">No questions found.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

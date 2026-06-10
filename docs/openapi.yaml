@@ -1,0 +1,731 @@
+openapi: 3.0.3
+info:
+  title: QuickQuiz Dev API
+  version: 0.1.0
+  description: QuickQuiz Dev MVP API.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Health
+  - name: Catalog
+  - name: Session
+  - name: Runs
+paths:
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Checks if the API is responding.
+      operationId: getHealth
+      responses:
+        "200":
+          description: API is available.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/catalog:
+    get:
+      tags:
+        - Catalog
+      summary: Lists published topics, metadata, difficulties, and question counts.
+      operationId: getCatalog
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Catalog is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Catalog"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/session/reset:
+    post:
+      tags:
+        - Session
+      summary: Resets the current session.
+      description: Removes in-memory runs associated with the provided session header.
+      operationId: resetSession
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "200":
+          description: Session reset.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - reset
+                properties:
+                  reset:
+                    type: boolean
+                    example: true
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/session/difficulties:
+    get:
+      tags:
+        - Session
+      summary: Lists difficulty availability for the current session and topic.
+      description: Counts remaining questions by difficulty using the current session, selected topic, and resolved locale.
+      operationId: getSessionDifficulties
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/AcceptLanguage"
+        - $ref: "#/components/parameters/Topic"
+      responses:
+        "200":
+          description: Session difficulty availability is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionDifficulties"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/session/topics:
+    get:
+      tags:
+        - Session
+      summary: Lists topic availability for the current session.
+      description: Counts remaining canonical question packages by topic using the current session and resolved locale.
+      operationId: getSessionTopics
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      responses:
+        "200":
+          description: Session topic availability is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTopics"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/runs:
+    post:
+      tags:
+        - Runs
+      summary: Creates a new run.
+      operationId: createRun
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/AcceptLanguage"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRunRequest"
+      responses:
+        "201":
+          description: Run created with the first question.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRunResponse"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "409":
+          $ref: "#/components/responses/NoQuestionsLeft"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/runs/{runId}/answers:
+    post:
+      tags:
+        - Runs
+      summary: Answers the current run question.
+      operationId: answerRunQuestion
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/RunID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerRequest"
+      responses:
+        "200":
+          description: Answer validated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "404":
+          $ref: "#/components/responses/RunNotFound"
+        "409":
+          description: Run already finished or question does not match current run state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/runs/{runId}/finish:
+    post:
+      tags:
+        - Runs
+      summary: Finishes a run manually.
+      operationId: finishRun
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/RunID"
+      responses:
+        "200":
+          description: Run finished.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinishRunResponse"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "404":
+          $ref: "#/components/responses/RunNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/runs/{runId}/result:
+    get:
+      tags:
+        - Runs
+      summary: Gets the final or partial run result.
+      operationId: getRunResult
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/RunID"
+      responses:
+        "200":
+          description: Run result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResult"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "404":
+          $ref: "#/components/responses/RunNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  parameters:
+    Theme:
+      name: X-QuickQuiz-Theme
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        example: dev
+      description: Active quiz theme requested by the frontend distribution.
+    Locale:
+      name: X-QuickQuiz-Locale
+      in: header
+      required: false
+      schema:
+        type: string
+        example: en-US
+      description: BCP 47 content locale. Explicit locale takes precedence over Accept-Language and fallback locale.
+    AcceptLanguage:
+      name: Accept-Language
+      in: header
+      required: false
+      schema:
+        type: string
+        example: pt-BR,pt;q=0.9,en-US;q=0.8
+      description: Browser/client locale preference used only when no explicit locale is provided.
+    SessionID:
+      name: X-QuickQuiz-Session-ID
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      example: 8dc52f2f-ecbc-448c-a10a-684297c56d8f
+    Topic:
+      name: topic
+      in: query
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      example: php
+    RunID:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: run_014c27d8d07ed827411d70c1edfdcd96
+
+  schemas:
+    Difficulty:
+      type: integer
+      format: int32
+      enum:
+        - 1
+        - 2
+        - 3
+        - 4
+      description: "1=easy, 2=normal, 3=hard, 4=hardcore."
+
+    FinishReason:
+      type: string
+      enum:
+        - player_quit
+        - max_questions_reached
+        - no_questions_left
+        - hardcore_wrong_answer
+
+    Catalog:
+      type: object
+      required:
+        - theme
+        - locale
+        - fallbackLocale
+        - topics
+        - difficulties
+      properties:
+        theme:
+          type: string
+          example: dev
+        locale:
+          type: string
+          example: pt-BR
+        fallbackLocale:
+          type: string
+          example: en-US
+        topics:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopicOption"
+        difficulties:
+          type: array
+          items:
+            $ref: "#/components/schemas/DifficultyInfo"
+
+    TopicOption:
+      type: object
+      required:
+        - id
+        - label
+        - weight
+      properties:
+        id:
+          type: string
+          example: php
+        label:
+          type: string
+          example: PHP Geral
+        description:
+          type: string
+          example: Recursos da linguagem PHP agnosticos a versao
+        weight:
+          type: integer
+          example: 100
+        createdAt:
+          type: string
+          example: "2026-01-01T00:00:00-03:00"
+        difficulties:
+          type: array
+          description: Difficulties available for this topic in the selected locale.
+          items:
+            $ref: "#/components/schemas/DifficultyInfo"
+
+    DifficultyInfo:
+      type: object
+      required:
+        - id
+        - optionCount
+        - questionCount
+        - hardcore
+      properties:
+        id:
+          $ref: "#/components/schemas/Difficulty"
+        optionCount:
+          type: integer
+          example: 5
+        questionCount:
+          type: integer
+          example: 20
+        hardcore:
+          type: boolean
+          example: false
+
+    SessionDifficulties:
+      type: object
+      required:
+        - theme
+        - locale
+        - topic
+        - difficulties
+      properties:
+        theme:
+          type: string
+          example: dev
+        locale:
+          type: string
+          example: pt-BR
+        topic:
+          type: string
+          example: php
+        difficulties:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionDifficultyAvailability"
+
+    SessionTopics:
+      type: object
+      required:
+        - theme
+        - locale
+        - fallbackLocale
+        - topics
+      properties:
+        theme:
+          type: string
+          example: dev
+        locale:
+          type: string
+          example: pt-BR
+        fallbackLocale:
+          type: string
+          example: en-US
+        topics:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionTopicAvailability"
+
+    SessionTopicAvailability:
+      type: object
+      required:
+        - id
+        - label
+        - weight
+        - questionCount
+        - availableQuestionCount
+        - available
+      properties:
+        id:
+          type: string
+          example: php
+        label:
+          type: string
+          example: PHP Geral
+        description:
+          type: string
+          example: Recursos da linguagem PHP agnosticos a versao
+        weight:
+          type: integer
+          example: 100
+        createdAt:
+          type: string
+          example: "2026-01-01T00:00:00-03:00"
+        questionCount:
+          type: integer
+          example: 30
+        availableQuestionCount:
+          type: integer
+          example: 4
+        available:
+          type: boolean
+          example: true
+        difficulties:
+          type: array
+          items:
+            $ref: "#/components/schemas/SessionDifficultyAvailability"
+
+    SessionDifficultyAvailability:
+      type: object
+      required:
+        - id
+        - optionCount
+        - questionCount
+        - availableQuestionCount
+        - available
+        - hardcore
+      properties:
+        id:
+          $ref: "#/components/schemas/Difficulty"
+        optionCount:
+          type: integer
+          example: 5
+        questionCount:
+          type: integer
+          example: 10
+        availableQuestionCount:
+          type: integer
+          example: 4
+        available:
+          type: boolean
+          example: true
+        hardcore:
+          type: boolean
+          example: false
+
+    CreateRunRequest:
+      type: object
+      required:
+        - topic
+        - difficulty
+      properties:
+        locale:
+          type: string
+          example: pt-BR
+        topic:
+          type: string
+          example: go
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+
+    CreateRunResponse:
+      type: object
+      required:
+        - runId
+        - theme
+        - locale
+        - question
+      properties:
+        runId:
+          type: string
+          example: run_014c27d8d07ed827411d70c1edfdcd96
+        theme:
+          type: string
+          example: dev
+        locale:
+          type: string
+          example: pt-BR
+        question:
+          $ref: "#/components/schemas/PublicQuestion"
+
+    PublicQuestion:
+      type: object
+      required:
+        - id
+        - prompt
+        - options
+        - current
+        - total
+      properties:
+        id:
+          type: string
+          example: go-easy-001
+        prompt:
+          type: string
+          example: Qual comando executa os testes de um modulo Go?
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuizOption"
+        current:
+          type: integer
+          example: 1
+        total:
+          type: integer
+          example: 10
+
+    QuizOption:
+      type: object
+      required:
+        - id
+        - text
+      properties:
+        id:
+          type: string
+          example: opt_4a5f5a1a96adac6b
+        text:
+          type: string
+          example: go test ./...
+
+    AnswerRequest:
+      type: object
+      required:
+        - questionId
+        - optionId
+      properties:
+        questionId:
+          type: string
+          example: go-easy-001
+        optionId:
+          type: string
+          example: opt_4a5f5a1a96adac6b
+
+    AnswerResponse:
+      type: object
+      required:
+        - correct
+        - finished
+      properties:
+        correct:
+          type: boolean
+          example: true
+        finished:
+          type: boolean
+          example: false
+        finishReason:
+          $ref: "#/components/schemas/FinishReason"
+        question:
+          $ref: "#/components/schemas/PublicQuestion"
+
+    FinishRunResponse:
+      type: object
+      required:
+        - finished
+        - finishReason
+      properties:
+        finished:
+          type: boolean
+          example: true
+        finishReason:
+          $ref: "#/components/schemas/FinishReason"
+
+    RunResult:
+      type: object
+      required:
+        - runId
+        - theme
+        - locale
+        - topic
+        - difficulty
+        - finishReason
+        - stats
+        - answers
+      properties:
+        runId:
+          type: string
+          example: run_014c27d8d07ed827411d70c1edfdcd96
+        theme:
+          type: string
+          example: dev
+        locale:
+          type: string
+          example: pt-BR
+        topic:
+          type: string
+          example: go
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        finishReason:
+          $ref: "#/components/schemas/FinishReason"
+        stats:
+          $ref: "#/components/schemas/ResultStats"
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnswerRecord"
+
+    ResultStats:
+      type: object
+      required:
+        - answered
+        - correct
+        - wrong
+        - accuracyPercent
+      properties:
+        answered:
+          type: integer
+          example: 10
+        correct:
+          type: integer
+          example: 7
+        wrong:
+          type: integer
+          example: 3
+        accuracyPercent:
+          type: integer
+          example: 70
+
+    AnswerRecord:
+      type: object
+      required:
+        - questionId
+        - prompt
+        - correct
+      properties:
+        questionId:
+          type: string
+          example: go-easy-001
+        prompt:
+          type: string
+          example: Qual comando executa os testes de um modulo Go?
+        correct:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: invalid_input
+            message:
+              type: string
+              example: Invalid input
+
+  responses:
+    InvalidInput:
+      description: Invalid input.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RunNotFound:
+      description: Run not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NoQuestionsLeft:
+      description: No questions available.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal error.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

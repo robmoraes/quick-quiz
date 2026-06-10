@@ -1,0 +1,30 @@
+{
+  "folders": [
+    {
+      "name": "QuickQuiz Dev",
+      "path": "."
+    },
+    {
+      "name": "api",
+      "path": "apps/api"
+    },
+    {
+      "name": "spa-dev",
+      "path": "apps/spa-dev"
+    },
+    {
+      "name": "manager",
+      "path": "apps/manager"
+    }
+  ],
+  "settings": {
+    "typescript.tsdk": "apps/spa-dev/node_modules/typescript/lib",
+    "eslint.workingDirectories": [
+      {
+        "directory": "apps/spa-dev",
+        "changeProcessCWD": true
+      }
+    ],
+    "go.useLanguageServer": true
+  }
+}

@@ -1,0 +1,19 @@
+body {
+  background: #f5f7fa;
+}
+
+.app-shell {
+  max-width: 1180px;
+}
+
+.text-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+textarea.form-control {
+  min-height: 120px;
+}
+
+.inline-form {
+  display: inline;
+}

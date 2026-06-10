@@ -1,0 +1,13 @@
+services:
+  api:
+    image: quickquiz-api:local
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    env_file:
+      - ${QUICKQUIZ_ENV_FILE:-./api.env.example}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../../.local:/app/.local:ro
+    restart: unless-stopped

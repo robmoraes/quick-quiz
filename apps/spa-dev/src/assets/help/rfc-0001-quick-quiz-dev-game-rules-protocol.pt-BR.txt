@@ -1,0 +1,233 @@
+Quick Quiz Dev Team                                         C. R. Moraes
+Request for Comments: 0001                        about.robmoraes.dev.br
+Categoria: Guia do Jogador                                 QuickQuiz Dev
+Status: Ativo                                                 Junho 2026
+
+
+             Quick Quiz Dev - Game Rules Protocol
+
+Status deste Documento
+
+   Este documento explica as regras do Quick Quiz Dev para quem vai
+   jogar.  Ele descreve o que acontece durante uma run, como funciona
+   uma sessão, o que muda em cada severidade e quais são as
+   consequências do modo FATAL, sem entrar em detalhes técnicos de
+   instalação ou implementação.
+
+Resumo
+
+   Quick Quiz Dev é um quiz com tema de desenvolvimento de software.
+   Você escolhe um tópico, escolhe uma severidade e inicia uma run.
+   Cada resposta conta para o resultado da run e para a sessão atual.
+
+   A sessão continua aberta entre runs até você encerrá-la, perder tudo
+   no modo FATAL ou iniciar uma nova sessão.
+
+Sumário
+
+   1.  Objetivo do jogo
+   2.  Tópicos
+   3.  Severidades
+   4.  Runs
+   5.  Quantidade de questões
+   6.  Respostas
+   7.  Resultado da run
+   8.  Sessão
+   9.  Resultado da sessão
+   10. Esgotamento de questões
+   11. Modo FATAL
+   12. Dicas rápidas
+
+1.  Objetivo do jogo
+
+   O objetivo é responder corretamente o maior número possível de
+   questões dentro do tópico e da severidade escolhidos.
+
+   No tema Dev, a linguagem do jogo usa referências de desenvolvimento:
+
+      resposta correta    Tests Passed
+      resposta errada     Tests Failed
+      resultado           Pull requests e code review
+      histórico           Syslog da sessão
+
+2.  Tópicos
+
+   Um tópico é o assunto da run.
+
+   Exemplos:
+
+      Go
+      PHP
+      Symfony
+      The Pragmatic Programmer
+
+   Você escolhe um tópico antes de escolher a severidade.  Durante uma
+   mesma sessão, um tópico pode ficar indisponível quando suas questões
+   disponíveis acabam.
+
+3.  Severidades
+
+   A severidade define o nível de risco e a quantidade de alternativas
+   exibidas em cada questão.
+
+      INFO     3 alternativas. Melhor para aquecer.
+      WARN     5 alternativas. Ritmo normal de jogo.
+      ERROR    7 alternativas. Mais exigente, com menos espaço para chute.
+      FATAL    7 alternativas. Uma resposta errada encerra tudo.
+
+   Em geral, quanto maior a severidade, maior a quantidade de opções em
+   cada pergunta.
+
+4.  Runs
+
+   Uma run é uma tentativa de quiz em um único tópico e uma única
+   severidade.
+
+   Durante a run:
+
+      uma questão aparece por vez;
+      você escolhe uma alternativa;
+      o jogo informa se você acertou ou errou;
+      a próxima questão aparece quando a run ainda não terminou;
+      ao final, o jogo mostra o resultado da run quando não há perda
+      fatal.
+
+   Uma run normal termina quando você responde a quantidade máxima de
+   questões da run, quando não há mais questões disponíveis ou quando
+   você encerra a sessão.
+
+   Se você encerrar a sessão no meio de uma run, a run atual é
+   finalizada com as respostas já registradas e entra no resultado da
+   sessão.
+
+5.  Quantidade de questões
+
+   A quantidade máxima de questões por run é definida pela configuração
+   atual do jogo.
+
+   Durante a run, o progresso mostra o total daquela tentativa:
+
+      Pergunta 1 de 5
+      Pergunta 2 de 5
+      ...
+
+   A run também depende da quantidade de questões ainda disponíveis
+   para aquele tópico e aquela severidade dentro da sessão.
+
+   Isso significa que uma run pode ter menos questões quando a sessão já
+   usou parte do conjunto disponível.
+
+6.  Respostas
+
+   Para responder, clique em uma alternativa.
+
+   Depois do clique, a resposta é registrada e o jogo mostra feedback
+   imediato:
+
+      Tests Passed    você acertou;
+      Tests Failed    você errou.
+
+   Em runs normais, errar uma questão não encerra automaticamente a
+   sessão.  Em INFO, WARN e ERROR, a run continua até atingir uma regra
+   normal de encerramento.
+
+7.  Resultado da run
+
+   O resultado da run aparece quando uma run termina normalmente.
+
+   Ele mostra:
+
+      total de questões respondidas;
+      quantidade de acertos;
+      quantidade de erros;
+      percentual de precisão;
+      revisão das questões respondidas.
+
+   O resultado da run serve para entender como foi aquela tentativa
+   específica.  Ele não encerra a sessão automaticamente.
+
+8.  Sessão
+
+   A sessão é o progresso atual do jogador.
+
+   Enquanto a sessão está aberta, você pode iniciar novas runs e
+   continuar acumulando histórico.  A sessão lembra quais questões já
+   foram usadas para evitar que você fique repetindo sempre o mesmo
+   conjunto.
+
+   A sessão pode terminar quando:
+
+      você escolhe encerrar a sessão;
+      você perde no modo FATAL;
+      você inicia uma nova sessão depois do resultado da sessão.
+
+9.  Resultado da sessão
+
+   O resultado da sessão é diferente do resultado da run.
+
+   Resultado da run:
+
+      mostra apenas a tentativa recém-finalizada.
+
+   Resultado da sessão:
+
+      agrega as runs concluídas durante a sessão atual;
+      inclui a run ativa se você encerrar a sessão durante uma pergunta;
+      mostra o desempenho acumulado;
+      encerra a sessão atual.
+
+   Use o resultado da sessão quando quiser fechar o ciclo de jogo e ver
+   o desempenho geral antes de começar de novo.
+
+   Uma perda em FATAL não gera resultado de sessão.  Ela apaga o
+   progresso e volta para uma sessão nova.
+
+10. Esgotamento de questões
+
+   Questões usadas em uma sessão deixam de ficar disponíveis para novas
+   runs da mesma combinação de tópico e severidade.
+
+   Exemplo:
+
+      Se você joga Go em ERROR e usa algumas questões, uma próxima run
+      de Go em ERROR na mesma sessão começa com menos questões
+      disponíveis.
+
+   Esse comportamento faz parte do jogo.  Ele evita repetição excessiva
+   e torna a sessão mais parecida com uma trilha de progresso.  Acertar
+   ou errar não muda esse ponto: se a questão apareceu, ela já conta
+   como usada na sessão.
+
+   Quando todas as questões disponíveis de um tópico ou severidade forem
+   usadas, aquela opção pode ficar bloqueada até uma nova sessão.
+
+11. Modo FATAL
+
+   FATAL é o modo de risco máximo.
+
+   Antes de iniciar uma run FATAL, o jogo avisa que uma resposta errada
+   reinicia toda a sessão.
+
+   Se você errar qualquer questão em FATAL:
+
+      a sessão inteira é perdida;
+      o progresso acumulado é apagado;
+      a run não mostra resultado normal;
+      a próxima jogada começa em uma sessão nova.
+
+   Essa perda é intencional.  No modo FATAL, errar não é apenas perder a
+   run: é perder a sessão.
+
+12. Dicas rápidas
+
+   Se quiser explorar um tópico com calma, comece em INFO ou WARN.
+
+   Se quiser testar domínio real do assunto, use ERROR.
+
+   Se escolher FATAL, jogue sabendo que não existe recuperação depois de
+   um erro.
+
+   Se um tópico ficar indisponível, encerre a sessão atual ou comece uma
+   nova sessão para renovar o conjunto de questões.
+
+Fim da RFC 0001.

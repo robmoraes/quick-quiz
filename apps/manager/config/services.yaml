@@ -1,0 +1,47 @@
+parameters:
+  openai.empty: ''
+  manager.database_url: '%env(MANAGER_DATABASE_URL)%'
+  manager.content_root: '%env(MANAGER_CONTENT_ROOT)%'
+  manager.fallback_locale: '%env(FALLBACK_LOCALE)%'
+  manager.supported_locales: '%env(SUPPORTED_LOCALES)%'
+  openai.api_key: '%env(default:openai.empty:OPENAI_API_KEY)%'
+  openai.model: '%env(default:openai.empty:OPENAI_MODEL)%'
+  openai.project: '%env(default:openai.empty:OPENAI_PROJECT)%'
+  openai.org_id: '%env(default:openai.empty:OPENAI_ORG_ID)%'
+
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+
+  App\:
+    resource: '../src/'
+
+  App\Repository\AdminRepository:
+    arguments:
+      $databaseUrl: '%manager.database_url%'
+
+  App\Service\QuizPackService:
+    arguments:
+      $contentRoot: '%manager.content_root%'
+      $fallbackLocale: '%manager.fallback_locale%'
+      $supportedLocales: '%manager.supported_locales%'
+      $themeContext: '@App\Service\ThemeContext'
+
+  App\Service\OpenAiQuestionLocalizer:
+    arguments:
+      $apiKey: '%openai.api_key%'
+      $model: '%openai.model%'
+      $project: '%openai.project%'
+      $organization: '%openai.org_id%'
+
+  App\Service\QuestionLocalizer: '@App\Service\OpenAiQuestionLocalizer'
+
+  App\Service\OpenAiQuestionRecommender:
+    arguments:
+      $apiKey: '%openai.api_key%'
+      $model: '%openai.model%'
+      $project: '%openai.project%'
+      $organization: '%openai.org_id%'
+
+  App\Service\QuestionRecommender: '@App\Service\OpenAiQuestionRecommender'

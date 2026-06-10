@@ -1,0 +1,84 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}Catalog - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <h1 class="h3 mb-0">Catalog</h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-primary" href="{{ path('catalog_new') }}">New topic</a>
+      <a class="btn btn-outline-secondary" href="{{ path('questions') }}">Manage questions</a>
+    </div>
+  </div>
+
+  <section class="card mb-3">
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Content root</dt>
+        <dd class="col-sm-9"><code>{{ contentRoot }}</code></dd>
+        <dt class="col-sm-3">Selected theme</dt>
+        <dd class="col-sm-9">
+          <code>{{ selectedTheme }}</code>
+          {% if theme and not theme.active %}
+            <span class="badge text-bg-secondary ms-2">inactive for player APIs</span>
+          {% endif %}
+        </dd>
+        <dt class="col-sm-3">Fallback locale</dt>
+        <dd class="col-sm-9">{{ fallbackLocale }}</dd>
+        <dt class="col-sm-3">Supported locales</dt>
+        <dd class="col-sm-9">{{ supportedLocales|join(', ') }}</dd>
+      </dl>
+    </div>
+  </section>
+
+  {% if validationErrors %}
+    <section class="alert alert-warning">
+      <strong>Validation issues</strong>
+      <ul class="mb-0">
+        {% for issue in validationErrors %}
+          <li>{{ issue }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle bg-white">
+      <thead class="table-light">
+      <tr>
+        <th>Key</th>
+        <th>Name</th>
+        <th>Weight</th>
+        <th>Created</th>
+        <th>Status</th>
+        <th>Questions</th>
+        <th>Actions</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for topic in topics %}
+        <tr>
+          <td><code>{{ topic.key }}</code></td>
+          <td>
+            <strong>{{ topic.name|default(topic.key) }}</strong>
+            <div class="text-muted small">{{ topic.description|default('') }}</div>
+          </td>
+          <td>{{ topic.weight }}</td>
+          <td>{{ topic.created_at|default('') }}</td>
+          <td>{% if topic.active %}<span class="badge text-bg-info">active</span>{% else %}<span class="text-muted">inactive</span>{% endif %}</td>
+          <td>{{ topic.questionCount }}</td>
+          <td>
+            <a href="{{ path('catalog_edit', {key: topic.key}) }}">Edit</a>
+            {% for locale in supportedLocales %}
+              | <a href="{{ path('catalog_localization', {locale: locale, key: topic.key}) }}">{{ locale }}</a>
+            {% endfor %}
+            | <a href="{{ path('questions', {topic: topic.key, locale: fallbackLocale, difficulty: 1}) }}">Questions</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7">No topics configured.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
