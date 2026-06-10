@@ -1,0 +1,9 @@
+{
+  "topics": [
+    {
+      "key": "quickquiz",
+      "name": "Fundamentos do QuickQuiz",
+      "description": "Um topico minimo usado para validar a stack local do QuickQuiz."
+    }
+  ]
+}

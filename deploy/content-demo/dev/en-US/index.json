@@ -1,0 +1,9 @@
+{
+  "topics": [
+    {
+      "key": "quickquiz",
+      "name": "QuickQuiz basics",
+      "description": "A minimal topic used to verify the local QuickQuiz stack."
+    }
+  ]
+}
