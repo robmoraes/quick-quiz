@@ -3,8 +3,7 @@
     'Cascadia Code', 'SFMono-Regular', 'Roboto Mono', 'DejaVu Sans Mono', 'Liberation Mono',
     Consolas, monospace;
   --answer-option-font:
-    'JetBrains Mono', 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Consolas,
-    monospace;
+    'JetBrains Mono', 'SFMono-Regular', 'DejaVu Sans Mono', 'Liberation Mono', Consolas, monospace;
   --panel-bg: rgba(10, 14, 24, 0.9);
   --panel-border: rgba(125, 227, 255, 0.18);
   --text-muted: rgba(247, 250, 255, 0.68);
@@ -50,7 +49,8 @@ body {
 .ad-slot--top {
   position: relative;
   justify-content: flex-end;
-  background-image: url('src/assets/banner-top.png');
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.5)), url('src/assets/banner-top.png');
   background-position: left top;
 }
 
@@ -64,8 +64,7 @@ body {
   border: 1px solid rgba(251, 191, 36, 0.38);
   border-radius: 999px;
   background:
-    linear-gradient(135deg, rgba(2, 6, 23, 0.86), rgba(7, 11, 21, 0.68)),
-    rgba(2, 6, 23, 0.74);
+    linear-gradient(135deg, rgba(2, 6, 23, 0.86), rgba(7, 11, 21, 0.68)), rgba(2, 6, 23, 0.74);
   color: #fde68a;
   font-size: 0.76rem;
   font-weight: 900;
@@ -93,11 +92,13 @@ body {
 }
 
 .ad-slot--left {
-  background-image: url('src/assets/banner-left.png');
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8)), url('src/assets/banner-left.png');
 }
 
 .ad-slot--right {
-  background-image: url('src/assets/banner-right.png');
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8)), url('src/assets/banner-right.png');
 }
 
 .tail-banner-terminal {
