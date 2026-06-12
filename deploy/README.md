@@ -79,22 +79,25 @@ For the optional cloud publishing flow using AWS EC2, Docker Compose, Traefik, a
 Export all four images as OCI artifacts under `deploy/dist`:
 
 ```sh
-make -C deploy build-images TAG=v0.1.0-beta OUTPUT=oci
+make -C deploy build-images TAG=v0.1.0-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=oci
 ```
 
 Push all four images with the same tag:
 
 ```sh
-make -C deploy build-images TAG=v0.1.0-beta OUTPUT=push
+make -C deploy build-images TAG=v0.1.0-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=push
 ```
 
 When `OUTPUT=push` is used, the Makefile also tags and pushes the same image as `latest` for each repository. For example, `TAG=v0.1.0-beta` publishes both `robmoraes/quick-quiz-api:v0.1.0-beta` and `robmoraes/quick-quiz-api:latest`.
+
+SPA Dev image builds require `VITE_API_BASE_URL`; there is intentionally no
+default because the value is compiled into the static frontend bundle.
 
 Build or push only one image with an individual tag:
 
 ```sh
 make -C deploy api API_TAG=v0.1.1-beta OUTPUT=push
-make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta OUTPUT=push
+make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=push
 make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
@@ -107,13 +110,22 @@ make -C deploy build-images \
   SPA_DEV_TAG=v0.1.0-dev \
   MANAGER_FPM_TAG=v0.1.2-fpm \
   MANAGER_WEB_TAG=v0.1.2-web \
+  VITE_API_BASE_URL=https://dev.quickquiz.com.br \
   OUTPUT=push
 ```
 
 Load images into the local Docker daemon:
 
 ```sh
-make -C deploy build-images OUTPUT=load
+make -C deploy build-images VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=load
 ```
 
-During the beta phase, Docker image builds are intentionally run manually from this Makefile. GitHub Actions is not used for image publishing yet.
+The GitHub Actions release workflow publishes app images when supported release
+tags are pushed. The workflow uses the `production` GitHub Environment and reads
+Docker Hub repositories and the SPA Dev API URL from environment variables:
+
+- `DOCKERHUB_API_IMAGE`
+- `DOCKERHUB_SPA_DEV_IMAGE`
+- `DOCKERHUB_MANAGER_FPM_IMAGE`
+- `DOCKERHUB_MANAGER_WEB_IMAGE`
+- `SPA_DEV_API_BASE_URL`

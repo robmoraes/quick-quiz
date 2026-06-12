@@ -8,7 +8,7 @@ MANAGER_FPM_TAG ?= $(TAG)
 MANAGER_WEB_TAG ?= $(TAG)
 PLATFORM ?= linux/amd64
 OUTPUT ?= oci
-VITE_API_BASE_URL ?= http://localhost:8080
+VITE_API_BASE_URL ?=
 
 API_REPOSITORY ?= robmoraes/quick-quiz-api
 SPA_DEV_REPOSITORY ?= robmoraes/quick-quiz-dev
@@ -19,7 +19,7 @@ API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/api/Dockerfile
 SPA_DEV_DOCKERFILE := $(ROOT_DIR)/deploy/docker/spa-dev/Dockerfile
 MANAGER_DOCKERFILE := $(ROOT_DIR)/deploy/docker/manager/Dockerfile
 
-.PHONY: build-images api spa-dev manager-fpm manager-web validate-output dist-dir
+.PHONY: build-images api spa-dev manager-fpm manager-web validate-output validate-spa-api-base-url dist-dir
 
 build-images: api spa-dev manager-fpm manager-web
 
@@ -31,7 +31,7 @@ api: validate-output dist-dir
 		$(call output_args,api,$(API_TAG)) \
 		"$(ROOT_DIR)"
 
-spa-dev: validate-output dist-dir
+spa-dev: validate-output validate-spa-api-base-url dist-dir
 	docker buildx build \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(SPA_DEV_REPOSITORY),$(SPA_DEV_TAG)) \
@@ -61,6 +61,13 @@ manager-web: validate-output dist-dir
 validate-output:
 	@if [ "$(OUTPUT)" != "oci" ] && [ "$(OUTPUT)" != "push" ] && [ "$(OUTPUT)" != "load" ]; then \
 		echo "Unsupported OUTPUT=$(OUTPUT). Use oci, push, or load." >&2; \
+		exit 1; \
+	fi
+
+validate-spa-api-base-url:
+	@if [ -z "$(strip $(VITE_API_BASE_URL))" ]; then \
+		echo "VITE_API_BASE_URL is required for spa-dev image builds." >&2; \
+		echo "Example: make -C deploy spa-dev SPA_DEV_TAG=v0.1.0 VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=push" >&2; \
 		exit 1; \
 	fi
 
