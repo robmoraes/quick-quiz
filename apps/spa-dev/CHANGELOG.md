@@ -9,6 +9,12 @@ format.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-12
+
+### Added
+
+- Added the Google AdSense validation script to the SPA Dev document head.
+
 ## [0.1.1] - 2026-06-12
 
 ### Fixed
@@ -41,6 +47,7 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.1...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.2...HEAD
+[0.1.2]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.1...spa-dev%2Fv0.1.2
 [0.1.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.0...spa-dev%2Fv0.1.1
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/spa-dev%2Fv0.1.0
