@@ -79,22 +79,25 @@ Para o fluxo opcional de publicação em nuvem usando AWS EC2, Docker Compose, T
 Exporte as quatro imagens como artefatos OCI em `deploy/dist`:
 
 ```sh
-make -C deploy build-images TAG=v0.1.0-beta OUTPUT=oci
+make -C deploy build-images TAG=v0.1.0-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=oci
 ```
 
 Publique as quatro imagens com a mesma tag:
 
 ```sh
-make -C deploy build-images TAG=v0.1.0-beta OUTPUT=push
+make -C deploy build-images TAG=v0.1.0-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=push
 ```
 
 Quando `OUTPUT=push` é usado, o Makefile também marca e publica a mesma imagem como `latest` em cada repositório. Por exemplo, `TAG=v0.1.0-beta` publica `robmoraes/quick-quiz-api:v0.1.0-beta` e `robmoraes/quick-quiz-api:latest`.
+
+Builds da imagem SPA Dev exigem `VITE_API_BASE_URL`; não há valor padrão de
+propósito, porque esse valor é compilado no bundle estático do frontend.
 
 Construa ou publique apenas uma imagem com tag individual:
 
 ```sh
 make -C deploy api API_TAG=v0.1.1-beta OUTPUT=push
-make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta OUTPUT=push
+make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=push
 make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
@@ -107,13 +110,23 @@ make -C deploy build-images \
   SPA_DEV_TAG=v0.1.0-dev \
   MANAGER_FPM_TAG=v0.1.2-fpm \
   MANAGER_WEB_TAG=v0.1.2-web \
+  VITE_API_BASE_URL=https://dev.quickquiz.com.br \
   OUTPUT=push
 ```
 
 Carregue imagens no Docker local:
 
 ```sh
-make -C deploy build-images OUTPUT=load
+make -C deploy build-images VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=load
 ```
 
-Durante a fase beta, os builds das imagens Docker são executados manualmente por este Makefile. GitHub Actions ainda não é usado para publicação de imagens.
+O workflow de release do GitHub Actions publica imagens quando tags de release
+suportadas são enviadas. O workflow usa o GitHub Environment `production` e lê
+os repositórios Docker Hub e a URL da API da SPA Dev de variáveis do
+environment:
+
+- `DOCKERHUB_API_IMAGE`
+- `DOCKERHUB_SPA_DEV_IMAGE`
+- `DOCKERHUB_MANAGER_FPM_IMAGE`
+- `DOCKERHUB_MANAGER_WEB_IMAGE`
+- `SPA_DEV_API_BASE_URL`

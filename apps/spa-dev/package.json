@@ -1,7 +1,7 @@
 {
   "name": "quickquiz-dev",
-  "version": "0.0.1",
-  "description": "Um quiz rapido pra devs",
+  "version": "0.1.0",
+  "description": "A quick quiz for devs",
   "productName": "QuickQuiz Dev",
   "author": "Carlos R Moraes <carlos.moraes.as@gmail.com>",
   "type": "module",

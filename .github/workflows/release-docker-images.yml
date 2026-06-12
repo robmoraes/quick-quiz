@@ -1,0 +1,323 @@
+name: Release Docker images
+
+on:
+  push:
+    tags:
+      - "api/**"
+      - "spa-dev/**"
+      - "manager/**"
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-docker-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release app image
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DOCKERHUB_API_IMAGE: ${{ vars.DOCKERHUB_API_IMAGE }}
+      DOCKERHUB_SPA_DEV_IMAGE: ${{ vars.DOCKERHUB_SPA_DEV_IMAGE }}
+      DOCKERHUB_MANAGER_FPM_IMAGE: ${{ vars.DOCKERHUB_MANAGER_FPM_IMAGE }}
+      DOCKERHUB_MANAGER_WEB_IMAGE: ${{ vars.DOCKERHUB_MANAGER_WEB_IMAGE }}
+      SPA_DEV_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
+
+    steps:
+      - name: Classify release tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag="${GITHUB_REF_NAME}"
+          valid=false
+          implemented=false
+          app=""
+          version=""
+          image=""
+          message=""
+
+          if [[ "${tag}" =~ ^api/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            valid=true
+            implemented=true
+            app="api"
+            version="${tag#api/}"
+            image="${DOCKERHUB_API_IMAGE}"
+            message="API release tag accepted."
+          elif [[ "${tag}" =~ ^api/ ]]; then
+            app="api"
+            message="API release tags must use api/vMAJOR.MINOR.PATCH."
+          elif [[ "${tag}" =~ ^spa-dev/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            valid=true
+            implemented=true
+            app="spa-dev"
+            version="${tag#spa-dev/}"
+            image="${DOCKERHUB_SPA_DEV_IMAGE}"
+            message="SPA Dev release tag accepted."
+          elif [[ "${tag}" =~ ^spa-dev/ ]]; then
+            app="spa-dev"
+            message="SPA Dev release tags must use spa-dev/vMAJOR.MINOR.PATCH."
+          elif [[ "${tag}" =~ ^manager/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            valid=true
+            implemented=true
+            app="manager"
+            version="${tag#manager/}"
+            image="${DOCKERHUB_MANAGER_FPM_IMAGE}, ${DOCKERHUB_MANAGER_WEB_IMAGE}"
+            message="Manager release tag accepted."
+          elif [[ "${tag}" =~ ^manager/ ]]; then
+            app="manager"
+            message="Manager release tags must use manager/vMAJOR.MINOR.PATCH."
+          elif [[ "${tag}" =~ ^v ]]; then
+            message="Repository-wide release tags are unsupported. Use api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
+          else
+            message="Unsupported release tag. Use api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
+          fi
+
+          {
+            echo "valid=${valid}"
+            echo "implemented=${implemented}"
+            echo "app=${app}"
+            echo "version=${version}"
+            echo "image=${image}"
+            echo "message=${message}"
+          } >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "## Release tag"
+            echo ""
+            echo "- Git tag: \`${tag}\`"
+            echo "- Valid: \`${valid}\`"
+            if [[ -n "${app}" ]]; then
+              echo "- App: \`${app}\`"
+            fi
+            if [[ -n "${version}" ]]; then
+              echo "- Version: \`${version}\`"
+            fi
+            if [[ -n "${image}" ]]; then
+              echo "- Docker Hub image(s): \`${image}\`"
+            fi
+            echo "- Result: ${message}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Reject invalid release tag
+        if: steps.tag.outputs.valid != 'true'
+        env:
+          RELEASE_MESSAGE: ${{ steps.tag.outputs.message }}
+        shell: bash
+        run: |
+          echo "${RELEASE_MESSAGE}" >&2
+          exit 1
+
+      - name: Stop release paths not implemented yet
+        if: steps.tag.outputs.valid == 'true' && steps.tag.outputs.implemented != 'true'
+        env:
+          RELEASE_MESSAGE: ${{ steps.tag.outputs.message }}
+        shell: bash
+        run: |
+          echo "${RELEASE_MESSAGE}" >&2
+          exit 1
+
+      - name: Validate production release configuration
+        if: steps.tag.outputs.implemented == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+
+          if [[ "${{ steps.tag.outputs.app }}" == "api" && -z "${DOCKERHUB_API_IMAGE}" ]]; then
+            missing+=("DOCKERHUB_API_IMAGE")
+          fi
+
+          if [[ "${{ steps.tag.outputs.app }}" == "spa-dev" ]]; then
+            if [[ -z "${DOCKERHUB_SPA_DEV_IMAGE}" ]]; then
+              missing+=("DOCKERHUB_SPA_DEV_IMAGE")
+            fi
+            if [[ -z "${SPA_DEV_API_BASE_URL}" ]]; then
+              missing+=("SPA_DEV_API_BASE_URL")
+            fi
+          fi
+
+          if [[ "${{ steps.tag.outputs.app }}" == "manager" ]]; then
+            if [[ -z "${DOCKERHUB_MANAGER_FPM_IMAGE}" ]]; then
+              missing+=("DOCKERHUB_MANAGER_FPM_IMAGE")
+            fi
+            if [[ -z "${DOCKERHUB_MANAGER_WEB_IMAGE}" ]]; then
+              missing+=("DOCKERHUB_MANAGER_WEB_IMAGE")
+            fi
+          fi
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'Missing production environment variable(s): %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Check out repository
+        if: steps.tag.outputs.implemented == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag commit is reachable from main
+        if: steps.tag.outputs.implemented == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --force --prune origin +refs/heads/main:refs/remotes/origin/main
+
+          tag_commit="$(git rev-list -n 1 "refs/tags/${GITHUB_REF_NAME}^{commit}")"
+
+          if ! git merge-base --is-ancestor "${tag_commit}" refs/remotes/origin/main; then
+            echo "Tag ${GITHUB_REF_NAME} points to ${tag_commit}, which is not reachable from main." >&2
+            exit 1
+          fi
+
+          {
+            echo ""
+            echo "## Source verification"
+            echo ""
+            echo "- Tag commit: \`${tag_commit}\`"
+            echo "- Reachable from \`main\`: \`true\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Set up Go
+        if: steps.tag.outputs.app == 'api'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.mod
+
+      - name: Test API
+        if: steps.tag.outputs.app == 'api'
+        working-directory: apps/api
+        run: go test ./...
+
+      - name: Set up Node
+        if: steps.tag.outputs.app == 'spa-dev'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/spa-dev/package-lock.json
+
+      - name: Install SPA Dev dependencies
+        if: steps.tag.outputs.app == 'spa-dev'
+        working-directory: apps/spa-dev
+        run: npm ci
+
+      - name: Lint SPA Dev
+        if: steps.tag.outputs.app == 'spa-dev'
+        working-directory: apps/spa-dev
+        run: npm run lint
+
+      - name: Build SPA Dev
+        if: steps.tag.outputs.app == 'spa-dev'
+        working-directory: apps/spa-dev
+        run: npm run build
+
+      - name: Set up PHP
+        if: steps.tag.outputs.app == 'manager'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: json, pdo, pdo_sqlite
+          tools: composer:v2
+          coverage: none
+
+      - name: Install manager dependencies
+        if: steps.tag.outputs.app == 'manager'
+        working-directory: apps/manager
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Test manager
+        if: steps.tag.outputs.app == 'manager'
+        working-directory: apps/manager
+        run: composer test
+
+      - name: Set up Docker Buildx
+        if: steps.tag.outputs.implemented == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: steps.tag.outputs.implemented == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push API image
+        if: steps.tag.outputs.app == 'api'
+        env:
+          API_TAG: ${{ steps.tag.outputs.version }}
+        run: make -C deploy api API_TAG="${API_TAG}" API_REPOSITORY="${DOCKERHUB_API_IMAGE}" OUTPUT=push
+
+      - name: Build and push SPA Dev image
+        if: steps.tag.outputs.app == 'spa-dev'
+        env:
+          SPA_DEV_TAG: ${{ steps.tag.outputs.version }}
+          VITE_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
+        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" VITE_API_BASE_URL="${VITE_API_BASE_URL}" OUTPUT=push
+
+      - name: Build and push manager FPM image
+        if: steps.tag.outputs.app == 'manager'
+        env:
+          MANAGER_FPM_TAG: ${{ steps.tag.outputs.version }}
+        run: make -C deploy manager-fpm MANAGER_FPM_TAG="${MANAGER_FPM_TAG}" MANAGER_FPM_REPOSITORY="${DOCKERHUB_MANAGER_FPM_IMAGE}" OUTPUT=push
+
+      - name: Build and push manager web image
+        if: steps.tag.outputs.app == 'manager'
+        env:
+          MANAGER_WEB_TAG: ${{ steps.tag.outputs.version }}
+        run: make -C deploy manager-web MANAGER_WEB_TAG="${MANAGER_WEB_TAG}" MANAGER_WEB_REPOSITORY="${DOCKERHUB_MANAGER_WEB_IMAGE}" OUTPUT=push
+
+      - name: Summarize API image push
+        if: steps.tag.outputs.app == 'api'
+        env:
+          API_TAG: ${{ steps.tag.outputs.version }}
+          API_IMAGE: ${{ steps.tag.outputs.image }}
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "## Published images"
+            echo ""
+            echo "- \`${API_IMAGE}:${API_TAG}\`"
+            echo "- \`${API_IMAGE}:latest\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Summarize SPA Dev image push
+        if: steps.tag.outputs.app == 'spa-dev'
+        env:
+          SPA_DEV_TAG: ${{ steps.tag.outputs.version }}
+          SPA_DEV_IMAGE: ${{ steps.tag.outputs.image }}
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "## Published images"
+            echo ""
+            echo "- \`${SPA_DEV_IMAGE}:${SPA_DEV_TAG}\`"
+            echo "- \`${SPA_DEV_IMAGE}:latest\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Summarize manager image push
+        if: steps.tag.outputs.app == 'manager'
+        env:
+          MANAGER_TAG: ${{ steps.tag.outputs.version }}
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "## Published images"
+            echo ""
+            echo "- \`${DOCKERHUB_MANAGER_FPM_IMAGE}:${MANAGER_TAG}\`"
+            echo "- \`${DOCKERHUB_MANAGER_FPM_IMAGE}:latest\`"
+            echo "- \`${DOCKERHUB_MANAGER_WEB_IMAGE}:${MANAGER_TAG}\`"
+            echo "- \`${DOCKERHUB_MANAGER_WEB_IMAGE}:latest\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
