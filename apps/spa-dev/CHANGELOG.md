@@ -9,6 +9,13 @@ format.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-12
+
+### Fixed
+
+- Rebuilt the SPA Dev release after correcting the production
+  `SPA_DEV_API_BASE_URL` environment variable used by the Docker image build.
+
 ## [0.1.0] - 2026-06-12
 
 ### Added
@@ -34,5 +41,6 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.1...HEAD
+[0.1.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.0...spa-dev%2Fv0.1.1
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/spa-dev%2Fv0.1.0
