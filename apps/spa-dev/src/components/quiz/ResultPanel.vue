@@ -1,11 +1,17 @@
 <template>
   <section class="result-panel">
     <div class="brand-row">
-      <div>
-        <h1>{{ result.title }}</h1>
-        <p>{{ result.subtitle }}</p>
-      </div>
+      <img :src="logoUrl" :alt="result.title" class="brand-logo" />
       <q-space />
+      <q-btn
+        flat
+        round
+        icon="help_outline"
+        :aria-label="t('rules.button')"
+        @click="emit('open-rules')"
+      >
+        <q-tooltip>{{ t('rules.button') }}</q-tooltip>
+      </q-btn>
       <q-btn
         flat
         round
@@ -165,6 +171,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import logoUrl from 'src/assets/logo-large.svg';
 import type { ResultPanelEmit, ResultPanelProps } from './contracts';
 import { syslogPrompt, syslogTailCommand, syslogTerminalIntroLines } from 'src/services/syslog-terminal';
 import QuizMarkdown from './QuizMarkdown.vue';

@@ -13,13 +13,7 @@ import {
   type PublicQuestion,
   type RunResult,
 } from 'src/services/api';
-import { advertisingConfig } from 'src/services/advertising-config';
-import {
-  nextResultViewCount,
-  resetResultViewCount,
-  shouldShowResultInterstitial,
-} from 'src/services/result-ad-frequency';
-import { shouldShowGithubStarInvite } from 'src/services/github-star-invite';
+import { resetResultViewCount } from 'src/services/result-ad-frequency';
 import {
   appendSessionEvent,
   clearSessionEventLog,
@@ -397,18 +391,10 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   }
 
   function showRunResult() {
-    const resultViewCount = nextResultViewCount();
-    screen.value =
-      advertisingConfig.mobileResultInterstitialEnabled &&
-      shouldShowResultInterstitial(resultViewCount) &&
-      allLayoutAdsHidden() &&
-      shouldShowGithubStarInvite()
-        ? 'runAd'
-        : 'runResult';
-  }
-
-  function closeRunAd() {
     screen.value = 'runResult';
+
+    // advertisingConfig.mobileResultInterstitialEnabled &&
+    //   shouldShowResultInterstitial(resultViewCount) &&
   }
 
   function notifyAnswerFeedback(correct: boolean) {
@@ -427,10 +413,6 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   async function refreshActiveAvailability() {
     await catalog.refreshTopicAvailability();
     await catalog.refreshDifficultyAvailability();
-  }
-
-  function allLayoutAdsHidden() {
-    return $q.screen.width < 600;
   }
 
   async function newRun() {
@@ -604,7 +586,6 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     goToTopicSelection,
     startRun,
     submitAnswer,
-    closeRunAd,
     newRun,
     confirmEndSession,
     handleResultEndSession,

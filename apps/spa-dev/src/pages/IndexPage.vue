@@ -1,8 +1,5 @@
 <template>
-  <q-page
-    class="quiz-page"
-    :class="{ 'quiz-page--ad-interstitial': screen === 'runAd' || screen === 'fatalLoss' }"
-  >
+  <q-page class="quiz-page" :class="{ 'quiz-page--ad-interstitial': screen === 'fatalLoss' }">
     <StartPanel
       v-if="screen === 'start'"
       v-model:selected-topic="selectedTopic"
@@ -66,8 +63,6 @@
       @end-session="confirmEndSession"
     />
 
-    <RunAdPanel v-else-if="screen === 'runAd'" @close="closeRunAd" />
-
     <FatalLossPanel
       v-else-if="screen === 'fatalLoss'"
       :message-visible="fatalLossMessageVisible"
@@ -84,6 +79,7 @@
       :new-run-action-label="actionLabel('actions.newRun', canEndSession)"
       :end-session-action-label="actionLabel('actions.endSession', !sessionCompleted)"
       :new-session-action-label="actionLabel('actions.newSession')"
+      @open-rules="rulesOpen = true"
       @open-settings="settingsOpen = true"
       @new-run="newRun"
       @end-session="handleResultEndSession"
@@ -116,7 +112,6 @@ import FatalLossPanel from 'src/components/quiz/FatalLossPanel.vue';
 import QuestionPanel from 'src/components/quiz/QuestionPanel.vue';
 import ResultPanel from 'src/components/quiz/ResultPanel.vue';
 import RulesModal from 'src/components/quiz/RulesModal.vue';
-import RunAdPanel from 'src/components/quiz/RunAdPanel.vue';
 import SettingsDialog from 'src/components/quiz/SettingsDialog.vue';
 import StartPanel from 'src/components/quiz/StartPanel.vue';
 import { useQuizCatalog } from 'src/composables/useQuizCatalog';
@@ -171,7 +166,6 @@ const {
   goToTopicSelection,
   startRun,
   submitAnswer,
-  closeRunAd,
   newRun,
   confirmEndSession,
   handleResultEndSession,

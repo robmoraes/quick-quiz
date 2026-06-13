@@ -59,6 +59,24 @@ export default {
     questionProgress: 'Pergunta {current} de {total}',
     sessionAvailability: 'Sessao {available}/{total}',
     topicAvailability: 'Topico {available}/{total}',
+    availabilityCards: {
+      questionsLabel: 'Questões',
+      answeredLabel: 'respondido',
+      totalLabel: 'total',
+      sessionLabel: 'Sessão',
+      topicLabel: 'Tópico',
+      session: {
+        activeTooltip:
+          'Nessa sessão ainda restam <strong>{available}</strong> questões do total de <strong>{total}</strong>.',
+        inactiveTooltip:
+          'Existem <strong>{total}</strong> questões disponíveis antes de iniciar uma sessão.',
+      },
+      topic: {
+        activeTooltip:
+          'Nessa sessão, este tópico ainda tem <strong>{available}</strong> questões restantes do total de <strong>{total}</strong>.',
+        inactiveTooltip: 'Este tópico tem <strong>{total}</strong> questões disponíveis.',
+      },
+    },
     correct: 'Tests Passed',
     wrong: 'Tests Failed',
   },

@@ -13,7 +13,6 @@ export type QuizScreen =
   | 'start'
   | 'difficulty'
   | 'question'
-  | 'runAd'
   | 'fatalLoss'
   | 'runResult'
   | 'sessionResult';
@@ -53,6 +52,7 @@ export type DifficultyOption = {
 export interface AvailabilityCounter {
   available: number;
   total: number;
+  active: boolean;
 }
 
 export interface ResultSnapshot {
@@ -140,10 +140,6 @@ export type QuestionPanelEmit = {
   (event: 'end-session'): void;
 };
 
-export type RunAdPanelEmit = {
-  (event: 'close'): void;
-};
-
 export interface FatalLossPanelProps {
   messageVisible: boolean;
 }
@@ -164,6 +160,7 @@ export interface ResultPanelProps {
 }
 
 export type ResultPanelEmit = {
+  (event: 'open-rules'): void;
   (event: 'open-settings'): void;
   (event: 'new-run'): void;
   (event: 'end-session'): void;

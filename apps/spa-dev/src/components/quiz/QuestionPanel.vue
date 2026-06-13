@@ -3,10 +3,6 @@
     <div class="run-topline">
       <q-chip square color="black" text-color="amber-3">{{ selectedTopicLabel }}</q-chip>
       <q-chip square color="black" text-color="cyan-2">{{ selectedDifficultyLabel }}</q-chip>
-      <AvailabilityCounters
-        :session-question-counter="sessionQuestionCounter"
-        :selected-topic-question-counter="selectedTopicQuestionCounter"
-      />
     </div>
 
     <q-linear-progress
@@ -62,7 +58,6 @@
 
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import AvailabilityCounters from './AvailabilityCounters.vue';
 import QuizMarkdown from './QuizMarkdown.vue';
 import type { QuestionPanelEmit, QuestionPanelProps } from './contracts';
 

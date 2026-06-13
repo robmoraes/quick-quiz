@@ -1,11 +1,17 @@
 <template>
   <section class="start-panel">
     <div class="brand-row">
-      <div>
-        <h1>{{ t('app.title') }}</h1>
-        <p>{{ selectedTopicLabel }}</p>
-      </div>
+      <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
       <q-space />
+      <q-btn
+        flat
+        round
+        icon="help_outline"
+        :aria-label="t('rules.button')"
+        @click="emit('open-rules')"
+      >
+        <q-tooltip>{{ t('rules.button') }}</q-tooltip>
+      </q-btn>
       <q-btn
         flat
         round
@@ -17,10 +23,6 @@
 
     <div class="topic-line">
       <q-chip square color="black" text-color="amber-3">{{ selectedTopicLabel }}</q-chip>
-      <AvailabilityCounters
-        :session-question-counter="sessionQuestionCounter"
-        :selected-topic-question-counter="selectedTopicQuestionCounter"
-      />
       <q-space />
       <q-btn
         flat
@@ -31,17 +33,6 @@
         @click="emit('change-topic')"
       />
     </div>
-
-    <q-btn
-      outline
-      no-caps
-      color="cyan-3"
-      icon="article"
-      :label="t('rules.button')"
-      :aria-label="t('rules.button')"
-      class="rules-button"
-      @click="emit('open-rules')"
-    />
 
     <div class="row q-col-gutter-sm q-mb-lg">
       <div v-for="option in difficultyOptions" :key="option.value" class="col-12 col-sm-3">
@@ -71,6 +62,12 @@
     <q-banner v-else class="topic-description q-mb-lg">
       {{ t('errors.noDifficulties') }}
     </q-banner>
+
+    <AvailabilityCounters
+      :session-question-counter="sessionQuestionCounter"
+      :selected-topic-question-counter="selectedTopicQuestionCounter"
+      class="q-mb-lg"
+    />
 
     <div v-if="errorMessage" class="error-line">{{ errorMessage }}</div>
 
@@ -108,6 +105,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import logoUrl from 'src/assets/logo-large.svg';
 import AvailabilityCounters from './AvailabilityCounters.vue';
 import type { DifficultyPanelEmit, DifficultyPanelProps } from './contracts';
 

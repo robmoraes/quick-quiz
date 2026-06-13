@@ -70,12 +70,17 @@ export function useQuizCatalog() {
   );
   const sessionQuestionCounter = computed<AvailabilityCounter | null>(() => {
     if (!sessionHasBackendState.value || !sessionTopics.value) {
-      return null;
+      const total = catalog.value.topics.reduce(
+        (counterTotal, topic) => counterTotal + topicTotalCount(topic),
+        0,
+      );
+      return buildCounter(total, total, false);
     }
 
     return buildCounter(
       sessionTopics.value.topics.reduce((total, topic) => total + topicAvailableCount(topic), 0),
       sessionTopics.value.topics.reduce((total, topic) => total + topicTotalCount(topic), 0),
+      true,
     );
   });
   const selectedTopicQuestionCounter = computed<AvailabilityCounter | null>(() => {
@@ -86,7 +91,7 @@ export function useQuizCatalog() {
 
     const total = topicTotalCount(topic);
     const available = sessionHasBackendState.value ? topicAvailableCount(topic) : total;
-    return buildCounter(available, total);
+    return buildCounter(available, total, sessionHasBackendState.value);
   });
 
   const sessionDifficultySource = computed(() =>
@@ -394,7 +399,7 @@ function topicAvailabilityFields(sessionTopics: SessionTopics) {
   };
 }
 
-function buildCounter(available: number, total: number): AvailabilityCounter | null {
+function buildCounter(available: number, total: number, active: boolean): AvailabilityCounter | null {
   if (total <= 0) {
     return null;
   }
@@ -402,6 +407,7 @@ function buildCounter(available: number, total: number): AvailabilityCounter | n
   return {
     available: Math.max(0, available),
     total,
+    active,
   };
 }
 

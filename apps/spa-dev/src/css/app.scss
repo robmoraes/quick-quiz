@@ -242,13 +242,12 @@ body {
 
 .start-panel,
 .question-panel,
-.result-panel,
-.ad-interstitial-panel {
+.result-panel {
   display: flex;
   flex-direction: column;
   width: 100%;
   min-height: calc(100vh - 20px);
-  padding: 18px;
+  padding: 5px;
   border: 1px solid var(--panel-border);
   border-radius: 8px;
   background: var(--panel-bg);
@@ -259,24 +258,17 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 24px;
+  margin: 0 0 5px 2px;
 }
 
-.brand-row h1,
 .question-panel h2 {
   margin: 0;
   letter-spacing: 0;
 }
 
-.brand-row h1 {
-  font-size: 2.2rem;
-  line-height: 1;
-}
-
-.brand-row p {
-  margin: 6px 0 0;
-  color: var(--text-muted);
-  font-size: 0.92rem;
+.brand-logo {
+  display: block;
+  height: 30px;
 }
 
 .selectors {
@@ -291,20 +283,6 @@ body {
   align-items: center;
   gap: 8px;
   margin-bottom: 14px;
-}
-
-.availability-counters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.availability-counter {
-  margin: 0;
-  border: 1px solid rgba(125, 227, 255, 0.16);
-  font-size: 0.72rem;
-  font-weight: 900;
 }
 
 .topic-description {
@@ -336,13 +314,6 @@ body {
   max-height: 200px;
   overflow-y: auto;
   padding-right: 6px;
-}
-
-.rules-button {
-  align-self: center;
-  max-width: 100%;
-  margin-bottom: 18px;
-  white-space: normal;
 }
 
 .command-actions {
@@ -570,14 +541,6 @@ body {
   overflow-y: auto;
 }
 
-.answer-list {
-  max-height: 300px;
-  margin-bottom: 22px;
-  overflow: auto;
-  border-color: rgba(125, 227, 255, 0.16);
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .answer-table {
   max-height: 320px;
   margin-bottom: 22px;
@@ -606,98 +569,6 @@ body {
 .answer-table__icon {
   width: 44px;
   text-align: center !important;
-}
-
-.ad-interstitial-panel {
-  min-height: 100vh;
-  min-height: 100dvh;
-  justify-content: stretch;
-  border-radius: 0;
-}
-
-.ad-interstitial-panel__topline {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
-.ad-interstitial-panel__eyebrow {
-  margin-bottom: 6px;
-  color: #8fcfff;
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.ad-interstitial-panel h1 {
-  margin: 0;
-  font-size: 1.42rem;
-  line-height: 1.08;
-}
-
-.ad-interstitial-panel__slot {
-  display: grid;
-  flex: 1;
-  min-height: 340px;
-  place-items: center;
-  border: 1px dashed rgba(255, 255, 255, 0.34);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(125, 227, 255, 0.12), transparent 42%), rgba(255, 255, 255, 0.06);
-}
-
-.github-star-invite {
-  display: grid;
-  gap: 18px;
-  width: min(100%, 420px);
-  padding: 28px 24px;
-  border: 1px solid rgba(251, 191, 36, 0.32);
-  border-radius: 8px;
-  background:
-    linear-gradient(145deg, rgba(251, 191, 36, 0.18), rgba(103, 232, 249, 0.08)),
-    rgba(7, 11, 21, 0.72);
-  color: #f8fafc;
-  text-align: center;
-  text-decoration: none;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 18px 42px rgba(0, 0, 0, 0.32);
-}
-
-.github-star-invite__icon {
-  justify-self: center;
-  color: #fbbf24;
-  filter: drop-shadow(0 0 16px rgba(251, 191, 36, 0.36));
-}
-
-.github-star-invite__copy {
-  display: grid;
-  gap: 10px;
-}
-
-.github-star-invite__copy strong {
-  font-size: 1.22rem;
-  line-height: 1.15;
-}
-
-.github-star-invite__copy span {
-  color: rgba(248, 250, 252, 0.78);
-  font-size: 0.92rem;
-  font-weight: 700;
-  line-height: 1.42;
-}
-
-.github-star-invite__action {
-  justify-self: center;
-  padding: 10px 14px;
-  border: 1px solid rgba(251, 191, 36, 0.42);
-  border-radius: 999px;
-  background: rgba(251, 191, 36, 0.12);
-  color: #fde68a;
-  font-size: 0.78rem;
-  font-weight: 900;
-  text-transform: uppercase;
 }
 
 .rules-modal {
@@ -843,13 +714,6 @@ body {
   font-weight: 800;
 }
 
-@media (max-width: 599px) {
-  .brand-row h1 {
-    font-size: 1.72rem;
-    line-height: 1.04;
-  }
-}
-
 @media (min-width: 700px) {
   .game-grid {
     padding: 0 18px;
@@ -857,14 +721,8 @@ body {
 
   .start-panel,
   .question-panel,
-  .result-panel,
-  .ad-interstitial-panel {
+  .result-panel {
     min-height: 560px;
-    padding: 28px;
-  }
-
-  .brand-row h1 {
-    font-size: 3rem;
   }
 
   .question-panel h2 {
@@ -938,8 +796,7 @@ body {
 
   .start-panel,
   .question-panel,
-  .result-panel,
-  .ad-interstitial-panel {
+  .result-panel {
     min-height: var(--game-min-height) !important;
     overflow: visible;
   }
@@ -1016,14 +873,9 @@ body {
 
   .start-panel,
   .question-panel,
-  .result-panel,
-  .ad-interstitial-panel {
+  .result-panel {
     min-height: var(--game-min-height) !important;
     overflow: visible;
-  }
-
-  .brand-row h1 {
-    font-size: 3.2rem;
   }
 
   .question-panel h2 {
