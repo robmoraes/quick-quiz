@@ -47,8 +47,8 @@ components and run/catalog/preference logic moves into composables.
 
 See the SPA refactor specs:
 
-- [IndexPage refactor boundaries](../specs/spa-dev/003-indexpage-refactor-boundaries.md)
-- [Final SPA refactor acceptance](../specs/spa-dev/008-final-spa-refactor-acceptance.md)
+- [IndexPage refactor boundaries](../specs/archive/spa-dev/003-indexpage-refactor-boundaries.md)
+- [Final SPA refactor acceptance](../specs/archive/spa-dev/008-final-spa-refactor-acceptance.md)
 
 Final acceptance evidence:
 

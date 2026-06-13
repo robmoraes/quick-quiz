@@ -1,0 +1,114 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}{% if isEdit %}Manual edit{% else %}Create{% endif %} - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <h1 class="h3 mb-3">{% if isEdit %}Manual edit{% else %}Create{% endif %}</h1>
+  <section class="card">
+    <div class="card-body">
+      {% if error|default('') %}
+        <p class="alert alert-danger">{{ error }}</p>
+      {% endif %}
+
+      <form method="post" action="{{ isEdit ? path('question_manual_update') : path('question_manual_create') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <div class="row">
+          {% if not isEdit %}
+            <div class="col-md-3 mb-3">
+              <label class="form-label" for="sourceLocale">Source locale</label>
+              <select class="form-select" id="sourceLocale" name="sourceLocale">
+                {% for item in locales %}
+                  <option value="{{ item }}" {% if item == sourceLocale %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          {% endif %}
+          <div class="col-md-3 mb-3">
+            <label class="form-label" for="topic">Topic</label>
+            <select class="form-select" id="topic" name="topic">
+              {% for item in topics %}
+                <option value="{{ item.key }}" {% if item.key == topic %}selected{% endif %}>
+                  {{ item.key }}{% if not item.active %} (inactive){% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label" for="difficulty">Difficulty</label>
+            <select class="form-select" id="difficulty" name="difficulty">
+              {% for id, item in difficulties %}
+                <option value="{{ id }}" {% if id == difficulty %}selected{% endif %}>{{ id }} - {{ item.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label" for="questionId">Question ID</label>
+            <input
+              class="form-control text-mono"
+              id="questionId"
+              name="questionId"
+              value="{{ questionId }}"
+              placeholder="{{ suggestedQuestionId|default('auto-generated') }}"
+              {% if isEdit %}readonly{% endif %}>
+            {% if not isEdit %}
+              <div class="form-text">Leave blank to create <code>{{ suggestedQuestionId|default('the next ID') }}</code>.</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if isEdit %}
+          <ul class="nav nav-tabs mb-3" role="tablist">
+            {% for locale in locales %}
+              {% set localeKey = locale|replace({'-': '_'}) %}
+              <li class="nav-item" role="presentation">
+                <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ localeKey }}" data-bs-toggle="tab" data-bs-target="#pane-{{ localeKey }}" type="button" role="tab" aria-controls="pane-{{ localeKey }}" aria-selected="{{ loop.first ? 'true' : 'false' }}">{{ locale }}</button>
+              </li>
+            {% endfor %}
+          </ul>
+          <div class="tab-content">
+            {% for locale in locales %}
+              {% set localeKey = locale|replace({'-': '_'}) %}
+              {% set localized = localizedQuestions[locale]|default({'prompt': '', 'correctOptions': [], 'wrongOptions': []}) %}
+              <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="pane-{{ localeKey }}" role="tabpanel" aria-labelledby="tab-{{ localeKey }}" tabindex="0">
+                <div class="mb-3">
+                  <label class="form-label" for="prompt-{{ localeKey }}">Prompt</label>
+                  <textarea class="form-control" id="prompt-{{ localeKey }}" name="questions[{{ locale }}][prompt]" required>{{ localized.prompt }}</textarea>
+                </div>
+                <div class="row">
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label" for="correctOptions-{{ localeKey }}">Correct options, one per line</label>
+                    <textarea class="form-control text-mono" id="correctOptions-{{ localeKey }}" name="questions[{{ locale }}][correctOptions]" required>{{ localized.correctOptions|join("\n") }}</textarea>
+                  </div>
+                  <div class="col-md-6 mb-3">
+                    <label class="form-label" for="wrongOptions-{{ localeKey }}">Wrong options, one per line</label>
+                    <textarea class="form-control text-mono" id="wrongOptions-{{ localeKey }}" name="questions[{{ locale }}][wrongOptions]" style="min-height: 300px;" required>{{ localized.wrongOptions|join("\n") }}</textarea>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="mb-3">
+            <label class="form-label" for="prompt">Prompt</label>
+            <textarea class="form-control" id="prompt" name="prompt" required>{{ question.prompt }}</textarea>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label" for="correctOptions">Correct options, one per line</label>
+              <textarea class="form-control text-mono" id="correctOptions" name="correctOptions" required>{{ question.correctOptions|join("\n") }}</textarea>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label" for="wrongOptions">Wrong options, one per line</label>
+              <textarea class="form-control text-mono" id="wrongOptions" name="wrongOptions" style="min-height: 300px;" required>{{ question.wrongOptions|join("\n") }}</textarea>
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Save</button>
+          <a class="btn btn-outline-secondary" href="{{ path('questions', {locale: isEdit ? fallbackLocale : sourceLocale, topic: topic, difficulty: difficulty}) }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}

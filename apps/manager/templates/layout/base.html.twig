@@ -47,5 +47,15 @@
     <main class="container-fluid app-shell py-4">
       {% block body %}{% endblock %}
     </main>
+    <footer class="manager-status-footer fixed-bottom border-top bg-white">
+      <div class="container-fluid app-shell d-flex align-items-center justify-content-between gap-3 py-2">
+        <span class="small text-muted">QuickQuiz Manager</span>
+        {% if openAiConfigured %}
+          <span class="badge text-bg-success">AI active · {{ openAiModel }}</span>
+        {% else %}
+          <span class="badge text-bg-secondary">AI inactive</span>
+        {% endif %}
+      </div>
+    </footer>
   </body>
 </html>

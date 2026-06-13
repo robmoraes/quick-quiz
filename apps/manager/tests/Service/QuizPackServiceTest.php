@@ -79,6 +79,49 @@ final class QuizPackServiceTest extends TestCase
         self::assertFileExists($this->root.'/dev/en-US/php/1/php-1-002.json');
     }
 
+    public function testManualCreationReplicatesSourceQuestionToEverySupportedLocale(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+
+        $questionId = $service->createReplicatedQuestionSet('pt-BR', 'php', 1, '', [
+            'prompt' => 'Qual tag inicia PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+
+        self::assertSame('php-1-001', $questionId);
+        self::assertSame(
+            $service->readQuestion('pt-BR', 'php', 1, 'php-1-001'),
+            $service->readQuestion('en-US', 'php', 1, 'php-1-001'),
+        );
+    }
+
+    public function testManualCreationRejectsDuplicateBeforeWritingAnyLocale(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+        $service->createReplicatedQuestionSet('en-US', 'php', 1, 'php-1-001', [
+            'prompt' => 'Which tag starts PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+
+        try {
+            $service->createReplicatedQuestionSet('pt-BR', 'php', 1, 'php-1-001', [
+                'prompt' => 'Qual tag inicia PHP?',
+                'correctOptions' => ['<?php'],
+                'wrongOptions' => ['<?', '<script>'],
+            ]);
+            self::fail('Expected duplicate replicated question creation to fail.');
+        } catch (\RuntimeException $error) {
+            self::assertStringContainsString('Question path already exists in locale en-US.', $error->getMessage());
+        }
+
+        self::assertSame('Which tag starts PHP?', $service->readQuestion('en-US', 'php', 1, 'php-1-001')['prompt']);
+        self::assertSame('Which tag starts PHP?', $service->readQuestion('pt-BR', 'php', 1, 'php-1-001')['prompt']);
+    }
+
     public function testTopicChoicesIncludeInactiveTopics(): void
     {
         $service = $this->service();
@@ -147,6 +190,137 @@ final class QuizPackServiceTest extends TestCase
         self::assertSame('php-1-001', $prepared['questionId']);
         self::assertFileExists($this->root.'/dev/en-US/php/1/php-1-001.json');
         self::assertFileExists($this->root.'/dev/pt-BR/php/1/php-1-001.json');
+    }
+
+    public function testReadsLocalizedQuestionSetForManualEditing(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+        $service->createReplicatedQuestionSet('en-US', 'php', 1, 'php-1-001', [
+            'prompt' => 'Which tag starts PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+
+        $localized = $service->readLocalizedQuestionSet('php', 1, 'php-1-001');
+
+        self::assertSame(['en-US', 'pt-BR'], array_keys($localized));
+        self::assertSame('Which tag starts PHP?', $localized['en-US']['prompt']);
+        self::assertSame('Which tag starts PHP?', $localized['pt-BR']['prompt']);
+    }
+
+    public function testManualEditRejectsNonCanonicalAnswerCountDriftWithoutPartialWrites(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+        $service->createReplicatedQuestionSet('en-US', 'php', 1, 'php-1-001', [
+            'prompt' => 'Which tag starts PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+
+        try {
+            $service->updateManualLocalizedQuestionSet('php', 1, 'php-1-001', [
+                'en-US' => [
+                    'prompt' => 'Which tag starts PHP?',
+                    'correctOptions' => ['<?php'],
+                    'wrongOptions' => ['<?', '<script>', '<%'],
+                ],
+                'pt-BR' => [
+                    'prompt' => 'Qual tag inicia PHP?',
+                    'correctOptions' => ['<?php'],
+                    'wrongOptions' => ['<?', '<script>'],
+                ],
+            ]);
+            self::fail('Expected canonical answer count drift to fail.');
+        } catch (\RuntimeException $error) {
+            self::assertStringContainsString('pt-BR must contain 3 wrong option(s)', $error->getMessage());
+        }
+
+        self::assertSame('Which tag starts PHP?', $service->readQuestion('en-US', 'php', 1, 'php-1-001')['prompt']);
+        self::assertSame('Which tag starts PHP?', $service->readQuestion('pt-BR', 'php', 1, 'php-1-001')['prompt']);
+    }
+
+    public function testManualEditAcceptsArbitraryLocalizedTextWhenAnswerCountsMatch(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+        $service->createReplicatedQuestionSet('en-US', 'php', 1, 'php-1-001', [
+            'prompt' => 'Which tag starts PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+
+        $service->updateManualLocalizedQuestionSet('php', 1, 'php-1-001', [
+            'en-US' => [
+                'prompt' => 'Which tag starts PHP?',
+                'correctOptions' => ['<?php'],
+                'wrongOptions' => ['<?', '<script>'],
+            ],
+            'pt-BR' => [
+                'prompt' => 'Texto livre do editor',
+                'correctOptions' => ['Resposta livre'],
+                'wrongOptions' => ['Errada A', 'Errada B'],
+            ],
+        ]);
+
+        self::assertSame('Texto livre do editor', $service->readQuestion('pt-BR', 'php', 1, 'php-1-001')['prompt']);
+    }
+
+    public function testAiUpdateRequiresExistingQuestionSet(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+
+        $this->expectExceptionMessage('Question package php/1/php-1-001 is missing in locale en-US.');
+
+        $service->updateAiLocalizedQuestionSet('php', 1, 'php-1-001', [
+            'prompt' => 'Question',
+            'correctOptions' => ['A'],
+            'wrongOptions' => ['B', 'C'],
+        ], [
+            'en-US' => [
+                'prompt' => 'Question',
+                'correctOptions' => ['A'],
+                'wrongOptions' => ['B', 'C'],
+            ],
+            'pt-BR' => [
+                'prompt' => 'Pergunta',
+                'correctOptions' => ['A'],
+                'wrongOptions' => ['B', 'C'],
+            ],
+        ]);
+    }
+
+    public function testAiUpdateCanCopySourceAnswersVerbatim(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+        $service->createReplicatedQuestionSet('en-US', 'php', 1, 'php-1-001', [
+            'prompt' => 'Which tag starts PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+
+        $service->updateAiLocalizedQuestionSet('php', 1, 'php-1-001', [
+            'prompt' => 'Qual tag inicia PHP?',
+            'correctOptions' => ['correta visivel'],
+            'wrongOptions' => ['errada visivel A', 'errada visivel B'],
+        ], [
+            'en-US' => [
+                'prompt' => 'Which tag starts PHP?',
+                'correctOptions' => [],
+                'wrongOptions' => [],
+            ],
+            'pt-BR' => [
+                'prompt' => 'Qual tag inicia PHP?',
+                'correctOptions' => ['correta visivel'],
+                'wrongOptions' => ['errada visivel A', 'errada visivel B'],
+            ],
+        ], copySourceAnswers: true);
+
+        self::assertSame(['correta visivel'], $service->readQuestion('en-US', 'php', 1, 'php-1-001')['correctOptions']);
+        self::assertSame(['errada visivel A', 'errada visivel B'], $service->readQuestion('en-US', 'php', 1, 'php-1-001')['wrongOptions']);
     }
 
     public function testRejectsLocalizedQuestionSetWhenAnyLocaleIsMissing(): void

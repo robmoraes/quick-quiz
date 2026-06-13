@@ -353,6 +353,70 @@ final class QuizPackService
         return $questionId;
     }
 
+    /** @param array<string,mixed> $input */
+    public function createReplicatedQuestionSet(string $sourceLocale, string $topic, int $difficulty, string $questionId, array $input): string
+    {
+        $this->assertSupportedLocale($sourceLocale);
+        $questionId = trim($questionId);
+        if ($questionId === '') {
+            $questionId = $this->nextQuestionId($topic, $difficulty);
+        }
+
+        $this->assertCentralTopicExists($topic);
+        $this->assertDifficulty($difficulty);
+        $this->assertSafeIdentifier($questionId, 'question ID');
+        $this->assertQuestionIdAvailableInAllLocales($topic, $difficulty, $questionId);
+
+        $question = $this->validatedQuestionPayload($input, $difficulty);
+        $payloads = [];
+        foreach ($this->supportedLocales as $locale) {
+            $payloads[$this->questionPath($locale, $topic, $difficulty, $questionId)] = $question;
+        }
+
+        $this->writeJsonSet($payloads);
+        return $questionId;
+    }
+
+    /** @return array<string,array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}> */
+    public function readLocalizedQuestionSet(string $topic, int $difficulty, string $questionId): array
+    {
+        $this->assertExistingQuestionSet($topic, $difficulty, $questionId);
+
+        $questions = [];
+        foreach ($this->supportedLocales as $locale) {
+            $questions[$locale] = $this->readQuestion($locale, $topic, $difficulty, $questionId);
+        }
+        return $questions;
+    }
+
+    /** @param array<string,array<string,mixed>> $localizedInputs */
+    public function updateManualLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $localizedInputs): void
+    {
+        $this->assertExistingQuestionSet($topic, $difficulty, $questionId);
+
+        $payloads = [];
+        $canonical = $this->validatedQuestionPayload($localizedInputs[$this->fallbackLocale] ?? [], $difficulty);
+        $correctCount = count($canonical['correctOptions']);
+        $wrongCount = count($canonical['wrongOptions']);
+
+        foreach ($this->supportedLocales as $locale) {
+            $payload = $locale === $this->fallbackLocale
+                ? $canonical
+                : $this->validatedQuestionPayload($localizedInputs[$locale] ?? [], $difficulty);
+
+            if (count($payload['correctOptions']) !== $correctCount) {
+                throw new RuntimeException(sprintf('Locale %s must contain %d correct option(s) to match canonical locale %s.', $locale, $correctCount, $this->fallbackLocale));
+            }
+            if (count($payload['wrongOptions']) !== $wrongCount) {
+                throw new RuntimeException(sprintf('Locale %s must contain %d wrong option(s) to match canonical locale %s.', $locale, $wrongCount, $this->fallbackLocale));
+            }
+
+            $payloads[$this->questionPath($locale, $topic, $difficulty, $questionId)] = $payload;
+        }
+
+        $this->writeJsonSet($payloads);
+    }
+
     /**
      * @param array<string,mixed> $input
      * @return array{questionId:string, question:array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}}
@@ -379,12 +443,33 @@ final class QuizPackService
      * @param array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} $sourceQuestion
      * @param array<string,array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}> $localizations
      */
-    public function saveLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $sourceQuestion, array $localizations): void
+    public function saveLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $sourceQuestion, array $localizations, bool $copySourceAnswers = false): void
     {
         $this->assertCentralTopicExists($topic);
         $this->assertDifficulty($difficulty);
         $this->assertSafeIdentifier($questionId, 'question ID');
         $this->assertQuestionIdAvailableInAllLocales($topic, $difficulty, $questionId);
+
+        $this->writeLocalizedQuestionSet($topic, $difficulty, $questionId, $sourceQuestion, $localizations, $copySourceAnswers);
+    }
+
+    /**
+     * @param array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} $sourceQuestion
+     * @param array<string,array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}> $localizations
+     */
+    public function updateAiLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $sourceQuestion, array $localizations, bool $copySourceAnswers = false): void
+    {
+        $this->assertExistingQuestionSet($topic, $difficulty, $questionId);
+        $this->writeLocalizedQuestionSet($topic, $difficulty, $questionId, $sourceQuestion, $localizations, $copySourceAnswers);
+    }
+
+    /**
+     * @param array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} $sourceQuestion
+     * @param array<string,array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}> $localizations
+     */
+    private function writeLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $sourceQuestion, array $localizations, bool $copySourceAnswers): void
+    {
+        $sourceQuestion = $this->validatedQuestionPayload($sourceQuestion, $difficulty);
 
         $expectedLocales = $this->supportedLocales;
         $missing = array_values(array_diff($expectedLocales, array_keys($localizations)));
@@ -394,7 +479,12 @@ final class QuizPackService
 
         $payloads = [];
         foreach ($expectedLocales as $locale) {
-            $payload = $this->validatedQuestionPayload($localizations[$locale] ?? [], $difficulty);
+            $localizedInput = $localizations[$locale] ?? [];
+            if ($copySourceAnswers) {
+                $localizedInput['correctOptions'] = $sourceQuestion['correctOptions'];
+                $localizedInput['wrongOptions'] = $sourceQuestion['wrongOptions'];
+            }
+            $payload = $this->validatedQuestionPayload($localizedInput, $difficulty);
             if (count($payload['correctOptions']) !== count($sourceQuestion['correctOptions'])) {
                 throw new RuntimeException(sprintf('Localization %s changed the number of correct options.', $locale));
             }
@@ -454,6 +544,19 @@ final class QuizPackService
             throw new RuntimeException('Recommended prompt duplicates an existing question.');
         }
         return $question;
+    }
+
+    /**
+     * @param array<string,mixed> $draft
+     * @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}
+     */
+    public function validateRecommendedAnswerDraft(int $difficulty, string $prompt, array $draft): array
+    {
+        return $this->validatedQuestionPayload([
+            'prompt' => $prompt,
+            'correctOptions' => $draft['correctOptions'] ?? [],
+            'wrongOptions' => $draft['wrongOptions'] ?? [],
+        ], $difficulty);
     }
 
     public function deleteQuestion(string $locale, string $topic, int $difficulty, string $questionId): void
@@ -809,6 +912,19 @@ final class QuizPackService
             $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
             if (is_file($path)) {
                 throw new RuntimeException(sprintf('Question path already exists in locale %s.', $locale));
+            }
+        }
+    }
+
+    private function assertExistingQuestionSet(string $topic, int $difficulty, string $questionId): void
+    {
+        $this->assertCentralTopicExists($topic);
+        $this->assertDifficulty($difficulty);
+        $this->assertSafeIdentifier($questionId, 'question ID');
+
+        foreach ($this->supportedLocales as $locale) {
+            if (!is_file($this->questionPath($locale, $topic, $difficulty, $questionId))) {
+                throw new RuntimeException(sprintf('Question package %s/%d/%s is missing in locale %s.', $topic, $difficulty, $questionId, $locale));
             }
         }
     }

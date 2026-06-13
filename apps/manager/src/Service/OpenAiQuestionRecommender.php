@@ -27,6 +27,27 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
      */
     public function recommend(string $locale, array $topic, int $difficultyId, array $difficulty, array $existingPrompts): array
     {
+        $data = $this->requestRecommendation($this->requestBody($locale, $topic, $difficultyId, $difficulty, $existingPrompts));
+
+        return $this->parseResponse($data);
+    }
+
+    /**
+     * @param array{theme?:string, key:string, name:string, description:string} $topic
+     * @param array{label:string, optionCount:int, wrongRequired:int} $difficulty
+     * @param list<string> $existingPrompts
+     * @return array{correctOptions:list<string>, wrongOptions:list<string>}
+     */
+    public function recommendAnswers(string $locale, array $topic, int $difficultyId, array $difficulty, string $prompt, array $existingPrompts): array
+    {
+        $data = $this->requestRecommendation($this->answersRequestBody($locale, $topic, $difficultyId, $difficulty, $prompt, $existingPrompts));
+
+        return $this->parseAnswersResponse($data);
+    }
+
+    /** @param array<string,mixed> $body @return array<string,mixed> */
+    private function requestRecommendation(array $body): array
+    {
         if (trim($this->apiKey) === '' || trim($this->model) === '') {
             throw new RuntimeException('OpenAI configuration is missing. Set OPENAI_API_KEY and OPENAI_MODEL.');
         }
@@ -46,7 +67,7 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
             $response = $this->httpClient->request('POST', 'https://api.openai.com/v1/responses', [
                 'headers' => $headers,
                 'timeout' => 45,
-                'json' => $this->requestBody($locale, $topic, $difficultyId, $difficulty, $existingPrompts),
+                'json' => $body,
             ]);
             $statusCode = $response->getStatusCode();
             $data = $response->toArray(false);
@@ -59,7 +80,7 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
             throw new RuntimeException((string) $message);
         }
 
-        return $this->parseResponse($data);
+        return $data;
     }
 
     /**
@@ -137,6 +158,79 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
     }
 
     /**
+     * @param array{theme?:string, key:string, name:string, description:string} $topic
+     * @param array{label:string, optionCount:int, wrongRequired:int} $difficulty
+     * @param list<string> $existingPrompts
+     * @return array<string,mixed>
+     */
+    private function answersRequestBody(string $locale, array $topic, int $difficultyId, array $difficulty, string $prompt, array $existingPrompts): array
+    {
+        return [
+            'model' => $this->model,
+            'input' => [
+                [
+                    'role' => 'developer',
+                    'content' => [
+                        [
+                            'type' => 'input_text',
+                            'text' => implode("\n", [
+                                'You recommend answer options for one existing QuickQuiz prompt.',
+                                'Write answers in the same human language as the provided prompt.',
+                                'Use the requested locale only as a formatting hint when the prompt language is ambiguous.',
+                                'Do not rewrite, translate, summarize, or return the prompt.',
+                                'Always return exactly '.self::WRONG_OPTION_TARGET.' wrongOptions.',
+                                'Return only correctOptions and wrongOptions that match the schema.',
+                            ]),
+                        ],
+                    ],
+                ],
+                [
+                    'role' => 'user',
+                    'content' => [
+                        [
+                            'type' => 'input_text',
+                            'text' => json_encode([
+                                'draftLocale' => $locale,
+                                'topic' => $topic,
+                                'difficulty' => [
+                                    'id' => $difficultyId,
+                                    'label' => $difficulty['label'],
+                                    'wrongRequired' => $difficulty['wrongRequired'],
+                                    'wrongOptionTarget' => self::WRONG_OPTION_TARGET,
+                                ],
+                                'prompt' => $prompt,
+                                'existingPrompts' => $existingPrompts,
+                            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                        ],
+                    ],
+                ],
+            ],
+            'text' => [
+                'format' => [
+                    'type' => 'json_schema',
+                    'name' => 'quickquiz_answer_recommendation',
+                    'strict' => true,
+                    'schema' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['correctOptions', 'wrongOptions'],
+                        'properties' => [
+                            'correctOptions' => [
+                                'type' => 'array',
+                                'items' => ['type' => 'string'],
+                            ],
+                            'wrongOptions' => [
+                                'type' => 'array',
+                                'items' => ['type' => 'string'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
      * @param array<string,mixed> $response
      * @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}
      */
@@ -157,6 +251,31 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
 
         return [
             'prompt' => (string) ($data['prompt'] ?? ''),
+            'correctOptions' => $this->stringList($data['correctOptions'] ?? []),
+            'wrongOptions' => $this->stringList($data['wrongOptions'] ?? []),
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $response
+     * @return array{correctOptions:list<string>, wrongOptions:list<string>}
+     */
+    private function parseAnswersResponse(array $response): array
+    {
+        $text = $response['output_text'] ?? null;
+        if (!is_string($text)) {
+            $text = $this->extractOutputText($response);
+        }
+        if ($text === '') {
+            throw new RuntimeException('OpenAI response did not contain answer recommendation JSON.');
+        }
+
+        $data = json_decode($text, true);
+        if (!is_array($data)) {
+            throw new RuntimeException('OpenAI response was not valid JSON.');
+        }
+
+        return [
             'correctOptions' => $this->stringList($data['correctOptions'] ?? []),
             'wrongOptions' => $this->stringList($data['wrongOptions'] ?? []),
         ];

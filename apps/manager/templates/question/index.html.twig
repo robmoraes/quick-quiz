@@ -6,7 +6,7 @@
   <h1 class="h3 mb-3">Questions</h1>
   <section class="card mb-3">
     <div class="card-body">
-      {% if error is defined %}
+      {% if error|default('') %}
         <p class="alert alert-danger">{{ error }}</p>
       {% endif %}
       <form method="get" action="{{ path('questions') }}">
@@ -51,23 +51,18 @@
         <div class="ms-auto d-flex gap-2">
           <a
             class="btn btn-outline-secondary"
-            href="{{ path('question_edit', {locale: selectedLocale, topic: selectedTopic, difficulty: selectedDifficulty}) }}">
-            New question
+            href="{{ path('question_manual_new', {locale: selectedLocale, topic: selectedTopic, difficulty: selectedDifficulty}) }}">
+            Create
           </a>
 
-          <a
-            class="btn btn-outline-primary"
-            href="{{ path('question_ai_new', {topic: selectedTopic, difficulty: selectedDifficulty}) }}">
-            New question with AI
-          </a>
-
-          <button
+          {% if aiAvailable %}
+            <a
               class="btn btn-outline-primary"
-              type="submit"
-              formmethod="post"
-              formaction="{{ path('question_ai_recommend') }}">
-              Recommend question with AI
-          </button>
+              href="{{ path('question_ai_new', {topic: selectedTopic, difficulty: selectedDifficulty}) }}">
+              <i class="bi bi-stars" aria-hidden="true"></i>
+              Create with AI
+            </a>
+          {% endif %}
         </div>
       </div>
       </form>
@@ -93,7 +88,33 @@
           <td>{{ question.correctCount }}</td>
           <td>{{ question.wrongCount }}</td>
           <td style="min-width: 150px;">
-            <a href="{{ path('question_edit', {locale: selectedLocale, topic: selectedTopic, difficulty: selectedDifficulty, id: question.id}) }}">Edit</a>
+            <a
+              class="btn btn-sm btn-outline-secondary"
+              href="{{ path('question_manual_edit', {topic: selectedTopic, difficulty: selectedDifficulty, id: question.id}) }}"
+              title="Manual edit"
+              aria-label="Manual edit">
+              <i class="bi bi-pencil-square" aria-hidden="true"></i>
+            </a>
+            {% if aiAvailable %}
+              <div class="dropdown d-inline">
+                <button
+                  class="btn btn-sm btn-outline-primary dropdown-toggle"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                  title="Edit with AI"
+                  aria-label="Edit with AI">
+                  <i class="bi bi-stars" aria-hidden="true"></i>
+                </button>
+                <ul class="dropdown-menu">
+                  {% for locale in locales %}
+                    <li>
+                      <a class="dropdown-item" href="{{ path('question_ai_edit', {locale: locale, topic: selectedTopic, difficulty: selectedDifficulty, id: question.id}) }}">{{ locale }}</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
             <form class="d-inline ms-2" method="post" action="{{ path('question_delete') }}" onsubmit="return confirm('Delete question {{ question.id }}? This cannot be undone.');">
               <input type="hidden" name="_csrf" value="{{ csrf }}">
               <input type="hidden" name="locale" value="{{ selectedLocale }}">

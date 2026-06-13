@@ -37,6 +37,11 @@ services:
 
   App\Service\QuestionLocalizer: '@App\Service\OpenAiQuestionLocalizer'
 
+  App\Service\OpenAiConfiguration:
+    arguments:
+      $apiKey: '%openai.api_key%'
+      $model: '%openai.model%'
+
   App\Service\OpenAiQuestionRecommender:
     arguments:
       $apiKey: '%openai.api_key%'

@@ -1,5 +1,6 @@
 body {
   background: #f5f7fa;
+  padding-bottom: 56px;
 }
 
 .app-shell {
@@ -16,4 +17,8 @@ textarea.form-control {
 
 .inline-form {
   display: inline;
+}
+
+.manager-status-footer {
+  z-index: 1030;
 }

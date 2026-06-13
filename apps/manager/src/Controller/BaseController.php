@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Service\AuthService;
 use App\Service\CsrfService;
+use App\Service\OpenAiConfiguration;
 use App\Service\ThemeContext;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,6 +19,7 @@ abstract class BaseController
         protected readonly CsrfService $csrf,
         protected readonly UrlGeneratorInterface $url,
         protected readonly ThemeContext $themeContext,
+        protected readonly OpenAiConfiguration $openAi,
     ) {
     }
 
@@ -43,6 +45,8 @@ abstract class BaseController
         $context['adminEmail'] = $this->auth->adminEmail();
         $context['selectedTheme'] = $this->themeContext->selectedTheme();
         $context['csrf'] = $this->csrf->token();
+        $context['openAiConfigured'] = $this->openAi->isConfigured();
+        $context['openAiModel'] = $this->openAi->model();
         return new Response($this->twig->render($template, $context));
     }
 
