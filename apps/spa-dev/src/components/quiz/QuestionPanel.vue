@@ -26,7 +26,7 @@
       }}
     </div>
 
-    <h2>{{ currentQuestion.prompt }}</h2>
+    <QuizMarkdown :text="currentQuestion.prompt" variant="prompt" />
 
     <div class="row q-col-gutter-sm q-mt-md">
       <div v-for="option in currentQuestion.options" :key="option.id" class="col-12">
@@ -38,7 +38,7 @@
           :disable="busy || feedback !== 'idle'"
           @click="emit('answer', option.id)"
         >
-          {{ option.text }}
+          <QuizMarkdown :text="option.text" variant="option" />
         </q-btn>
       </div>
     </div>
@@ -63,6 +63,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import AvailabilityCounters from './AvailabilityCounters.vue';
+import QuizMarkdown from './QuizMarkdown.vue';
 import type { QuestionPanelEmit, QuestionPanelProps } from './contracts';
 
 defineProps<QuestionPanelProps>();

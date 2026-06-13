@@ -61,7 +61,9 @@
               size="22px"
             />
           </td>
-          <td>{{ answer.prompt }}</td>
+          <td>
+            <QuizMarkdown :text="answer.prompt" variant="review" />
+          </td>
           <td class="gt-xs">
             <q-chip dense square :color="answer.correct ? 'green-9' : 'red-9'" text-color="white">
               {{ answer.correct ? t('result.reviewAccept') : t('result.reviewRejected') }}
@@ -165,6 +167,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { ResultPanelEmit, ResultPanelProps } from './contracts';
 import { syslogPrompt, syslogTailCommand, syslogTerminalIntroLines } from 'src/services/syslog-terminal';
+import QuizMarkdown from './QuizMarkdown.vue';
 import SyslogEventLine from './SyslogEventLine.vue';
 
 defineProps<ResultPanelProps>();

@@ -418,12 +418,74 @@ body {
   text-transform: uppercase;
 }
 
-.question-panel h2 {
+.quiz-markdown {
+  overflow-wrap: anywhere;
+}
+
+.quiz-markdown p,
+.quiz-markdown ul,
+.quiz-markdown ol,
+.quiz-markdown pre {
+  margin: 0 0 0.75em;
+}
+
+.quiz-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.quiz-markdown code {
+  border-radius: 4px;
+  background: rgba(125, 227, 255, 0.12);
+  color: #b8ecff;
+  font-family: var(--answer-option-font);
+  font-size: 0.92em;
+  font-variant-ligatures: none;
+  font-feature-settings:
+    'liga' 0,
+    'calt' 0;
+}
+
+.quiz-markdown :not(pre) > code {
+  padding: 0.08em 0.28em;
+}
+
+.quiz-markdown pre {
+  max-width: 100%;
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px solid rgba(125, 227, 255, 0.16);
+  border-radius: 8px;
+  background: #0b1220;
+  color: #d9f6ff;
+  white-space: pre;
+}
+
+.quiz-markdown pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  white-space: pre;
+}
+
+.quiz-markdown ul,
+.quiz-markdown ol {
+  padding-left: 1.35em;
+}
+
+.quiz-markdown--prompt {
   margin-top: 16px;
   font-size: 1.45rem;
   line-height: 1.22;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+}
+
+.quiz-markdown--option,
+.quiz-markdown--review {
+  width: 100%;
+  text-align: left;
+}
+
+.quiz-markdown--option pre {
+  text-align: left;
 }
 
 .option-button {
