@@ -11,6 +11,7 @@
       {% endif %}
       <form method="post" action="{{ path('catalog_save') }}">
         <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <input type="hidden" name="isNew" value="{{ isNew ? '1' : '0' }}">
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label" for="key">Key</label>
@@ -26,13 +27,33 @@
           <input class="form-control" id="name" name="name" value="{{ topic.name|default('') }}">
         </div>
         <div class="mb-3">
-          <label class="form-label" for="description">Fallback description</label>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <label class="form-label mb-0" for="description">Fallback description</label>
+            {% if openAiConfigured %}
+              <button
+                class="btn btn-sm btn-outline-primary"
+                type="submit"
+                formaction="{{ path('catalog_ai_suggest_description') }}"
+                formnovalidate
+                title="Suggest fallback description with AI"
+                aria-label="Suggest fallback description with AI"
+                onclick="return confirm('This action uses AI. Continue?');">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+              </button>
+            {% endif %}
+          </div>
           <textarea class="form-control" id="description" name="description">{{ topic.description|default('') }}</textarea>
         </div>
         <div class="row align-items-end">
           <div class="col-md-6 mb-3">
             <label class="form-label" for="created_at">Created at</label>
-            <input class="form-control" id="created_at" name="created_at" value="{{ topic.created_at|default('') }}" placeholder="2026-01-01T00:00:00-03:00">
+            <input
+              class="form-control"
+              id="created_at"
+              name="created_at"
+              value="{{ topic.created_at|default('') }}"
+              placeholder="2026-01-01T00:00:00-03:00"
+              data-manager-created-at-field>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-check">
@@ -43,6 +64,18 @@
         </div>
         <div class="d-flex gap-2">
           <button class="btn btn-primary" type="submit">Save</button>
+          {% if openAiConfigured %}
+            <button
+              class="btn btn-outline-primary"
+              type="submit"
+              formaction="{{ path('catalog_ai_save') }}"
+              title="Save with AI"
+              aria-label="Save with AI"
+              onclick="return confirm('This action uses AI. Continue?');">
+              <i class="bi bi-stars" aria-hidden="true"></i>
+              Save
+            </button>
+          {% endif %}
           <a class="btn btn-outline-secondary" href="{{ path('catalog') }}">Cancel</a>
         </div>
       </form>

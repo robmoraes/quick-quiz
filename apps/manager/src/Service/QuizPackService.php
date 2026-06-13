@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use RuntimeException;
 
 final class QuizPackService
@@ -24,6 +26,7 @@ final class QuizPackService
         string $supportedLocales,
         private readonly ?ThemeContext $themeContext = null,
         private readonly ?string $fixedTheme = null,
+        private readonly int $runQuestionLimit = 10,
     ) {
         $this->supportedLocales = $this->parseSupportedLocales($supportedLocales, $fallbackLocale);
     }
@@ -303,6 +306,122 @@ final class QuizPackService
         return $questions;
     }
 
+    /** @return array<string,mixed> */
+    public function contentStats(): array
+    {
+        $topics = $this->listTopics();
+        $topicKeys = array_map(static fn (array $topic): string => (string) $topic['key'], $topics);
+        $runLimit = max(1, $this->runQuestionLimit);
+        $stats = [
+            'theme' => $this->selectedTheme(),
+            'fallbackLocale' => $this->fallbackLocale,
+            'runQuestionLimit' => $runLimit,
+            'totals' => [
+                'questions' => 0,
+                'correctAnswers' => 0,
+                'wrongAnswers' => 0,
+                'canonicalQuestions' => 0,
+                'activeTopics' => 0,
+                'inactiveTopics' => 0,
+                'activeTopicQuestions' => 0,
+            ],
+            'averages' => [
+                'correctAnswersPerQuestion' => 0.0,
+                'wrongAnswersPerQuestion' => 0.0,
+            ],
+            'runCapacity' => [
+                'total' => 0,
+                'byTopic' => [],
+            ],
+            'byLocale' => [],
+            'byTopic' => [],
+            'byDifficulty' => [],
+            'zeroQuestionTopics' => [],
+            'topicsBelowRunLimit' => [],
+            'localeQuestionRange' => [
+                'min' => 0,
+                'max' => 0,
+            ],
+            'localeParityIssues' => array_values(array_filter(
+                $this->validateLocaleParity(),
+                static fn (string $issue): bool => str_starts_with($issue, 'Locale '),
+            )),
+        ];
+
+        foreach ($this->supportedLocales as $locale) {
+            $stats['byLocale'][$locale] = $this->emptyStatsBucket();
+        }
+        foreach ($topics as $topic) {
+            $key = (string) $topic['key'];
+            if ((bool) ($topic['active'] ?? false)) {
+                $stats['totals']['activeTopics']++;
+            } else {
+                $stats['totals']['inactiveTopics']++;
+            }
+            $stats['byTopic'][$key] = $this->emptyStatsBucket() + [
+                'name' => (string) ($topic['name'] ?? $key),
+                'active' => (bool) ($topic['active'] ?? false),
+                'canonicalQuestions' => 0,
+                'difficultyQuestions' => [],
+            ];
+        }
+        foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+            $stats['byDifficulty'][$difficulty] = $this->emptyStatsBucket() + [
+                'label' => self::DIFFICULTIES[$difficulty]['label'],
+            ];
+        }
+
+        foreach ($this->supportedLocales as $locale) {
+            foreach ($topicKeys as $topic) {
+                foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+                    $questions = $this->listQuestions($locale, $topic, (int) $difficulty);
+                    foreach ($questions as $question) {
+                        $this->addQuestionStats($stats['totals'], $question);
+                        $this->addQuestionStats($stats['byLocale'][$locale], $question);
+                        $this->addQuestionStats($stats['byTopic'][$topic], $question);
+                        $this->addQuestionStats($stats['byDifficulty'][$difficulty], $question);
+                    }
+                }
+            }
+        }
+
+        foreach ($topicKeys as $topic) {
+            foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+                $canonicalQuestions = count($this->listQuestions($this->fallbackLocale, $topic, (int) $difficulty));
+                $stats['totals']['canonicalQuestions'] += $canonicalQuestions;
+                $stats['byTopic'][$topic]['canonicalQuestions'] += $canonicalQuestions;
+                $stats['byTopic'][$topic]['difficultyQuestions'][$difficulty] = $canonicalQuestions;
+            }
+            if ($stats['byTopic'][$topic]['active']) {
+                $stats['totals']['activeTopicQuestions'] += $stats['byTopic'][$topic]['canonicalQuestions'];
+            }
+            $stats['runCapacity']['byTopic'][$topic] = intdiv($stats['byTopic'][$topic]['canonicalQuestions'], $runLimit);
+            if ($stats['byTopic'][$topic]['canonicalQuestions'] === 0) {
+                $stats['zeroQuestionTopics'][] = $topic;
+            }
+            if ($stats['byTopic'][$topic]['canonicalQuestions'] < $runLimit) {
+                $stats['topicsBelowRunLimit'][] = $topic;
+            }
+        }
+
+        $stats['runCapacity']['total'] = intdiv($stats['totals']['canonicalQuestions'], $runLimit);
+        if ($stats['totals']['questions'] > 0) {
+            $stats['averages']['correctAnswersPerQuestion'] = round($stats['totals']['correctAnswers'] / $stats['totals']['questions'], 2);
+            $stats['averages']['wrongAnswersPerQuestion'] = round($stats['totals']['wrongAnswers'] / $stats['totals']['questions'], 2);
+        }
+
+        $localeQuestionCounts = array_map(
+            static fn (array $bucket): int => (int) $bucket['questions'],
+            $stats['byLocale'],
+        );
+        if ($localeQuestionCounts !== []) {
+            $stats['localeQuestionRange']['min'] = min($localeQuestionCounts);
+            $stats['localeQuestionRange']['max'] = max($localeQuestionCounts);
+        }
+
+        return $stats;
+    }
+
     /** @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} */
     public function readQuestion(string $locale, string $topic, int $difficulty, string $questionId): array
     {
@@ -559,13 +678,28 @@ final class QuizPackService
         ], $difficulty);
     }
 
-    public function deleteQuestion(string $locale, string $topic, int $difficulty, string $questionId): void
+    /** @return array{deletedLocales:list<string>, missingLocales:list<string>} */
+    public function deleteQuestion(string $topic, int $difficulty, string $questionId): array
     {
-        $this->assertQuestionPackageAllowed($locale, $topic, $difficulty, $questionId, allowMissingFallback: false);
-        $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
-        if (is_file($path) && !unlink($path)) {
-            throw new RuntimeException('Could not delete question file.');
+        $this->assertCentralTopicExists($topic);
+        $this->assertDifficulty($difficulty);
+        $this->assertSafeIdentifier($questionId, 'question ID');
+
+        $deletedLocales = [];
+        $missingLocales = [];
+        foreach ($this->supportedLocales as $locale) {
+            $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
+            if (!is_file($path)) {
+                $missingLocales[] = $locale;
+                continue;
+            }
+            if (!unlink($path)) {
+                throw new RuntimeException(sprintf('Could not delete question file for locale %s.', $locale));
+            }
+            $deletedLocales[] = $locale;
         }
+
+        return ['deletedLocales' => $deletedLocales, 'missingLocales' => $missingLocales];
     }
 
     /** @return list<string> */
@@ -653,9 +787,46 @@ final class QuizPackService
             'name' => trim((string) ($input['name'] ?? '')),
             'description' => trim((string) ($input['description'] ?? '')),
             'weight' => (int) ($input['weight'] ?? 0),
-            'created_at' => trim((string) ($input['created_at'] ?? '')),
+            'created_at' => $this->normalizeTopicCreatedAtUtc((string) ($input['created_at'] ?? '')),
             'active' => filter_var($input['active'] ?? false, FILTER_VALIDATE_BOOL),
         ];
+    }
+
+    private function normalizeTopicCreatedAtUtc(string $createdAt): string
+    {
+        $createdAt = trim($createdAt);
+        if ($createdAt === '') {
+            return '';
+        }
+        if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/', $createdAt)) {
+            throw new RuntimeException('Created at must be a valid datetime with timezone.');
+        }
+
+        try {
+            return (new DateTimeImmutable($createdAt))
+                ->setTimezone(new DateTimeZone('UTC'))
+                ->format('Y-m-d\TH:i:sP');
+        } catch (\Exception) {
+            throw new RuntimeException('Created at must be a valid datetime with timezone.');
+        }
+    }
+
+    /** @return array{questions:int, correctAnswers:int, wrongAnswers:int} */
+    private function emptyStatsBucket(): array
+    {
+        return [
+            'questions' => 0,
+            'correctAnswers' => 0,
+            'wrongAnswers' => 0,
+        ];
+    }
+
+    /** @param array<string,mixed> $bucket @param array{correctCount:int, wrongCount:int} $question */
+    private function addQuestionStats(array &$bucket, array $question): void
+    {
+        $bucket['questions'] = (int) ($bucket['questions'] ?? 0) + 1;
+        $bucket['correctAnswers'] = (int) ($bucket['correctAnswers'] ?? 0) + (int) $question['correctCount'];
+        $bucket['wrongAnswers'] = (int) ($bucket['wrongAnswers'] ?? 0) + (int) $question['wrongCount'];
     }
 
     /** @param list<array<string,mixed>> $topics @return list<array<string,mixed>> */

@@ -9,6 +9,14 @@
       {% if error|default('') %}
         <p class="alert alert-danger">{{ error }}</p>
       {% endif %}
+      {% if deleteResult.questionId|default('') %}
+        <p class="alert alert-success">
+          Question <code>{{ deleteResult.questionId }}</code> deleted across {{ deleteResult.deletedLocales }} locale(s).
+          {% if deleteResult.missingLocales > 0 %}
+            {{ deleteResult.missingLocales }} locale variant(s) were already missing.
+          {% endif %}
+        </p>
+      {% endif %}
       <form method="get" action="{{ path('questions') }}">
       <input type="hidden" name="_csrf" value="{{ csrf }}">
       <div class="row">
@@ -70,8 +78,8 @@
   </section>
 
   <div class="table-responsive">
-    <table class="table table-hover align-middle bg-white">
-      <thead class="table-light">
+    <table class="table table-hover align-middle manager-table">
+      <thead>
       <tr>
         <th>ID</th>
         <th>Prompt</th>
@@ -115,13 +123,19 @@
                 </ul>
               </div>
             {% endif %}
-            <form class="d-inline ms-2" method="post" action="{{ path('question_delete') }}" onsubmit="return confirm('Delete question {{ question.id }}? This cannot be undone.');">
+            <form class="d-inline ms-2" method="post" action="{{ path('question_delete') }}" onsubmit="return confirm('Delete question {{ question.id }} across all locales? This cannot be undone.');">
               <input type="hidden" name="_csrf" value="{{ csrf }}">
               <input type="hidden" name="locale" value="{{ selectedLocale }}">
               <input type="hidden" name="topic" value="{{ selectedTopic }}">
               <input type="hidden" name="difficulty" value="{{ selectedDifficulty }}">
               <input type="hidden" name="questionId" value="{{ question.id }}">
-              <button class="btn btn-sm btn-danger" type="submit">Delete</button>
+              <button
+                class="btn btn-sm btn-danger"
+                type="submit"
+                title="Delete across all locales"
+                aria-label="Delete across all locales">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
             </form>
           </td>
         </tr>

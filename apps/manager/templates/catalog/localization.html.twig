@@ -21,6 +21,18 @@
       </div>
       <div class="d-flex gap-2">
         <button class="btn btn-primary" type="submit">Save</button>
+        {% if openAiConfigured %}
+          <button
+            class="btn btn-outline-primary"
+            type="submit"
+            formaction="{{ path('catalog_localization_ai_save', {locale: locale, key: topic.key}) }}"
+            title="Save translation with AI"
+            aria-label="Save translation with AI"
+            onclick="return confirm('This action uses AI. Continue?');">
+            <i class="bi bi-stars" aria-hidden="true"></i>
+            Save
+          </button>
+        {% endif %}
         <a class="btn btn-outline-secondary" href="{{ path('catalog') }}">Cancel</a>
       </div>
     </form>

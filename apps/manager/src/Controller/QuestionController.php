@@ -27,10 +27,25 @@ final class QuestionController extends BaseController
         $topicChoices = $packs->topicChoices();
         $topic = (string) $request->query->get('topic', $topicChoices[0]['key'] ?? '');
         $difficulty = (int) $request->query->get('difficulty', 1);
+        $deletedQuestion = (string) $request->query->get('deletedQuestion', '');
+        $deletedLocales = (int) $request->query->get('deletedLocales', 0);
+        $missingLocales = (int) $request->query->get('missingLocales', 0);
 
         $questions = $topic === '' ? [] : $packs->listQuestions($locale, $topic, $difficulty);
 
-        return $this->renderQuestionIndex($packs, $locale, $topic, $difficulty, $questions, aiAvailable: $openAi->isConfigured());
+        return $this->renderQuestionIndex(
+            $packs,
+            $locale,
+            $topic,
+            $difficulty,
+            $questions,
+            aiAvailable: $openAi->isConfigured(),
+            deleteResult: [
+                'questionId' => $deletedQuestion,
+                'deletedLocales' => $deletedLocales,
+                'missingLocales' => $missingLocales,
+            ],
+        );
     }
 
     #[Route('/questions/manual/new', name: 'question_manual_new', methods: ['GET'])]
@@ -294,9 +309,16 @@ final class QuestionController extends BaseController
         $topic = (string) $request->request->get('topic');
         $difficulty = (int) $request->request->get('difficulty');
         $questionId = (string) $request->request->get('questionId');
-        $packs->deleteQuestion($locale, $topic, $difficulty, $questionId);
+        $result = $packs->deleteQuestion($topic, $difficulty, $questionId);
 
-        return $this->redirect('questions', ['locale' => $locale, 'topic' => $topic, 'difficulty' => $difficulty]);
+        return $this->redirect('questions', [
+            'locale' => $locale,
+            'topic' => $topic,
+            'difficulty' => $difficulty,
+            'deletedQuestion' => $questionId,
+            'deletedLocales' => count($result['deletedLocales']),
+            'missingLocales' => count($result['missingLocales']),
+        ]);
     }
 
     private function handleAiRecommendation(QuizPackService $packs, QuestionRecommender $recommender, Request $request, bool $answersOnly): Response
@@ -357,8 +379,11 @@ final class QuestionController extends BaseController
         }
     }
 
-    /** @param list<array{id:string,path:string,prompt:string,correctCount:int,wrongCount:int}> $questions */
-    private function renderQuestionIndex(QuizPackService $packs, string $locale, string $topic, int $difficulty, array $questions, string $error = '', bool $aiAvailable = false): Response
+    /**
+     * @param list<array{id:string,path:string,prompt:string,correctCount:int,wrongCount:int}> $questions
+     * @param array{questionId:string, deletedLocales:int, missingLocales:int}|null $deleteResult
+     */
+    private function renderQuestionIndex(QuizPackService $packs, string $locale, string $topic, int $difficulty, array $questions, string $error = '', bool $aiAvailable = false, ?array $deleteResult = null): Response
     {
         return $this->render('question/index.html.twig', [
             'locales' => $packs->supportedLocales(),
@@ -370,6 +395,7 @@ final class QuestionController extends BaseController
             'questions' => $questions,
             'error' => $error,
             'aiAvailable' => $aiAvailable,
+            'deleteResult' => $deleteResult,
         ]);
     }
 

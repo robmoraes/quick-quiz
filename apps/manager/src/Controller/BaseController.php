@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Service\AuthService;
 use App\Service\CsrfService;
+use App\Service\ManagerVersion;
 use App\Service\OpenAiConfiguration;
 use App\Service\ThemeContext;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -20,6 +21,7 @@ abstract class BaseController
         protected readonly UrlGeneratorInterface $url,
         protected readonly ThemeContext $themeContext,
         protected readonly OpenAiConfiguration $openAi,
+        protected readonly ManagerVersion $managerVersion,
     ) {
     }
 
@@ -47,6 +49,7 @@ abstract class BaseController
         $context['csrf'] = $this->csrf->token();
         $context['openAiConfigured'] = $this->openAi->isConfigured();
         $context['openAiModel'] = $this->openAi->model();
+        $context['managerVersion'] = $this->managerVersion->value();
         return new Response($this->twig->render($template, $context));
     }
 

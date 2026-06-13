@@ -38,6 +38,46 @@ final class QuizPackServiceTest extends TestCase
         self::assertSame('php', $catalog['topics'][0]['key']);
         self::assertTrue($catalog['topics'][0]['active']);
         self::assertSame(100, $catalog['topics'][0]['weight']);
+        self::assertSame('2026-01-01T03:00:00+00:00', $catalog['topics'][0]['created_at']);
+    }
+
+    public function testSavesCentralCatalogTopicCreatedAtAsUtc(): void
+    {
+        $service = $this->service();
+
+        $service->saveTopic([
+            'key' => 'php',
+            'created_at' => '2026-06-13T02:15:30-07:00',
+            'active' => '1',
+        ]);
+
+        $catalog = json_decode((string) file_get_contents($this->root.'/dev/index.json'), true);
+
+        self::assertSame('2026-06-13T09:15:30+00:00', $catalog['topics'][0]['created_at']);
+    }
+
+    public function testRejectsInvalidTopicCreatedAt(): void
+    {
+        $service = $this->service();
+
+        $this->expectExceptionMessage('Created at must be a valid datetime with timezone.');
+
+        $service->saveTopic([
+            'key' => 'php',
+            'created_at' => 'not-a-date',
+        ]);
+    }
+
+    public function testRejectsTopicCreatedAtWithoutExplicitTimezone(): void
+    {
+        $service = $this->service();
+
+        $this->expectExceptionMessage('Created at must be a valid datetime with timezone.');
+
+        $service->saveTopic([
+            'key' => 'php',
+            'created_at' => '2026-06-13T02:15:30',
+        ]);
     }
 
     public function testSavesQuestionWithOnlyCanonicalFields(): void
@@ -97,6 +137,60 @@ final class QuizPackServiceTest extends TestCase
         );
     }
 
+    public function testContentStatsAggregateCountsAndRunCapacity(): void
+    {
+        $service = $this->service(runQuestionLimit: 2);
+        $service->saveTopic(['key' => 'php', 'name' => 'PHP', 'active' => '1']);
+        $service->saveTopic(['key' => 'go', 'name' => 'Go', 'active' => '1']);
+        $service->createReplicatedQuestionSet('en-US', 'php', 1, 'php-1-001', [
+            'prompt' => 'Which tag starts PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+        $service->createReplicatedQuestionSet('en-US', 'php', 2, 'php-2-001', [
+            'prompt' => 'Which construct outputs text?',
+            'correctOptions' => ['echo'],
+            'wrongOptions' => ['select', 'mount', 'render', 'display'],
+        ]);
+        $service->createReplicatedQuestionSet('en-US', 'go', 1, 'go-1-001', [
+            'prompt' => 'Which command formats Go code?',
+            'correctOptions' => ['gofmt'],
+            'wrongOptions' => ['go lint', 'go tidy'],
+        ]);
+
+        $stats = $service->contentStats();
+
+        self::assertSame(6, $stats['totals']['questions']);
+        self::assertSame(6, $stats['totals']['correctAnswers']);
+        self::assertSame(16, $stats['totals']['wrongAnswers']);
+        self::assertSame(3, $stats['totals']['canonicalQuestions']);
+        self::assertSame(1, $stats['runCapacity']['total']);
+        self::assertSame(1, $stats['runCapacity']['byTopic']['php']);
+        self::assertSame(0, $stats['runCapacity']['byTopic']['go']);
+        self::assertSame(3, $stats['byLocale']['en-US']['questions']);
+        self::assertSame(3, $stats['byLocale']['pt-BR']['questions']);
+        self::assertSame(4, $stats['byTopic']['php']['questions']);
+        self::assertSame(2, $stats['byTopic']['php']['canonicalQuestions']);
+        self::assertSame(4, $stats['byDifficulty'][1]['questions']);
+        self::assertSame(2.67, $stats['averages']['wrongAnswersPerQuestion']);
+        self::assertSame(['go'], $stats['topicsBelowRunLimit']);
+    }
+
+    public function testContentStatsHandleEmptyTopics(): void
+    {
+        $service = $this->service(runQuestionLimit: 2);
+        $service->saveTopic(['key' => 'php', 'name' => 'PHP', 'active' => '1']);
+
+        $stats = $service->contentStats();
+
+        self::assertSame(0, $stats['totals']['questions']);
+        self::assertSame(0, $stats['runCapacity']['total']);
+        self::assertSame(['php'], $stats['zeroQuestionTopics']);
+        self::assertSame(['php'], $stats['topicsBelowRunLimit']);
+        self::assertSame(0, $stats['localeQuestionRange']['min']);
+        self::assertSame(0, $stats['localeQuestionRange']['max']);
+    }
+
     public function testManualCreationRejectsDuplicateBeforeWritingAnyLocale(): void
     {
         $service = $this->service();
@@ -120,6 +214,43 @@ final class QuizPackServiceTest extends TestCase
 
         self::assertSame('Which tag starts PHP?', $service->readQuestion('en-US', 'php', 1, 'php-1-001')['prompt']);
         self::assertSame('Which tag starts PHP?', $service->readQuestion('pt-BR', 'php', 1, 'php-1-001')['prompt']);
+    }
+
+    public function testDeletesQuestionFromEverySupportedLocale(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+        $service->createReplicatedQuestionSet('en-US', 'php', 1, 'php-1-001', [
+            'prompt' => 'Which tag starts PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+
+        $result = $service->deleteQuestion('php', 1, 'php-1-001');
+
+        self::assertSame(['en-US', 'pt-BR'], $result['deletedLocales']);
+        self::assertSame([], $result['missingLocales']);
+        self::assertFileDoesNotExist($this->root.'/dev/en-US/php/1/php-1-001.json');
+        self::assertFileDoesNotExist($this->root.'/dev/pt-BR/php/1/php-1-001.json');
+    }
+
+    public function testDeletesExistingLocalesWhenOneVariantIsAlreadyMissing(): void
+    {
+        $service = $this->service();
+        $service->saveTopic(['key' => 'php', 'active' => '1']);
+        $service->createReplicatedQuestionSet('en-US', 'php', 1, 'php-1-001', [
+            'prompt' => 'Which tag starts PHP?',
+            'correctOptions' => ['<?php'],
+            'wrongOptions' => ['<?', '<script>'],
+        ]);
+        unlink($this->root.'/dev/pt-BR/php/1/php-1-001.json');
+
+        $result = $service->deleteQuestion('php', 1, 'php-1-001');
+
+        self::assertSame(['en-US'], $result['deletedLocales']);
+        self::assertSame(['pt-BR'], $result['missingLocales']);
+        self::assertFileDoesNotExist($this->root.'/dev/en-US/php/1/php-1-001.json');
+        self::assertFileDoesNotExist($this->root.'/dev/pt-BR/php/1/php-1-001.json');
     }
 
     public function testTopicChoicesIncludeInactiveTopics(): void
@@ -554,9 +685,9 @@ final class QuizPackServiceTest extends TestCase
         self::assertSame('Which PHP construct outputs text?', $draft['prompt']);
     }
 
-    private function service(string $theme = 'dev'): QuizPackService
+    private function service(string $theme = 'dev', int $runQuestionLimit = 10): QuizPackService
     {
-        return new QuizPackService($this->root, 'en-US', 'en-US,pt-BR', fixedTheme: $theme);
+        return new QuizPackService($this->root, 'en-US', 'en-US,pt-BR', fixedTheme: $theme, runQuestionLimit: $runQuestionLimit);
     }
 
     private function removeTree(string $path): void
