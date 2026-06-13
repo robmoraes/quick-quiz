@@ -105,6 +105,11 @@ export interface RunResult {
   }>;
 }
 
+export interface ApiError extends Error {
+  code?: string;
+  status: number;
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
 export async function getCatalog(): Promise<Catalog> {
@@ -166,6 +171,10 @@ export function getSessionId(): string {
   return next;
 }
 
+export function isApiErrorCode(error: unknown, code: string): error is ApiError {
+  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === code);
+}
+
 function rotateSessionId() {
   window.sessionStorage.setItem('quickquiz.sessionId', createSessionId());
 }
@@ -206,12 +215,15 @@ async function apiError(response: Response) {
 
   try {
     const payload = (await response.json()) as { error?: { code?: string; message?: string } };
-    const error = new Error(payload.error?.message || fallback);
+    const error = new Error(payload.error?.message || fallback) as ApiError;
+    error.status = response.status;
     if (payload.error?.code) {
-      Object.assign(error, { code: payload.error.code });
+      error.code = payload.error.code;
     }
     return error;
   } catch {
-    return new Error(fallback);
+    const error = new Error(fallback) as ApiError;
+    error.status = response.status;
+    return error;
   }
 }

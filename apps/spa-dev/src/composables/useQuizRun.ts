@@ -7,6 +7,7 @@ import {
   finishRun,
   getResult,
   getSessionId,
+  isApiErrorCode,
   resetLocalSession,
   resetSession,
   Difficulty,
@@ -34,6 +35,8 @@ import type {
 interface UseQuizRunOptions {
   catalog: QuizCatalog;
 }
+
+type RunFlowOperation = 'answer' | 'result' | 'endSession';
 
 export function useQuizRun({ catalog }: UseQuizRunOptions) {
   const $q = useQuasar();
@@ -289,14 +292,19 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       await wait(700);
 
       if (response.finished) {
-        await loadRunResult(true);
-        playQuizSound('runComplete');
+        const loaded = await loadRunResult(true);
+        if (loaded) {
+          playQuizSound('runComplete');
+        }
         return;
       }
 
       currentQuestion.value = response.question ?? null;
       feedback.value = 'idle';
-    } catch {
+    } catch (error) {
+      if (handleRunNotFound(error, 'answer')) {
+        return;
+      }
       errorMessage.value = t('errors.answer');
       feedback.value = 'idle';
     } finally {
@@ -344,14 +352,13 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     });
   }
 
-  async function loadRunResult(showResult: boolean) {
+  async function loadRunResult(showResult: boolean): Promise<boolean> {
     let runResult: RunResult;
     try {
       runResult = await getResult(runId.value);
     } catch (error) {
-      if (isApiErrorCode(error, 'run_not_found')) {
-        handleFatalHardcoreLoss();
-        return;
+      if (handleRunNotFound(error, 'result')) {
+        return false;
       }
       throw error;
     }
@@ -381,6 +388,8 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       sessionCompleted.value = await catalog.refreshSessionCompletion();
       showRunResult();
     }
+
+    return true;
   }
 
   function recordRunResult(runResult: RunResult) {
@@ -496,7 +505,10 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
           },
         });
         await finishRun(runId.value);
-        await loadRunResult(false);
+        const loaded = await loadRunResult(false);
+        if (!loaded) {
+          return;
+        }
       }
 
       const nextSessionResult = buildSessionResultFromRuns(sessionRuns.value, sessionEvents.value);
@@ -531,7 +543,10 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       } catch {
         errorMessage.value = t('errors.endSession');
       }
-    } catch {
+    } catch (error) {
+      if (handleRunNotFound(error, 'endSession')) {
+        return;
+      }
       errorMessage.value = t('errors.endSession');
     } finally {
       busy.value = false;
@@ -561,6 +576,72 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
 
   function recordSessionEvent(input: SessionEventInput) {
     appendSessionEvent(input);
+  }
+
+  function handleRunNotFound(error: unknown, operation: RunFlowOperation) {
+    if (!isApiErrorCode(error, 'run_not_found')) {
+      return false;
+    }
+
+    recoverExpiredRun(operation);
+    return true;
+  }
+
+  function recoverExpiredRun(operation: RunFlowOperation) {
+    const expiredRunId = runId.value;
+    const expiredSessionId = getSessionId();
+
+    resetLocalSession();
+    resetResultViewCount();
+    runId.value = '';
+    currentQuestion.value = null;
+    result.value = null;
+    sessionResult.value = null;
+    sessionRuns.value = [];
+    sessionOpen.value = false;
+    sessionCompleted.value = false;
+    catalog.clearSessionAvailability();
+    feedback.value = 'idle';
+    fatalLossMessageVisible.value = false;
+    clearSessionEventLog();
+    catalog.syncSelectedTopic();
+    catalog.syncSelectedDifficulty();
+    screen.value = catalog.selectedTopic.value ? 'difficulty' : 'start';
+    errorMessage.value = t('errors.runExpired');
+
+    recordSessionEvent({
+      event: 'run.expired',
+      severity: 'warn',
+      sessionId: getSessionId(),
+      ...(expiredRunId ? { runId: expiredRunId } : {}),
+      message: 'Backend run was not found; frontend session recovered',
+      fields: {
+        locale: locale.value,
+        topic: catalog.selectedTopic.value || null,
+        difficulty: catalog.selectedDifficulty.value,
+        operation,
+        expiredSessionId,
+      },
+    });
+    recordSessionEvent({
+      event: 'session.initialized',
+      severity: 'info',
+      sessionId: getSessionId(),
+      message: 'Session initialized after expired run recovery',
+      fields: {
+        locale: locale.value,
+      },
+    });
+    $q.notify({
+      message: t('errors.runExpired'),
+      caption: 'QQUnit',
+      icon: 'timer_off',
+      color: 'amber-9',
+      textColor: 'black',
+      position: 'top',
+      timeout: 1800,
+      group: false,
+    });
   }
 
   return {
@@ -628,8 +709,4 @@ function finishReasonLabel(reason: string, t: (key: string) => string) {
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function isApiErrorCode(error: unknown, code: string) {
-  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === code);
 }

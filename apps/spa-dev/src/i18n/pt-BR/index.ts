@@ -141,6 +141,7 @@ export default {
     apiUnavailable: 'API indisponivel',
     startRun: 'Nao foi possivel iniciar a run',
     answer: 'Nao foi possivel enviar a resposta',
+    runExpired: 'A sessao expirou. Inicie uma nova run para continuar.',
     quitRun: 'Nao foi possivel encerrar a run',
     endSession: 'Nao foi possivel encerrar a sessao',
     topics: 'Nao foi possivel atualizar os topicos disponiveis',

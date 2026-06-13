@@ -141,6 +141,7 @@ export default {
     apiUnavailable: 'API unavailable',
     startRun: 'Could not start the run',
     answer: 'Could not send the answer',
+    runExpired: 'The session expired. Start a new run to continue.',
     quitRun: 'Could not finish the run',
     endSession: 'Could not end the session',
     topics: 'Could not refresh available topics',

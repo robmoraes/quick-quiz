@@ -12,6 +12,7 @@ export type SessionEventName =
   | 'run.question_answered'
   | 'run.completed'
   | 'run.abandoned'
+  | 'run.expired'
   | 'availability.topics_refreshed'
   | 'availability.difficulties_refreshed';
 
