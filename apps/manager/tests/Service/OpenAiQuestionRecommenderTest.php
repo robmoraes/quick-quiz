@@ -111,6 +111,42 @@ final class OpenAiQuestionRecommenderTest extends TestCase
         self::assertStringContainsString('Always return exactly 9 wrongOptions.', $instructions);
     }
 
+    public function testCanRecommendAnswersWithoutReturningPrompt(): void
+    {
+        $requests = [];
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$requests): MockResponse {
+            $requests[] = json_decode((string) $options['body'], true);
+
+            return new MockResponse(json_encode([
+                'output_text' => json_encode([
+                    'correctOptions' => ['echo'],
+                    'wrongOptions' => ['select', 'mount', 'render', 'printText', 'display', 'writeLine', 'console.log', 'show', 'output'],
+                ]),
+            ]));
+        });
+
+        $recommender = new OpenAiQuestionRecommender($client, 'test-key', 'gpt-test');
+        $answers = $recommender->recommendAnswers('en-US', [
+            'key' => 'php',
+            'name' => 'PHP',
+            'description' => 'PHP fundamentals',
+        ], 1, [
+            'label' => 'easy',
+            'optionCount' => 3,
+            'wrongRequired' => 2,
+        ], 'Which PHP construct outputs text?', ['Which tag starts PHP?']);
+
+        $instructions = $requests[0]['input'][0]['content'][0]['text'];
+        $payload = json_decode($requests[0]['input'][1]['content'][0]['text'], true);
+
+        self::assertSame(['echo'], $answers['correctOptions']);
+        self::assertCount(9, $answers['wrongOptions']);
+        self::assertStringContainsString('Write answers in the same human language as the provided prompt.', $instructions);
+        self::assertStringContainsString('Do not rewrite, translate, summarize, or return the prompt.', $instructions);
+        self::assertSame('Which PHP construct outputs text?', $payload['prompt']);
+        self::assertArrayNotHasKey('prompt', $requests[0]['text']['format']['schema']['properties']);
+    }
+
     public function testRejectsMissingConfigurationBeforeRequest(): void
     {
         $client = new MockHttpClient([]);

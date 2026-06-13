@@ -9,6 +9,33 @@ format.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-13
+
+### Added
+
+- Manual and AI-assisted question creation/editing flows, including localized
+  question set replication, answer-only AI suggestions, AI availability guards,
+  and Bootstrap Icons.
+- Dark-mode manager interface as the default and only visual theme.
+- Manager version display in the fixed footer.
+- Multi-locale question deletion with UI feedback for deleted and already
+  missing locale variants.
+- Topic datetime handling that persists manager-written `created_at` values in
+  UTC and displays/edits them in the browser timezone.
+- AI-assisted catalog topic helpers for fallback description suggestions,
+  canonical fallback saves, and localized catalog translations.
+- Topic list filtering by keyword and sorting by key, name, weight, or created
+  date.
+- Selected-theme stats screen with content totals, locale/topic/difficulty
+  breakdowns, run capacity, and content health metrics.
+
+### Changed
+
+- Topic, question, and catalog action controls now use compact icon/button
+  treatments aligned with the manager UI.
+- Catalog localized edit forms prefill from fallback topic metadata when the
+  localized entry is missing or blank.
+
 ## [0.1.0] - 2026-06-12
 
 ### Added
@@ -31,5 +58,6 @@ format.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.1.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.2.0...HEAD
+[0.2.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.1.0...manager%2Fv0.2.0
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/manager%2Fv0.1.0

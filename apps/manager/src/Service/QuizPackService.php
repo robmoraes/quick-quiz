@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use RuntimeException;
 
 final class QuizPackService
@@ -24,6 +26,7 @@ final class QuizPackService
         string $supportedLocales,
         private readonly ?ThemeContext $themeContext = null,
         private readonly ?string $fixedTheme = null,
+        private readonly int $runQuestionLimit = 10,
     ) {
         $this->supportedLocales = $this->parseSupportedLocales($supportedLocales, $fallbackLocale);
     }
@@ -303,6 +306,122 @@ final class QuizPackService
         return $questions;
     }
 
+    /** @return array<string,mixed> */
+    public function contentStats(): array
+    {
+        $topics = $this->listTopics();
+        $topicKeys = array_map(static fn (array $topic): string => (string) $topic['key'], $topics);
+        $runLimit = max(1, $this->runQuestionLimit);
+        $stats = [
+            'theme' => $this->selectedTheme(),
+            'fallbackLocale' => $this->fallbackLocale,
+            'runQuestionLimit' => $runLimit,
+            'totals' => [
+                'questions' => 0,
+                'correctAnswers' => 0,
+                'wrongAnswers' => 0,
+                'canonicalQuestions' => 0,
+                'activeTopics' => 0,
+                'inactiveTopics' => 0,
+                'activeTopicQuestions' => 0,
+            ],
+            'averages' => [
+                'correctAnswersPerQuestion' => 0.0,
+                'wrongAnswersPerQuestion' => 0.0,
+            ],
+            'runCapacity' => [
+                'total' => 0,
+                'byTopic' => [],
+            ],
+            'byLocale' => [],
+            'byTopic' => [],
+            'byDifficulty' => [],
+            'zeroQuestionTopics' => [],
+            'topicsBelowRunLimit' => [],
+            'localeQuestionRange' => [
+                'min' => 0,
+                'max' => 0,
+            ],
+            'localeParityIssues' => array_values(array_filter(
+                $this->validateLocaleParity(),
+                static fn (string $issue): bool => str_starts_with($issue, 'Locale '),
+            )),
+        ];
+
+        foreach ($this->supportedLocales as $locale) {
+            $stats['byLocale'][$locale] = $this->emptyStatsBucket();
+        }
+        foreach ($topics as $topic) {
+            $key = (string) $topic['key'];
+            if ((bool) ($topic['active'] ?? false)) {
+                $stats['totals']['activeTopics']++;
+            } else {
+                $stats['totals']['inactiveTopics']++;
+            }
+            $stats['byTopic'][$key] = $this->emptyStatsBucket() + [
+                'name' => (string) ($topic['name'] ?? $key),
+                'active' => (bool) ($topic['active'] ?? false),
+                'canonicalQuestions' => 0,
+                'difficultyQuestions' => [],
+            ];
+        }
+        foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+            $stats['byDifficulty'][$difficulty] = $this->emptyStatsBucket() + [
+                'label' => self::DIFFICULTIES[$difficulty]['label'],
+            ];
+        }
+
+        foreach ($this->supportedLocales as $locale) {
+            foreach ($topicKeys as $topic) {
+                foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+                    $questions = $this->listQuestions($locale, $topic, (int) $difficulty);
+                    foreach ($questions as $question) {
+                        $this->addQuestionStats($stats['totals'], $question);
+                        $this->addQuestionStats($stats['byLocale'][$locale], $question);
+                        $this->addQuestionStats($stats['byTopic'][$topic], $question);
+                        $this->addQuestionStats($stats['byDifficulty'][$difficulty], $question);
+                    }
+                }
+            }
+        }
+
+        foreach ($topicKeys as $topic) {
+            foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+                $canonicalQuestions = count($this->listQuestions($this->fallbackLocale, $topic, (int) $difficulty));
+                $stats['totals']['canonicalQuestions'] += $canonicalQuestions;
+                $stats['byTopic'][$topic]['canonicalQuestions'] += $canonicalQuestions;
+                $stats['byTopic'][$topic]['difficultyQuestions'][$difficulty] = $canonicalQuestions;
+            }
+            if ($stats['byTopic'][$topic]['active']) {
+                $stats['totals']['activeTopicQuestions'] += $stats['byTopic'][$topic]['canonicalQuestions'];
+            }
+            $stats['runCapacity']['byTopic'][$topic] = intdiv($stats['byTopic'][$topic]['canonicalQuestions'], $runLimit);
+            if ($stats['byTopic'][$topic]['canonicalQuestions'] === 0) {
+                $stats['zeroQuestionTopics'][] = $topic;
+            }
+            if ($stats['byTopic'][$topic]['canonicalQuestions'] < $runLimit) {
+                $stats['topicsBelowRunLimit'][] = $topic;
+            }
+        }
+
+        $stats['runCapacity']['total'] = intdiv($stats['totals']['canonicalQuestions'], $runLimit);
+        if ($stats['totals']['questions'] > 0) {
+            $stats['averages']['correctAnswersPerQuestion'] = round($stats['totals']['correctAnswers'] / $stats['totals']['questions'], 2);
+            $stats['averages']['wrongAnswersPerQuestion'] = round($stats['totals']['wrongAnswers'] / $stats['totals']['questions'], 2);
+        }
+
+        $localeQuestionCounts = array_map(
+            static fn (array $bucket): int => (int) $bucket['questions'],
+            $stats['byLocale'],
+        );
+        if ($localeQuestionCounts !== []) {
+            $stats['localeQuestionRange']['min'] = min($localeQuestionCounts);
+            $stats['localeQuestionRange']['max'] = max($localeQuestionCounts);
+        }
+
+        return $stats;
+    }
+
     /** @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} */
     public function readQuestion(string $locale, string $topic, int $difficulty, string $questionId): array
     {
@@ -353,6 +472,70 @@ final class QuizPackService
         return $questionId;
     }
 
+    /** @param array<string,mixed> $input */
+    public function createReplicatedQuestionSet(string $sourceLocale, string $topic, int $difficulty, string $questionId, array $input): string
+    {
+        $this->assertSupportedLocale($sourceLocale);
+        $questionId = trim($questionId);
+        if ($questionId === '') {
+            $questionId = $this->nextQuestionId($topic, $difficulty);
+        }
+
+        $this->assertCentralTopicExists($topic);
+        $this->assertDifficulty($difficulty);
+        $this->assertSafeIdentifier($questionId, 'question ID');
+        $this->assertQuestionIdAvailableInAllLocales($topic, $difficulty, $questionId);
+
+        $question = $this->validatedQuestionPayload($input, $difficulty);
+        $payloads = [];
+        foreach ($this->supportedLocales as $locale) {
+            $payloads[$this->questionPath($locale, $topic, $difficulty, $questionId)] = $question;
+        }
+
+        $this->writeJsonSet($payloads);
+        return $questionId;
+    }
+
+    /** @return array<string,array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}> */
+    public function readLocalizedQuestionSet(string $topic, int $difficulty, string $questionId): array
+    {
+        $this->assertExistingQuestionSet($topic, $difficulty, $questionId);
+
+        $questions = [];
+        foreach ($this->supportedLocales as $locale) {
+            $questions[$locale] = $this->readQuestion($locale, $topic, $difficulty, $questionId);
+        }
+        return $questions;
+    }
+
+    /** @param array<string,array<string,mixed>> $localizedInputs */
+    public function updateManualLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $localizedInputs): void
+    {
+        $this->assertExistingQuestionSet($topic, $difficulty, $questionId);
+
+        $payloads = [];
+        $canonical = $this->validatedQuestionPayload($localizedInputs[$this->fallbackLocale] ?? [], $difficulty);
+        $correctCount = count($canonical['correctOptions']);
+        $wrongCount = count($canonical['wrongOptions']);
+
+        foreach ($this->supportedLocales as $locale) {
+            $payload = $locale === $this->fallbackLocale
+                ? $canonical
+                : $this->validatedQuestionPayload($localizedInputs[$locale] ?? [], $difficulty);
+
+            if (count($payload['correctOptions']) !== $correctCount) {
+                throw new RuntimeException(sprintf('Locale %s must contain %d correct option(s) to match canonical locale %s.', $locale, $correctCount, $this->fallbackLocale));
+            }
+            if (count($payload['wrongOptions']) !== $wrongCount) {
+                throw new RuntimeException(sprintf('Locale %s must contain %d wrong option(s) to match canonical locale %s.', $locale, $wrongCount, $this->fallbackLocale));
+            }
+
+            $payloads[$this->questionPath($locale, $topic, $difficulty, $questionId)] = $payload;
+        }
+
+        $this->writeJsonSet($payloads);
+    }
+
     /**
      * @param array<string,mixed> $input
      * @return array{questionId:string, question:array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}}
@@ -379,12 +562,33 @@ final class QuizPackService
      * @param array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} $sourceQuestion
      * @param array<string,array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}> $localizations
      */
-    public function saveLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $sourceQuestion, array $localizations): void
+    public function saveLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $sourceQuestion, array $localizations, bool $copySourceAnswers = false): void
     {
         $this->assertCentralTopicExists($topic);
         $this->assertDifficulty($difficulty);
         $this->assertSafeIdentifier($questionId, 'question ID');
         $this->assertQuestionIdAvailableInAllLocales($topic, $difficulty, $questionId);
+
+        $this->writeLocalizedQuestionSet($topic, $difficulty, $questionId, $sourceQuestion, $localizations, $copySourceAnswers);
+    }
+
+    /**
+     * @param array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} $sourceQuestion
+     * @param array<string,array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}> $localizations
+     */
+    public function updateAiLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $sourceQuestion, array $localizations, bool $copySourceAnswers = false): void
+    {
+        $this->assertExistingQuestionSet($topic, $difficulty, $questionId);
+        $this->writeLocalizedQuestionSet($topic, $difficulty, $questionId, $sourceQuestion, $localizations, $copySourceAnswers);
+    }
+
+    /**
+     * @param array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} $sourceQuestion
+     * @param array<string,array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}> $localizations
+     */
+    private function writeLocalizedQuestionSet(string $topic, int $difficulty, string $questionId, array $sourceQuestion, array $localizations, bool $copySourceAnswers): void
+    {
+        $sourceQuestion = $this->validatedQuestionPayload($sourceQuestion, $difficulty);
 
         $expectedLocales = $this->supportedLocales;
         $missing = array_values(array_diff($expectedLocales, array_keys($localizations)));
@@ -394,7 +598,12 @@ final class QuizPackService
 
         $payloads = [];
         foreach ($expectedLocales as $locale) {
-            $payload = $this->validatedQuestionPayload($localizations[$locale] ?? [], $difficulty);
+            $localizedInput = $localizations[$locale] ?? [];
+            if ($copySourceAnswers) {
+                $localizedInput['correctOptions'] = $sourceQuestion['correctOptions'];
+                $localizedInput['wrongOptions'] = $sourceQuestion['wrongOptions'];
+            }
+            $payload = $this->validatedQuestionPayload($localizedInput, $difficulty);
             if (count($payload['correctOptions']) !== count($sourceQuestion['correctOptions'])) {
                 throw new RuntimeException(sprintf('Localization %s changed the number of correct options.', $locale));
             }
@@ -456,13 +665,41 @@ final class QuizPackService
         return $question;
     }
 
-    public function deleteQuestion(string $locale, string $topic, int $difficulty, string $questionId): void
+    /**
+     * @param array<string,mixed> $draft
+     * @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}
+     */
+    public function validateRecommendedAnswerDraft(int $difficulty, string $prompt, array $draft): array
     {
-        $this->assertQuestionPackageAllowed($locale, $topic, $difficulty, $questionId, allowMissingFallback: false);
-        $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
-        if (is_file($path) && !unlink($path)) {
-            throw new RuntimeException('Could not delete question file.');
+        return $this->validatedQuestionPayload([
+            'prompt' => $prompt,
+            'correctOptions' => $draft['correctOptions'] ?? [],
+            'wrongOptions' => $draft['wrongOptions'] ?? [],
+        ], $difficulty);
+    }
+
+    /** @return array{deletedLocales:list<string>, missingLocales:list<string>} */
+    public function deleteQuestion(string $topic, int $difficulty, string $questionId): array
+    {
+        $this->assertCentralTopicExists($topic);
+        $this->assertDifficulty($difficulty);
+        $this->assertSafeIdentifier($questionId, 'question ID');
+
+        $deletedLocales = [];
+        $missingLocales = [];
+        foreach ($this->supportedLocales as $locale) {
+            $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
+            if (!is_file($path)) {
+                $missingLocales[] = $locale;
+                continue;
+            }
+            if (!unlink($path)) {
+                throw new RuntimeException(sprintf('Could not delete question file for locale %s.', $locale));
+            }
+            $deletedLocales[] = $locale;
         }
+
+        return ['deletedLocales' => $deletedLocales, 'missingLocales' => $missingLocales];
     }
 
     /** @return list<string> */
@@ -550,9 +787,46 @@ final class QuizPackService
             'name' => trim((string) ($input['name'] ?? '')),
             'description' => trim((string) ($input['description'] ?? '')),
             'weight' => (int) ($input['weight'] ?? 0),
-            'created_at' => trim((string) ($input['created_at'] ?? '')),
+            'created_at' => $this->normalizeTopicCreatedAtUtc((string) ($input['created_at'] ?? '')),
             'active' => filter_var($input['active'] ?? false, FILTER_VALIDATE_BOOL),
         ];
+    }
+
+    private function normalizeTopicCreatedAtUtc(string $createdAt): string
+    {
+        $createdAt = trim($createdAt);
+        if ($createdAt === '') {
+            return '';
+        }
+        if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/', $createdAt)) {
+            throw new RuntimeException('Created at must be a valid datetime with timezone.');
+        }
+
+        try {
+            return (new DateTimeImmutable($createdAt))
+                ->setTimezone(new DateTimeZone('UTC'))
+                ->format('Y-m-d\TH:i:sP');
+        } catch (\Exception) {
+            throw new RuntimeException('Created at must be a valid datetime with timezone.');
+        }
+    }
+
+    /** @return array{questions:int, correctAnswers:int, wrongAnswers:int} */
+    private function emptyStatsBucket(): array
+    {
+        return [
+            'questions' => 0,
+            'correctAnswers' => 0,
+            'wrongAnswers' => 0,
+        ];
+    }
+
+    /** @param array<string,mixed> $bucket @param array{correctCount:int, wrongCount:int} $question */
+    private function addQuestionStats(array &$bucket, array $question): void
+    {
+        $bucket['questions'] = (int) ($bucket['questions'] ?? 0) + 1;
+        $bucket['correctAnswers'] = (int) ($bucket['correctAnswers'] ?? 0) + (int) $question['correctCount'];
+        $bucket['wrongAnswers'] = (int) ($bucket['wrongAnswers'] ?? 0) + (int) $question['wrongCount'];
     }
 
     /** @param list<array<string,mixed>> $topics @return list<array<string,mixed>> */
@@ -809,6 +1083,19 @@ final class QuizPackService
             $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
             if (is_file($path)) {
                 throw new RuntimeException(sprintf('Question path already exists in locale %s.', $locale));
+            }
+        }
+    }
+
+    private function assertExistingQuestionSet(string $topic, int $difficulty, string $questionId): void
+    {
+        $this->assertCentralTopicExists($topic);
+        $this->assertDifficulty($difficulty);
+        $this->assertSafeIdentifier($questionId, 'question ID');
+
+        foreach ($this->supportedLocales as $locale) {
+            if (!is_file($this->questionPath($locale, $topic, $difficulty, $questionId))) {
+                throw new RuntimeException(sprintf('Question package %s/%d/%s is missing in locale %s.', $topic, $difficulty, $questionId, $locale));
             }
         }
     }

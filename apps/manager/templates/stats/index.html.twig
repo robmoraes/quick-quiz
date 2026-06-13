@@ -1,0 +1,183 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}Stats - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <h1 class="h3 mb-0">Stats</h1>
+    <span class="badge text-bg-secondary">Theme: {{ stats.theme }}</span>
+  </div>
+
+  <section class="manager-stat-grid mb-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="manager-muted small">Questions</div>
+        <div class="h3 mb-0">{{ stats.totals.questions }}</div>
+        <div class="manager-muted small">{{ stats.totals.canonicalQuestions }} canonical</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="manager-muted small">Correct answers</div>
+        <div class="h3 mb-0">{{ stats.totals.correctAnswers }}</div>
+        <div class="manager-muted small">Avg {{ stats.averages.correctAnswersPerQuestion }}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="manager-muted small">Wrong answers</div>
+        <div class="h3 mb-0">{{ stats.totals.wrongAnswers }}</div>
+        <div class="manager-muted small">Avg {{ stats.averages.wrongAnswersPerQuestion }}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="manager-muted small">Possible runs</div>
+        <div class="h3 mb-0">{{ stats.runCapacity.total }}</div>
+        <div class="manager-muted small">{{ stats.runQuestionLimit }} questions/run</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card mb-3">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Content Health</h2>
+      <div class="row">
+        <div class="col-md-4 mb-3 mb-md-0">
+          <div class="manager-muted small">Topics</div>
+          <div>{{ stats.totals.activeTopics }} active / {{ stats.totals.inactiveTopics }} inactive</div>
+        </div>
+        <div class="col-md-4 mb-3 mb-md-0">
+          <div class="manager-muted small">Active topic questions</div>
+          <div>{{ stats.totals.activeTopicQuestions }}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="manager-muted small">Locale question range</div>
+          <div>{{ stats.localeQuestionRange.min }} - {{ stats.localeQuestionRange.max }}</div>
+        </div>
+      </div>
+      {% if stats.zeroQuestionTopics %}
+        <hr>
+        <div class="manager-muted small">Topics with zero canonical questions</div>
+        <div>{{ stats.zeroQuestionTopics|join(', ') }}</div>
+      {% endif %}
+      {% if stats.topicsBelowRunLimit %}
+        <hr>
+        <div class="manager-muted small">Topics below one full run</div>
+        <div>{{ stats.topicsBelowRunLimit|join(', ') }}</div>
+      {% endif %}
+      {% if stats.localeParityIssues %}
+        <hr>
+        <div class="manager-muted small">Locale parity issues</div>
+        <ul class="mb-0">
+          {% for issue in stats.localeParityIssues %}
+            <li>{{ issue }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="row">
+    <div class="col-lg-6 mb-3">
+      <section class="card h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">By Locale</h2>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle manager-table mb-0">
+              <thead>
+              <tr>
+                <th>Locale</th>
+                <th>Questions</th>
+                <th>Correct</th>
+                <th>Wrong</th>
+              </tr>
+              </thead>
+              <tbody>
+              {% for locale, bucket in stats.byLocale %}
+                <tr>
+                  <td><code>{{ locale }}</code></td>
+                  <td>{{ bucket.questions }}</td>
+                  <td>{{ bucket.correctAnswers }}</td>
+                  <td>{{ bucket.wrongAnswers }}</td>
+                </tr>
+              {% else %}
+                <tr><td colspan="4">No locales configured.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-lg-6 mb-3">
+      <section class="card h-100">
+        <div class="card-body">
+          <h2 class="h5 mb-3">By Difficulty</h2>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle manager-table mb-0">
+              <thead>
+              <tr>
+                <th>Difficulty</th>
+                <th>Questions</th>
+                <th>Correct</th>
+                <th>Wrong</th>
+              </tr>
+              </thead>
+              <tbody>
+              {% for difficulty, bucket in stats.byDifficulty %}
+                <tr>
+                  <td>{{ difficulty }} - {{ bucket.label }}</td>
+                  <td>{{ bucket.questions }}</td>
+                  <td>{{ bucket.correctAnswers }}</td>
+                  <td>{{ bucket.wrongAnswers }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="card-body">
+      <h2 class="h5 mb-3">By Topic</h2>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle manager-table mb-0">
+          <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Status</th>
+            <th>Questions</th>
+            <th>Canonical</th>
+            <th>Correct</th>
+            <th>Wrong</th>
+            <th>Runs</th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for topic, bucket in stats.byTopic %}
+            <tr>
+              <td>
+                <code>{{ topic }}</code>
+                <div class="manager-muted small">{{ bucket.name }}</div>
+              </td>
+              <td>{% if bucket.active %}<span class="badge text-bg-info">active</span>{% else %}<span class="badge text-bg-secondary">inactive</span>{% endif %}</td>
+              <td>{{ bucket.questions }}</td>
+              <td>{{ bucket.canonicalQuestions }}</td>
+              <td>{{ bucket.correctAnswers }}</td>
+              <td>{{ bucket.wrongAnswers }}</td>
+              <td>{{ stats.runCapacity.byTopic[topic] }}</td>
+            </tr>
+          {% else %}
+            <tr><td colspan="7">No topics configured.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+{% endblock %}

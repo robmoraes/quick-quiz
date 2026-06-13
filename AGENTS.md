@@ -56,7 +56,18 @@ Frontend relies on lint and build checks. Run `npm run lint` and `npm run build`
 
 ## Commit & Pull Request Guidelines
 
-Use trunk-based development. Keep `main` releasable and avoid long-lived branches.
+Use the engineering playbook preferred branching model: Trunk-Based
+Development. Keep `main` releasable and integrate small changes through
+short-lived branches. Reference:
+https://github.com/robmoraes/engineering-playbook/blob/main/github/branching-strategies.md#preferred-model-trunk-based-development
+
+Name branches as `<type>/<description>`, where `type` follows the same
+vocabulary as Conventional Commits. Use `feat/*`, `fix/*`, and `docs/*` for
+normal work. Use `release/v<version>` only when stabilization or maintenance
+requires it, and `hotfix/v<version>-<description>` only for urgent fixes to a
+supported release line. Examples: `feat/spa-dev-adsense-validation`,
+`fix/spa-dev-v0.1.1-release-config`, `docs/github-standards`,
+`release/v1.8`, and `hotfix/v1.8.3-timeout`.
 
 Use Conventional Commits with clear scopes:
 

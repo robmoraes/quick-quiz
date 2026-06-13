@@ -42,9 +42,44 @@
     </section>
   {% endif %}
 
+  <form class="manager-sort-controls" method="get" action="{{ path('catalog') }}">
+    <div class="manager-keyword-filter">
+      <label class="form-label" for="keyword">Keyword</label>
+      <input
+        class="form-control"
+        id="keyword"
+        name="keyword"
+        value="{{ keyword }}"
+        placeholder="Key, name, or description">
+    </div>
+    <div>
+      <label class="form-label" for="sortField">Sort field</label>
+      <select class="form-select" id="sortField" name="sortField">
+        <option value="">Default</option>
+        <option value="key" {% if sortField == 'key' %}selected{% endif %}>Key</option>
+        <option value="name" {% if sortField == 'name' %}selected{% endif %}>Name</option>
+        <option value="weight" {% if sortField == 'weight' %}selected{% endif %}>Weight</option>
+        <option value="created" {% if sortField == 'created' %}selected{% endif %}>Created</option>
+      </select>
+    </div>
+    <div>
+      <label class="form-label" for="sortDirection">Direction</label>
+      <select class="form-select" id="sortDirection" name="sortDirection">
+        <option value="asc" {% if sortDirection != 'desc' %}selected{% endif %}>Ascending</option>
+        <option value="desc" {% if sortDirection == 'desc' %}selected{% endif %}>Descending</option>
+      </select>
+    </div>
+    <div class="manager-sort-submit">
+      <button class="btn btn-outline-secondary" type="submit">Apply</button>
+      {% if keyword or sortField %}
+        <a class="btn btn-outline-secondary" href="{{ path('catalog') }}">Clear</a>
+      {% endif %}
+    </div>
+  </form>
+
   <div class="table-responsive">
-    <table class="table table-hover align-middle bg-white">
-      <thead class="table-light">
+    <table class="table table-hover align-middle manager-table">
+      <thead>
       <tr>
         <th>Key</th>
         <th>Name</th>
@@ -64,15 +99,35 @@
             <div class="text-muted small">{{ topic.description|default('') }}</div>
           </td>
           <td>{{ topic.weight }}</td>
-          <td>{{ topic.created_at|default('') }}</td>
+          <td data-manager-created-at-display="{{ topic.created_at|default('') }}">{{ topic.created_at|default('') }}</td>
           <td>{% if topic.active %}<span class="badge text-bg-info">active</span>{% else %}<span class="text-muted">inactive</span>{% endif %}</td>
           <td>{{ topic.questionCount }}</td>
-          <td>
-            <a href="{{ path('catalog_edit', {key: topic.key}) }}">Edit</a>
-            {% for locale in supportedLocales %}
-              | <a href="{{ path('catalog_localization', {locale: locale, key: topic.key}) }}">{{ locale }}</a>
-            {% endfor %}
-            | <a href="{{ path('questions', {topic: topic.key, locale: fallbackLocale, difficulty: 1}) }}">Questions</a>
+          <td class="manager-actions-cell">
+            <div class="manager-action-row">
+              <a
+                class="btn btn-sm btn-outline-secondary"
+                href="{{ path('catalog_edit', {key: topic.key}) }}"
+                title="Edit topic"
+                aria-label="Edit topic">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+              </a>
+              {% for locale in supportedLocales %}
+                <a
+                  class="btn btn-sm btn-outline-secondary"
+                  href="{{ path('catalog_localization', {locale: locale, key: topic.key}) }}"
+                  title="Edit {{ locale }} localization"
+                  aria-label="Edit {{ locale }} localization">
+                  {{ locale|split('-')|first }}
+                </a>
+              {% endfor %}
+              <a
+                class="btn btn-sm btn-outline-primary"
+                href="{{ path('questions', {topic: topic.key, locale: fallbackLocale, difficulty: 1}) }}"
+                title="Manage questions"
+                aria-label="Manage questions">
+                <i class="bi bi-card-checklist" aria-hidden="true"></i>
+              </a>
+            </div>
           </td>
         </tr>
       {% else %}

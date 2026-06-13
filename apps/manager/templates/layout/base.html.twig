@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,7 +7,7 @@
     {{ importmap('app') }}
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg bg-white border-bottom">
+    <nav class="navbar navbar-expand-lg border-bottom manager-navbar">
       <div class="container-fluid app-shell">
         <a class="navbar-brand fw-semibold" href="{{ selectedTheme ? path('catalog') : path('themes') }}">QuickQuiz Manager</a>
         {% if adminEmail %}
@@ -26,6 +26,9 @@
                 <li class="nav-item">
                   <a class="nav-link" href="{{ path('questions') }}">Questions</a>
                 </li>
+                <li class="nav-item">
+                  <a class="nav-link" href="{{ path('stats') }}">Stats</a>
+                </li>
               {% endif %}
             </ul>
             <div class="d-flex align-items-center gap-3">
@@ -34,7 +37,7 @@
               {% else %}
                 <a class="badge text-bg-warning text-dark text-decoration-none" href="{{ path('themes') }}">No theme selected</a>
               {% endif %}
-              <span class="text-muted small">{{ adminEmail }}</span>
+              <span class="manager-muted small">{{ adminEmail }}</span>
               <form method="post" action="{{ path('logout') }}">
                 <input type="hidden" name="_csrf" value="{{ csrf }}">
                 <button class="btn btn-outline-secondary btn-sm" type="submit">Logout</button>
@@ -47,5 +50,15 @@
     <main class="container-fluid app-shell py-4">
       {% block body %}{% endblock %}
     </main>
+    <footer class="manager-status-footer fixed-bottom border-top">
+      <div class="container-fluid app-shell d-flex align-items-center justify-content-between gap-3 py-2">
+        <span class="small manager-muted">QuickQuiz Manager · v{{ managerVersion }}</span>
+        {% if openAiConfigured %}
+          <span class="badge text-bg-success">AI active · {{ openAiModel }}</span>
+        {% else %}
+          <span class="badge text-bg-secondary">AI inactive</span>
+        {% endif %}
+      </div>
+    </footer>
   </body>
 </html>
