@@ -103,20 +103,20 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   const canAdvance = computed(() =>
     Boolean(
       catalog.selectedTopic.value &&
-        catalog.selectedTopicAvailable.value &&
-        !catalog.loadingCatalog.value &&
-        !catalog.loadingSessionTopics.value &&
-        !busy.value,
+      catalog.selectedTopicAvailable.value &&
+      !catalog.loadingCatalog.value &&
+      !catalog.loadingSessionTopics.value &&
+      !busy.value,
     ),
   );
 
   const canStart = computed(() =>
     Boolean(
       catalog.selectedTopic.value &&
-        catalog.selectedDifficultyInfo.value &&
-        catalog.selectedDifficultyAvailable.value &&
-        !catalog.loadingSessionDifficulties.value &&
-        !busy.value,
+      catalog.selectedDifficultyInfo.value &&
+      catalog.selectedDifficultyAvailable.value &&
+      !catalog.loadingSessionDifficulties.value &&
+      !busy.value,
     ),
   );
 
@@ -198,7 +198,10 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     errorMessage.value = '';
 
     try {
-      const response = await createRun(catalog.selectedTopic.value, catalog.selectedDifficulty.value);
+      const response = await createRun(
+        catalog.selectedTopic.value,
+        catalog.selectedDifficulty.value,
+      );
       catalog.sessionHasBackendState.value = true;
       sessionCompleted.value = false;
       catalog.sessionTopics.value = null;
@@ -236,6 +239,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
           questionTotal: response.question.total,
         },
       });
+      await refreshActiveAvailability();
       screen.value = 'question';
     } catch {
       errorMessage.value = t('errors.startRun');
@@ -286,6 +290,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
         return;
       }
 
+      await refreshActiveAvailability();
       playQuizSound(response.correct ? 'questionPassed' : 'questionFailed');
       await wait(700);
 
@@ -417,6 +422,11 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       timeout: 900,
       group: false,
     });
+  }
+
+  async function refreshActiveAvailability() {
+    await catalog.refreshTopicAvailability();
+    await catalog.refreshDifficultyAvailability();
   }
 
   function allLayoutAdsHidden() {

@@ -17,6 +17,10 @@
 
     <div class="topic-line">
       <q-chip square color="black" text-color="amber-3">{{ selectedTopicLabel }}</q-chip>
+      <AvailabilityCounters
+        :session-question-counter="sessionQuestionCounter"
+        :selected-topic-question-counter="selectedTopicQuestionCounter"
+      />
       <q-space />
       <q-btn
         flat
@@ -104,6 +108,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import AvailabilityCounters from './AvailabilityCounters.vue';
 import type { DifficultyPanelEmit, DifficultyPanelProps } from './contracts';
 
 const props = defineProps<DifficultyPanelProps>();

@@ -57,6 +57,8 @@ export default {
   },
   game: {
     questionProgress: 'Pergunta {current} de {total}',
+    sessionAvailability: 'Sessao {available}/{total}',
+    topicAvailability: 'Topico {available}/{total}',
     correct: 'Tests Passed',
     wrong: 'Tests Failed',
   },

@@ -37,6 +37,12 @@
       />
     </div>
 
+    <AvailabilityCounters
+      :session-question-counter="sessionQuestionCounter"
+      :selected-topic-question-counter="selectedTopicQuestionCounter"
+      class="q-mb-lg"
+    />
+
     <q-banner v-if="selectedTopicDescription" rounded class="topic-description q-mb-lg">
       <template #avatar>
         <q-icon name="info" color="cyan-3" size="28px" />
@@ -94,6 +100,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import AvailabilityCounters from './AvailabilityCounters.vue';
 import type { StartPanelEmit, StartPanelProps, TopicFilterUpdater } from './contracts';
 
 const props = defineProps<StartPanelProps>();

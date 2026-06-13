@@ -293,6 +293,20 @@ body {
   margin-bottom: 14px;
 }
 
+.availability-counters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.availability-counter {
+  margin: 0;
+  border: 1px solid rgba(125, 227, 255, 0.16);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
 .topic-description {
   border: 1px solid rgba(125, 227, 255, 0.28);
   border-radius: 8px;

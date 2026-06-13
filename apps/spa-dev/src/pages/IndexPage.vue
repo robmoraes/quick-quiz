@@ -8,6 +8,8 @@
       v-model:selected-topic="selectedTopic"
       :topic-options="topicOptions"
       :selected-topic-description="selectedTopicDescription"
+      :session-question-counter="sessionQuestionCounter"
+      :selected-topic-question-counter="selectedTopicQuestionCounter"
       :loading-catalog="loadingCatalog"
       :error-message="errorMessage"
       :busy="busy"
@@ -30,6 +32,8 @@
       :selected-topic-label="selectedTopicLabel"
       :difficulty-options="difficultyOptions"
       :selected-difficulty-info="selectedDifficultyInfo"
+      :session-question-counter="sessionQuestionCounter"
+      :selected-topic-question-counter="selectedTopicQuestionCounter"
       :selected-difficulty-class="selectedDifficultyClass"
       :selected-difficulty-prefix="selectedDifficultyPrefix"
       :selected-difficulty-message="selectedDifficultyMessage"
@@ -52,6 +56,8 @@
       :current-question="currentQuestion"
       :selected-topic-label="selectedTopicLabel"
       :selected-difficulty-label="selectedDifficultyLabel"
+      :session-question-counter="sessionQuestionCounter"
+      :selected-topic-question-counter="selectedTopicQuestionCounter"
       :busy="busy"
       :feedback="feedback"
       :can-end-session="canEndSession"
@@ -127,6 +133,8 @@ const {
   loadingCatalog,
   topicOptions,
   selectedTopicDescription,
+  sessionQuestionCounter,
+  selectedTopicQuestionCounter,
   difficultyOptions,
   selectedTopicLabel,
   selectedDifficultyInfo,

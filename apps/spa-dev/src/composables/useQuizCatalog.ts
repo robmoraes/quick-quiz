@@ -13,6 +13,7 @@ import {
 import { playQuizSound } from 'src/services/sounds';
 import { quickQuizTheme } from 'src/services/theme-config';
 import type {
+  AvailabilityCounter,
   DifficultyOption,
   DifficultyState,
   TopicSelectOption,
@@ -67,6 +68,26 @@ export function useQuizCatalog() {
   const selectedTopicDescription = computed(
     () => selectedTopicMetadata.value?.description?.trim() ?? '',
   );
+  const sessionQuestionCounter = computed<AvailabilityCounter | null>(() => {
+    if (!sessionHasBackendState.value || !sessionTopics.value) {
+      return null;
+    }
+
+    return buildCounter(
+      sessionTopics.value.topics.reduce((total, topic) => total + topicAvailableCount(topic), 0),
+      sessionTopics.value.topics.reduce((total, topic) => total + topicTotalCount(topic), 0),
+    );
+  });
+  const selectedTopicQuestionCounter = computed<AvailabilityCounter | null>(() => {
+    const topic = selectedTopicMetadata.value;
+    if (!topic) {
+      return null;
+    }
+
+    const total = topicTotalCount(topic);
+    const available = sessionHasBackendState.value ? topicAvailableCount(topic) : total;
+    return buildCounter(available, total);
+  });
 
   const sessionDifficultySource = computed(() =>
     sessionHasBackendState.value && sessionDifficulties.value?.topic === selectedTopic.value
@@ -223,9 +244,7 @@ export function useQuizCatalog() {
       sessionTopics.value = await getSessionTopics();
       recordSessionEvent({
         event: 'availability.topics_refreshed',
-        severity: sessionTopics.value.topics.some((topic) => topic.available)
-          ? 'info'
-          : 'critical',
+        severity: sessionTopics.value.topics.some((topic) => topic.available) ? 'info' : 'critical',
         sessionId: getSessionId(),
         message: 'Session topic availability refreshed',
         fields: topicAvailabilityFields(sessionTopics.value),
@@ -333,6 +352,8 @@ export function useQuizCatalog() {
     errorMessage,
     topicOptions,
     selectedTopicDescription,
+    sessionQuestionCounter,
+    selectedTopicQuestionCounter,
     difficultyOptions,
     selectedTopicLabel,
     selectedTopicAvailable,
@@ -371,6 +392,32 @@ function topicAvailabilityFields(sessionTopics: SessionTopics) {
       0,
     ),
   };
+}
+
+function buildCounter(available: number, total: number): AvailabilityCounter | null {
+  if (total <= 0) {
+    return null;
+  }
+
+  return {
+    available: Math.max(0, available),
+    total,
+  };
+}
+
+function topicTotalCount(topic: TopicState) {
+  return topic.questionCount ?? countQuestionsByDifficulty(topic);
+}
+
+function topicAvailableCount(topic: TopicState) {
+  return topic.availableQuestionCount ?? topicTotalCount(topic);
+}
+
+function countQuestionsByDifficulty(topic: TopicState) {
+  return (topic.difficulties ?? []).reduce(
+    (total, difficulty) => total + difficulty.questionCount,
+    0,
+  );
 }
 
 function sortTopics(topics: TopicState[], locale: string) {
