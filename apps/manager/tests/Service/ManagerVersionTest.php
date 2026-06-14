@@ -14,6 +14,6 @@ final class ManagerVersionTest extends TestCase
 
     public function testFallsBackWhenVersionIsEmpty(): void
     {
-        self::assertSame('0.2.0', (new ManagerVersion(''))->value());
+        self::assertSame('0.3.0', (new ManagerVersion(''))->value());
     }
 }

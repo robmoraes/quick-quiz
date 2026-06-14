@@ -2,6 +2,29 @@
 
 {% block title %}{% if mode == 'edit' %}Edit with AI{% else %}Create with AI{% endif %} - QuickQuiz Manager{% endblock %}
 
+{% block ai_help %}
+  {% include 'components/ai_help_drawer.html.twig' with {
+    items: [
+      {
+        title: 'Generate question and answers',
+        body: '<p>Creates a complete draft for the selected locale, topic, and difficulty. Text entered in Prompt is treated as generation guidance, not as the final question statement.</p>'
+      },
+      {
+        title: 'Suggest answers with AI',
+        body: '<p>Uses the current Prompt as an existing question and asks AI to suggest only correct and wrong answer options without rewriting the prompt.</p>'
+      },
+      {
+        title: 'Translate answer options',
+        body: '<p>When enabled, saving with AI localizes the prompt and answer options for supported locales. When disabled, AI localizes only the prompt and copies answer options.</p>'
+      },
+      {
+        title: 'Save with AI localization',
+        body: '<p>Saves the source question and asks AI to create or update the required localized question files for the supported locales.</p>'
+      }
+    ]
+  } %}
+{% endblock %}
+
 {% block body %}
   <h1 class="h3 mb-3">{% if mode == 'edit' %}Edit with AI{% else %}Create with AI{% endif %}</h1>
   <section class="card">

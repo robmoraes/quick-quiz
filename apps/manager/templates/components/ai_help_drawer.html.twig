@@ -1,0 +1,68 @@
+{% set drawerId = id|default('manager-ai-help-drawer') %}
+{% set helpItems = items|default([]) %}
+
+{% if helpItems|length > 0 %}
+  <aside
+    class="manager-ai-help-drawer is-open"
+    id="{{ drawerId }}"
+    aria-label="AI help"
+    data-manager-ai-help-drawer>
+    <button
+      class="manager-ai-help-edge-toggle"
+      type="button"
+      aria-controls="{{ drawerId }}"
+      aria-expanded="true"
+      aria-label="Toggle AI help"
+      title="Toggle AI help"
+      data-manager-ai-help-toggle>
+      <i class="bi bi-question-circle" aria-hidden="true"></i>
+    </button>
+
+    <div class="manager-ai-help-header">
+      <div>
+        <div class="manager-muted small">Help</div>
+        <h2 class="h5 mb-0">AI resources</h2>
+      </div>
+    </div>
+
+    <div class="manager-ai-help-body">
+      {% if helpItems|length > 1 %}
+        {% set accordionId = drawerId ~ '-accordion' %}
+        <div class="accordion manager-ai-help-accordion" id="{{ accordionId }}">
+          {% for item in helpItems %}
+            {% set itemId = drawerId ~ '-item-' ~ loop.index %}
+            <div class="accordion-item">
+              <h3 class="accordion-header">
+                <button
+                  class="accordion-button {% if not loop.first %}collapsed{% endif %}"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#{{ itemId }}"
+                  aria-expanded="{{ loop.first ? 'true' : 'false' }}"
+                  aria-controls="{{ itemId }}">
+                  {{ item.title }}
+                </button>
+              </h3>
+              <div
+                class="accordion-collapse collapse {% if loop.first %}show{% endif %}"
+                id="{{ itemId }}"
+                data-bs-parent="#{{ accordionId }}">
+                <div class="accordion-body">
+                  {{ item.body|raw }}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        {% set item = helpItems|first %}
+        <section>
+          <h3 class="h6">{{ item.title }}</h3>
+          <div class="manager-ai-help-content">
+            {{ item.body|raw }}
+          </div>
+        </section>
+      {% endif %}
+    </div>
+  </aside>
+{% endif %}

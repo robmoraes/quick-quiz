@@ -2,6 +2,23 @@
 
 {% block title %}Questions - QuickQuiz Manager{% endblock %}
 
+{% block ai_help %}
+  {% if aiAvailable %}
+    {% include 'components/ai_help_drawer.html.twig' with {
+      items: [
+        {
+          title: 'Create with AI',
+          body: '<p>Starts a new AI-assisted question draft for the selected topic and difficulty. Use it when you want AI to propose the question prompt and answer options.</p>'
+        },
+        {
+          title: 'Edit with AI',
+          body: '<p>Opens an existing question in the AI-assisted editor for the selected locale. Use it to adjust the prompt, options, or localized content with AI support.</p>'
+        }
+      ]
+    } %}
+  {% endif %}
+{% endblock %}
+
 {% block body %}
   <h1 class="h3 mb-3">Questions</h1>
   <section class="card mb-3">
@@ -77,7 +94,7 @@
     </div>
   </section>
 
-  <div class="table-responsive">
+  <div class="table-responsive manager-questions-table-container">
     <table class="table table-hover align-middle manager-table">
       <thead>
       <tr>
