@@ -14,6 +14,7 @@
       <div class="ad-slot ad-slot--bottom">
         <LayoutTailBanner />
       </div>
+      <div class="app-version" aria-label="Application version">v{{ appVersion }}</div>
     </q-page-container>
   </q-layout>
 </template>
@@ -21,4 +22,7 @@
 <script setup lang="ts">
 import LayoutGithubStarInvite from 'src/components/quiz/LayoutGithubStarInvite.vue';
 import LayoutTailBanner from 'src/components/quiz/LayoutTailBanner.vue';
+import { APP_VERSION } from 'src/services/app-version';
+
+const appVersion = APP_VERSION;
 </script>

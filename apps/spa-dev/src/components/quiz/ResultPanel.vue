@@ -1,11 +1,24 @@
 <template>
   <section class="result-panel">
-    <div class="brand-row">
-      <div>
-        <h1>{{ result.title }}</h1>
-        <p>{{ result.subtitle }}</p>
+    <div class="row items-center q-mb-xs">
+      <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
+
+      <div class="col text-h4 text-center">
+        {{ result.variant === 'run' ? t('result.runTitle') : t('result.sessionTitle') }}
       </div>
+
       <q-space />
+
+      <q-btn
+        flat
+        round
+        icon="help_outline"
+        :aria-label="t('rules.button')"
+        @click="emit('open-rules')"
+      >
+        <q-tooltip>{{ t('rules.button') }}</q-tooltip>
+      </q-btn>
+
       <q-btn
         flat
         round
@@ -61,7 +74,9 @@
               size="22px"
             />
           </td>
-          <td>{{ answer.prompt }}</td>
+          <td>
+            <QuizMarkdown :text="answer.prompt" variant="review" />
+          </td>
           <td class="gt-xs">
             <q-chip dense square :color="answer.correct ? 'green-9' : 'red-9'" text-color="white">
               {{ answer.correct ? t('result.reviewAccept') : t('result.reviewRejected') }}
@@ -163,8 +178,14 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import logoUrl from 'src/assets/logo-large.svg';
 import type { ResultPanelEmit, ResultPanelProps } from './contracts';
-import { syslogPrompt, syslogTailCommand, syslogTerminalIntroLines } from 'src/services/syslog-terminal';
+import {
+  syslogPrompt,
+  syslogTailCommand,
+  syslogTerminalIntroLines,
+} from 'src/services/syslog-terminal';
+import QuizMarkdown from './QuizMarkdown.vue';
 import SyslogEventLine from './SyslogEventLine.vue';
 
 defineProps<ResultPanelProps>();

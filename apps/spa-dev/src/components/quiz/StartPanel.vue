@@ -1,12 +1,21 @@
 <template>
   <section class="start-panel">
-    <div class="brand-row">
-      <q-icon name="sports_esports" size="34px" class="gt-xs" />
-      <div>
-        <h1>{{ t('app.title') }}</h1>
-        <p>{{ t('app.subtitle') }}</p>
-      </div>
+    <div class="row items-center q-mb-xs">
+      <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
+
+      <div class="col text-h4 text-center">{{ t('beforeGame.startPanel.title') }}</div>
+
       <q-space />
+
+      <q-btn
+        flat
+        round
+        icon="help_outline"
+        :aria-label="t('rules.button')"
+        @click="emit('open-rules')"
+      >
+        <q-tooltip>{{ t('rules.button') }}</q-tooltip>
+      </q-btn>
       <q-btn
         flat
         round
@@ -47,15 +56,10 @@
       </div>
     </q-banner>
 
-    <q-btn
-      outline
-      no-caps
-      color="cyan-3"
-      icon="article"
-      :label="t('rules.button')"
-      :aria-label="t('rules.button')"
-      class="rules-button"
-      @click="emit('open-rules')"
+    <AvailabilityCounters
+      :session-question-counter="sessionQuestionCounter"
+      :selected-topic-question-counter="selectedTopicQuestionCounter"
+      class="q-mb-lg"
     />
 
     <div v-if="errorMessage" class="error-line">{{ errorMessage }}</div>
@@ -94,6 +98,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import logoUrl from 'src/assets/logo-large.svg';
+import AvailabilityCounters from './AvailabilityCounters.vue';
 import type { StartPanelEmit, StartPanelProps, TopicFilterUpdater } from './contracts';
 
 const props = defineProps<StartPanelProps>();

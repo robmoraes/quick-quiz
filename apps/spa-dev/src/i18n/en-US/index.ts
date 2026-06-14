@@ -1,6 +1,6 @@
 export default {
   app: {
-    title: 'QuickQuiz Dev',
+    title: 'dev.QuickQuiz',
     subtitle: 'Game show quiz for programmers',
   },
   actions: {
@@ -55,8 +55,36 @@ export default {
       musicVolume: 'Music volume',
     },
   },
+  beforeGame: {
+    startPanel: {
+      title: 'Topic',
+    },
+    difficultyPanel: {
+      title: 'Level',
+    },
+  },
   game: {
     questionProgress: 'Question {current} of {total}',
+    sessionAvailability: 'Session {available}/{total}',
+    topicAvailability: 'Topic {available}/{total}',
+    availabilityCards: {
+      questionsLabel: 'Questions',
+      answeredLabel: 'answered',
+      totalLabel: 'total',
+      sessionLabel: 'Session',
+      topicLabel: 'Topic',
+      session: {
+        activeTooltip:
+          'In this session, <strong>{available}</strong> questions remain from a total of <strong>{total}</strong>.',
+        inactiveTooltip:
+          '<strong>{total}</strong> questions are available before starting a session.',
+      },
+      topic: {
+        activeTooltip:
+          'In this session, this topic still has <strong>{available}</strong> questions remaining from a total of <strong>{total}</strong>.',
+        inactiveTooltip: 'This topic has <strong>{total}</strong> available questions.',
+      },
+    },
     correct: 'Tests passed',
     wrong: 'Tests failed',
   },
@@ -68,21 +96,10 @@ export default {
     title: 'GAME OVER',
     message: 'One wrong answer cracked the session. All progress was lost.',
   },
-  advertising: {
-    eyebrow: 'Advertising',
-    title: 'Support QuickQuiz Dev',
-    placeholder: 'Advertising region',
-    close: 'Close advertising',
-    githubStarTitle: 'Enjoying the run?',
-    githubStarMessage:
-      'A GitHub star helps QuickQuiz gain reach and keep evolving in the open for the community.',
-    githubStarAction: 'Star the repository',
-    githubStarBannerText: 'Enjoying QuickQuiz? leave a star on GitHub',
-  },
   result: {
     title: 'Result',
-    runTitle: 'Run result',
-    sessionTitle: 'Session result',
+    runTitle: 'Run',
+    sessionTitle: 'Session',
     sessionFinished: 'Session ended',
     answered: 'Tests',
     correct: 'Passed',
@@ -121,6 +138,7 @@ export default {
     apiUnavailable: 'API unavailable',
     startRun: 'Could not start the run',
     answer: 'Could not send the answer',
+    runExpired: 'The session expired. Start a new run to continue.',
     quitRun: 'Could not finish the run',
     endSession: 'Could not end the session',
     topics: 'Could not refresh available topics',

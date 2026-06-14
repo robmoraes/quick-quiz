@@ -13,7 +13,6 @@ export type QuizScreen =
   | 'start'
   | 'difficulty'
   | 'question'
-  | 'runAd'
   | 'fatalLoss'
   | 'runResult'
   | 'sessionResult';
@@ -50,6 +49,12 @@ export type DifficultyOption = {
   disable: boolean;
 };
 
+export interface AvailabilityCounter {
+  available: number;
+  total: number;
+  active: boolean;
+}
+
 export interface ResultSnapshot {
   stats: ResultStats;
   answers: ResultAnswer[];
@@ -68,6 +73,8 @@ export interface StartPanelProps {
   selectedTopic: string;
   topicOptions: TopicSelectOption[];
   selectedTopicDescription: string;
+  sessionQuestionCounter: AvailabilityCounter | null;
+  selectedTopicQuestionCounter: AvailabilityCounter | null;
   loadingCatalog: boolean;
   errorMessage: string;
   busy: boolean;
@@ -93,6 +100,8 @@ export interface DifficultyPanelProps {
   selectedDifficulty: Difficulty;
   difficultyOptions: DifficultyOption[];
   selectedDifficultyInfo: DifficultyState | null;
+  sessionQuestionCounter: AvailabilityCounter | null;
+  selectedTopicQuestionCounter: AvailabilityCounter | null;
   selectedDifficultyClass: string;
   selectedDifficultyPrefix: string;
   selectedDifficultyMessage: string;
@@ -118,6 +127,8 @@ export interface QuestionPanelProps {
   currentQuestion: PublicQuestion;
   selectedTopicLabel: string;
   selectedDifficultyLabel: string;
+  sessionQuestionCounter: AvailabilityCounter | null;
+  selectedTopicQuestionCounter: AvailabilityCounter | null;
   busy: boolean;
   feedback: AnswerFeedback;
   canEndSession: boolean;
@@ -127,10 +138,6 @@ export interface QuestionPanelProps {
 export type QuestionPanelEmit = {
   (event: 'answer', optionId: string): void;
   (event: 'end-session'): void;
-};
-
-export type RunAdPanelEmit = {
-  (event: 'close'): void;
 };
 
 export interface FatalLossPanelProps {
@@ -153,6 +160,7 @@ export interface ResultPanelProps {
 }
 
 export type ResultPanelEmit = {
+  (event: 'open-rules'): void;
   (event: 'open-settings'): void;
   (event: 'new-run'): void;
   (event: 'end-session'): void;

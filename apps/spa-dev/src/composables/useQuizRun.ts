@@ -7,19 +7,14 @@ import {
   finishRun,
   getResult,
   getSessionId,
+  isApiErrorCode,
   resetLocalSession,
   resetSession,
   Difficulty,
   type PublicQuestion,
   type RunResult,
 } from 'src/services/api';
-import { advertisingConfig } from 'src/services/advertising-config';
-import {
-  nextResultViewCount,
-  resetResultViewCount,
-  shouldShowResultInterstitial,
-} from 'src/services/result-ad-frequency';
-import { shouldShowGithubStarInvite } from 'src/services/github-star-invite';
+import { resetResultViewCount } from 'src/services/result-ad-frequency';
 import {
   appendSessionEvent,
   clearSessionEventLog,
@@ -40,6 +35,8 @@ import type {
 interface UseQuizRunOptions {
   catalog: QuizCatalog;
 }
+
+type RunFlowOperation = 'answer' | 'result' | 'endSession';
 
 export function useQuizRun({ catalog }: UseQuizRunOptions) {
   const $q = useQuasar();
@@ -103,20 +100,20 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   const canAdvance = computed(() =>
     Boolean(
       catalog.selectedTopic.value &&
-        catalog.selectedTopicAvailable.value &&
-        !catalog.loadingCatalog.value &&
-        !catalog.loadingSessionTopics.value &&
-        !busy.value,
+      catalog.selectedTopicAvailable.value &&
+      !catalog.loadingCatalog.value &&
+      !catalog.loadingSessionTopics.value &&
+      !busy.value,
     ),
   );
 
   const canStart = computed(() =>
     Boolean(
       catalog.selectedTopic.value &&
-        catalog.selectedDifficultyInfo.value &&
-        catalog.selectedDifficultyAvailable.value &&
-        !catalog.loadingSessionDifficulties.value &&
-        !busy.value,
+      catalog.selectedDifficultyInfo.value &&
+      catalog.selectedDifficultyAvailable.value &&
+      !catalog.loadingSessionDifficulties.value &&
+      !busy.value,
     ),
   );
 
@@ -198,7 +195,10 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     errorMessage.value = '';
 
     try {
-      const response = await createRun(catalog.selectedTopic.value, catalog.selectedDifficulty.value);
+      const response = await createRun(
+        catalog.selectedTopic.value,
+        catalog.selectedDifficulty.value,
+      );
       catalog.sessionHasBackendState.value = true;
       sessionCompleted.value = false;
       catalog.sessionTopics.value = null;
@@ -236,6 +236,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
           questionTotal: response.question.total,
         },
       });
+      await refreshActiveAvailability();
       screen.value = 'question';
     } catch {
       errorMessage.value = t('errors.startRun');
@@ -286,18 +287,24 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
         return;
       }
 
+      await refreshActiveAvailability();
       playQuizSound(response.correct ? 'questionPassed' : 'questionFailed');
       await wait(700);
 
       if (response.finished) {
-        await loadRunResult(true);
-        playQuizSound('runComplete');
+        const loaded = await loadRunResult(true);
+        if (loaded) {
+          playQuizSound('runComplete');
+        }
         return;
       }
 
       currentQuestion.value = response.question ?? null;
       feedback.value = 'idle';
-    } catch {
+    } catch (error) {
+      if (handleRunNotFound(error, 'answer')) {
+        return;
+      }
       errorMessage.value = t('errors.answer');
       feedback.value = 'idle';
     } finally {
@@ -345,14 +352,13 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     });
   }
 
-  async function loadRunResult(showResult: boolean) {
+  async function loadRunResult(showResult: boolean): Promise<boolean> {
     let runResult: RunResult;
     try {
       runResult = await getResult(runId.value);
     } catch (error) {
-      if (isApiErrorCode(error, 'run_not_found')) {
-        handleFatalHardcoreLoss();
-        return;
+      if (handleRunNotFound(error, 'result')) {
+        return false;
       }
       throw error;
     }
@@ -382,6 +388,8 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       sessionCompleted.value = await catalog.refreshSessionCompletion();
       showRunResult();
     }
+
+    return true;
   }
 
   function recordRunResult(runResult: RunResult) {
@@ -392,18 +400,10 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   }
 
   function showRunResult() {
-    const resultViewCount = nextResultViewCount();
-    screen.value =
-      advertisingConfig.mobileResultInterstitialEnabled &&
-      shouldShowResultInterstitial(resultViewCount) &&
-      allLayoutAdsHidden() &&
-      shouldShowGithubStarInvite()
-        ? 'runAd'
-        : 'runResult';
-  }
-
-  function closeRunAd() {
     screen.value = 'runResult';
+
+    // advertisingConfig.mobileResultInterstitialEnabled &&
+    //   shouldShowResultInterstitial(resultViewCount) &&
   }
 
   function notifyAnswerFeedback(correct: boolean) {
@@ -419,8 +419,9 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     });
   }
 
-  function allLayoutAdsHidden() {
-    return $q.screen.width < 600;
+  async function refreshActiveAvailability() {
+    await catalog.refreshTopicAvailability();
+    await catalog.refreshDifficultyAvailability();
   }
 
   async function newRun() {
@@ -504,7 +505,10 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
           },
         });
         await finishRun(runId.value);
-        await loadRunResult(false);
+        const loaded = await loadRunResult(false);
+        if (!loaded) {
+          return;
+        }
       }
 
       const nextSessionResult = buildSessionResultFromRuns(sessionRuns.value, sessionEvents.value);
@@ -539,7 +543,10 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       } catch {
         errorMessage.value = t('errors.endSession');
       }
-    } catch {
+    } catch (error) {
+      if (handleRunNotFound(error, 'endSession')) {
+        return;
+      }
       errorMessage.value = t('errors.endSession');
     } finally {
       busy.value = false;
@@ -571,6 +578,72 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     appendSessionEvent(input);
   }
 
+  function handleRunNotFound(error: unknown, operation: RunFlowOperation) {
+    if (!isApiErrorCode(error, 'run_not_found')) {
+      return false;
+    }
+
+    recoverExpiredRun(operation);
+    return true;
+  }
+
+  function recoverExpiredRun(operation: RunFlowOperation) {
+    const expiredRunId = runId.value;
+    const expiredSessionId = getSessionId();
+
+    resetLocalSession();
+    resetResultViewCount();
+    runId.value = '';
+    currentQuestion.value = null;
+    result.value = null;
+    sessionResult.value = null;
+    sessionRuns.value = [];
+    sessionOpen.value = false;
+    sessionCompleted.value = false;
+    catalog.clearSessionAvailability();
+    feedback.value = 'idle';
+    fatalLossMessageVisible.value = false;
+    clearSessionEventLog();
+    catalog.syncSelectedTopic();
+    catalog.syncSelectedDifficulty();
+    screen.value = catalog.selectedTopic.value ? 'difficulty' : 'start';
+    errorMessage.value = t('errors.runExpired');
+
+    recordSessionEvent({
+      event: 'run.expired',
+      severity: 'warn',
+      sessionId: getSessionId(),
+      ...(expiredRunId ? { runId: expiredRunId } : {}),
+      message: 'Backend run was not found; frontend session recovered',
+      fields: {
+        locale: locale.value,
+        topic: catalog.selectedTopic.value || null,
+        difficulty: catalog.selectedDifficulty.value,
+        operation,
+        expiredSessionId,
+      },
+    });
+    recordSessionEvent({
+      event: 'session.initialized',
+      severity: 'info',
+      sessionId: getSessionId(),
+      message: 'Session initialized after expired run recovery',
+      fields: {
+        locale: locale.value,
+      },
+    });
+    $q.notify({
+      message: t('errors.runExpired'),
+      caption: 'QQUnit',
+      icon: 'timer_off',
+      color: 'amber-9',
+      textColor: 'black',
+      position: 'top',
+      timeout: 1800,
+      group: false,
+    });
+  }
+
   return {
     screen,
     runId,
@@ -594,7 +667,6 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     goToTopicSelection,
     startRun,
     submitAnswer,
-    closeRunAd,
     newRun,
     confirmEndSession,
     handleResultEndSession,
@@ -637,8 +709,4 @@ function finishReasonLabel(reason: string, t: (key: string) => string) {
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
-
-function isApiErrorCode(error: unknown, code: string) {
-  return Boolean(error && typeof error === 'object' && 'code' in error && error.code === code);
 }
