@@ -1,6 +1,6 @@
 export default {
   app: {
-    title: 'QuickQuiz Dev',
+    title: 'dev.QuickQuiz',
     subtitle: 'Quiz show para programadores',
   },
   actions: {
@@ -55,6 +55,14 @@ export default {
       musicVolume: 'Volume da música',
     },
   },
+  beforeGame: {
+    startPanel: {
+      title: 'Tópico',
+    },
+    difficultyPanel: {
+      title: 'Nível',
+    },
+  },
   game: {
     questionProgress: 'Pergunta {current} de {total}',
     sessionAvailability: 'Sessao {available}/{total}',
@@ -88,21 +96,10 @@ export default {
     title: 'GAME OVER',
     message: 'Uma resposta errada rachou a sessão. Todo o progresso foi perdido.',
   },
-  advertising: {
-    eyebrow: 'Publicidade',
-    title: 'Apoie o QuickQuiz Dev',
-    placeholder: 'Região de publicidade',
-    close: 'Fechar publicidade',
-    githubStarTitle: 'Curtiu a run?',
-    githubStarMessage:
-      'Uma estrela no GitHub ajuda o QuickQuiz a ganhar alcance e seguir evoluindo aberto para a comunidade.',
-    githubStarAction: 'Dar estrela no repositório',
-    githubStarBannerText: 'Curtiu o QuickQuiz? deixe uma estrela no GitHub',
-  },
   result: {
     title: 'Resultado',
-    runTitle: 'Resultado da run',
-    sessionTitle: 'Resultado da sessão',
+    runTitle: 'Run',
+    sessionTitle: 'Sessão',
     sessionFinished: 'Sessao encerrada',
     answered: 'Tests',
     correct: 'Passed',

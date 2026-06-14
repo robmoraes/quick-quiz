@@ -1,8 +1,14 @@
 <template>
   <section class="result-panel">
-    <div class="brand-row">
-      <img :src="logoUrl" :alt="result.title" class="brand-logo" />
+    <div class="row items-center q-mb-xs">
+      <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
+
+      <div class="col text-h4 text-center">
+        {{ result.variant === 'run' ? t('result.runTitle') : t('result.sessionTitle') }}
+      </div>
+
       <q-space />
+
       <q-btn
         flat
         round
@@ -12,6 +18,7 @@
       >
         <q-tooltip>{{ t('rules.button') }}</q-tooltip>
       </q-btn>
+
       <q-btn
         flat
         round
@@ -173,7 +180,11 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import logoUrl from 'src/assets/logo-large.svg';
 import type { ResultPanelEmit, ResultPanelProps } from './contracts';
-import { syslogPrompt, syslogTailCommand, syslogTerminalIntroLines } from 'src/services/syslog-terminal';
+import {
+  syslogPrompt,
+  syslogTailCommand,
+  syslogTerminalIntroLines,
+} from 'src/services/syslog-terminal';
 import QuizMarkdown from './QuizMarkdown.vue';
 import SyslogEventLine from './SyslogEventLine.vue';
 

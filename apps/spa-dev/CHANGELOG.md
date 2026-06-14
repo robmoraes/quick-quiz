@@ -9,6 +9,28 @@ format.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-13
+
+### Added
+
+- Added an in-app SPA Dev version indicator.
+- Added Markdown rendering for question prompts and result review text.
+- Added session and topic availability cards for the topic and difficulty
+  selection screens.
+- Added the large QuickQuiz logo, help access, and settings access to the
+  title area on pre-run and result screens.
+- Added explicit expired-run recovery when the API returns `run_not_found`
+  during answer, result, or end-session flows.
+
+### Changed
+
+- Refined the pre-run and result screen title chrome to use Quasar utility
+  classes and simplified release-facing labels.
+- Reworked availability counters to use result-style scalar cards and clearer
+  active/inactive session semantics.
+- Removed the run ad interstitial path and cleaned up unused CSS left by the
+  title-bar and counter refactors.
+
 ## [0.1.2] - 2026-06-12
 
 ### Added
@@ -47,7 +69,8 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.2...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.2.0...HEAD
+[0.2.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.2...spa-dev%2Fv0.2.0
 [0.1.2]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.1...spa-dev%2Fv0.1.2
 [0.1.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.0...spa-dev%2Fv0.1.1
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/spa-dev%2Fv0.1.0

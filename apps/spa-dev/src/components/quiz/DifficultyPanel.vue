@@ -1,8 +1,12 @@
 <template>
   <section class="start-panel">
-    <div class="brand-row">
+    <div class="row items-center q-mb-xs">
       <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
+
+      <div class="col text-h4 text-center">{{ t('beforeGame.difficultyPanel.title') }}</div>
+
       <q-space />
+
       <q-btn
         flat
         round
@@ -12,6 +16,7 @@
       >
         <q-tooltip>{{ t('rules.button') }}</q-tooltip>
       </q-btn>
+
       <q-btn
         flat
         round

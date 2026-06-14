@@ -1,6 +1,6 @@
 export default {
   app: {
-    title: 'QuickQuiz Dev',
+    title: 'dev.QuickQuiz',
     subtitle: 'Game show quiz for programmers',
   },
   actions: {
@@ -55,6 +55,14 @@ export default {
       musicVolume: 'Music volume',
     },
   },
+  beforeGame: {
+    startPanel: {
+      title: 'Topic',
+    },
+    difficultyPanel: {
+      title: 'Level',
+    },
+  },
   game: {
     questionProgress: 'Question {current} of {total}',
     sessionAvailability: 'Session {available}/{total}',
@@ -88,21 +96,10 @@ export default {
     title: 'GAME OVER',
     message: 'One wrong answer cracked the session. All progress was lost.',
   },
-  advertising: {
-    eyebrow: 'Advertising',
-    title: 'Support QuickQuiz Dev',
-    placeholder: 'Advertising region',
-    close: 'Close advertising',
-    githubStarTitle: 'Enjoying the run?',
-    githubStarMessage:
-      'A GitHub star helps QuickQuiz gain reach and keep evolving in the open for the community.',
-    githubStarAction: 'Star the repository',
-    githubStarBannerText: 'Enjoying QuickQuiz? leave a star on GitHub',
-  },
   result: {
     title: 'Result',
-    runTitle: 'Run result',
-    sessionTitle: 'Session result',
+    runTitle: 'Run',
+    sessionTitle: 'Session',
     sessionFinished: 'Session ended',
     answered: 'Tests',
     correct: 'Passed',
