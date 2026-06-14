@@ -2,6 +2,23 @@
 
 {% block title %}Topic - QuickQuiz Manager{% endblock %}
 
+{% block ai_help %}
+  {% if openAiConfigured %}
+    {% include 'components/ai_help_drawer.html.twig' with {
+      items: [
+        {
+          title: 'Suggest fallback description with AI',
+          body: '<p>Uses the fallback topic name and current metadata to draft a concise fallback description for the topic.</p>'
+        },
+        {
+          title: 'Save with AI',
+          body: '<p>Saves the topic metadata and asks AI to complete localized catalog metadata for supported locales.</p>'
+        }
+      ]
+    } %}
+  {% endif %}
+{% endblock %}
+
 {% block body %}
   <h1 class="h3 mb-3">{% if isNew %}New topic{% else %}Edit topic{% endif %}</h1>
   <section class="card">

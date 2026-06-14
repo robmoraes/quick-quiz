@@ -25,9 +25,9 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
      * @param array{label:string, optionCount:int, wrongRequired:int} $difficulty
      * @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}
      */
-    public function recommend(string $locale, array $topic, int $difficultyId, array $difficulty, array $existingPrompts): array
+    public function recommend(string $locale, array $topic, int $difficultyId, array $difficulty, array $existingPrompts, string $generationGuidance = ''): array
     {
-        $data = $this->requestRecommendation($this->requestBody($locale, $topic, $difficultyId, $difficulty, $existingPrompts));
+        $data = $this->requestRecommendation($this->requestBody($locale, $topic, $difficultyId, $difficulty, $existingPrompts, $generationGuidance));
 
         return $this->parseResponse($data);
     }
@@ -89,8 +89,23 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
      * @param list<string> $existingPrompts
      * @return array<string,mixed>
      */
-    private function requestBody(string $locale, array $topic, int $difficultyId, array $difficulty, array $existingPrompts): array
+    private function requestBody(string $locale, array $topic, int $difficultyId, array $difficulty, array $existingPrompts, string $generationGuidance): array
     {
+        $payload = [
+            'draftLocale' => $locale,
+            'topic' => $topic,
+            'difficulty' => [
+                'id' => $difficultyId,
+                'label' => $difficulty['label'],
+                'wrongRequired' => $difficulty['wrongRequired'],
+                'wrongOptionTarget' => self::WRONG_OPTION_TARGET,
+            ],
+            'existingPrompts' => $existingPrompts,
+        ];
+        if (trim($generationGuidance) !== '') {
+            $payload['generationGuidance'] = trim($generationGuidance);
+        }
+
         return [
             'model' => $this->model,
             'input' => [
@@ -105,6 +120,8 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
                                 'Always return exactly '.self::WRONG_OPTION_TARGET.' wrongOptions.',
                                 'Avoid repeating existing prompts exactly.',
                                 'Use existing prompts only as context; they do not include answers.',
+                                'If generationGuidance is provided, treat it as directional guidance for creating the question, not as the question prompt itself.',
+                                'Do not copy generationGuidance into prompt unless that exact wording is genuinely the best generated question.',
                                 'Do not choose or return locale, topic key, difficulty, question id, explanations, hints, or extra fields.',
                                 'Return only data that matches the schema.',
                             ]),
@@ -116,17 +133,7 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
                     'content' => [
                         [
                             'type' => 'input_text',
-                            'text' => json_encode([
-                                'draftLocale' => $locale,
-                                'topic' => $topic,
-                                'difficulty' => [
-                                    'id' => $difficultyId,
-                                    'label' => $difficulty['label'],
-                                    'wrongRequired' => $difficulty['wrongRequired'],
-                                    'wrongOptionTarget' => self::WRONG_OPTION_TARGET,
-                                ],
-                                'existingPrompts' => $existingPrompts,
-                            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                            'text' => json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                         ],
                     ],
                 ],

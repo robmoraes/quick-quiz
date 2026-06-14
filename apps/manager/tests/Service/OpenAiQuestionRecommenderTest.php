@@ -111,6 +111,42 @@ final class OpenAiQuestionRecommenderTest extends TestCase
         self::assertStringContainsString('Always return exactly 9 wrongOptions.', $instructions);
     }
 
+    public function testCanUsePromptFieldAsQuestionGenerationGuidance(): void
+    {
+        $requests = [];
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$requests): MockResponse {
+            $requests[] = json_decode((string) $options['body'], true);
+
+            return new MockResponse(json_encode([
+                'output_text' => json_encode([
+                    'prompt' => 'Which PHP keyword prints a short string?',
+                    'correctOptions' => ['echo'],
+                    'wrongOptions' => ['select', 'mount', 'render', 'printText', 'display', 'writeLine', 'console.log', 'show', 'output'],
+                ]),
+            ]));
+        });
+
+        $recommender = new OpenAiQuestionRecommender($client, 'test-key', 'gpt-test');
+        $draft = $recommender->recommend('en-US', [
+            'key' => 'php',
+            'name' => 'PHP',
+            'description' => 'PHP fundamentals',
+        ], 1, [
+            'label' => 'easy',
+            'optionCount' => 3,
+            'wrongRequired' => 2,
+        ], [], 'Create a question for short answers.');
+
+        $instructions = $requests[0]['input'][0]['content'][0]['text'];
+        $payload = json_decode($requests[0]['input'][1]['content'][0]['text'], true);
+
+        self::assertSame('Which PHP keyword prints a short string?', $draft['prompt']);
+        self::assertStringContainsString('treat it as directional guidance for creating the question', $instructions);
+        self::assertStringContainsString('Do not copy generationGuidance into prompt', $instructions);
+        self::assertSame('Create a question for short answers.', $payload['generationGuidance']);
+        self::assertArrayNotHasKey('prompt', $payload);
+    }
+
     public function testCanRecommendAnswersWithoutReturningPrompt(): void
     {
         $requests = [];

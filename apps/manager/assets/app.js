@@ -65,7 +65,25 @@ function initializeCreatedAtDisplays() {
   });
 }
 
+function initializeAiHelpDrawers() {
+  document.querySelectorAll('[data-manager-ai-help-drawer]').forEach((drawer) => {
+    const toggle = drawer.querySelector('[data-manager-ai-help-toggle]');
+
+    const setOpen = (open) => {
+      drawer.classList.toggle('is-open', open);
+      document.body.classList.toggle('manager-ai-help-open', open);
+      if (toggle !== null) {
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      }
+    };
+
+    setOpen(drawer.classList.contains('is-open'));
+    toggle?.addEventListener('click', () => setOpen(!drawer.classList.contains('is-open')));
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initializeCreatedAtFields();
   initializeCreatedAtDisplays();
+  initializeAiHelpDrawers();
 });

@@ -10,7 +10,7 @@ interface QuestionRecommender
      * @param array{label:string, optionCount:int, wrongRequired:int} $difficulty
      * @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}
      */
-    public function recommend(string $locale, array $topic, int $difficultyId, array $difficulty, array $existingPrompts): array;
+    public function recommend(string $locale, array $topic, int $difficultyId, array $difficulty, array $existingPrompts, string $generationGuidance = ''): array;
 
     /**
      * @param list<string> $existingPrompts

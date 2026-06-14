@@ -350,7 +350,7 @@ final class QuestionController extends BaseController
                 $answers = $recommender->recommendAnswers($sourceLocale, $topicMetadata, $difficulty, $difficulties[$difficulty], $question['prompt'], $contextPrompts);
                 $question = $packs->validateRecommendedAnswerDraft($difficulty, $question['prompt'], $answers);
             } else {
-                $draft = $recommender->recommend($sourceLocale, $topicMetadata, $difficulty, $difficulties[$difficulty], $contextPrompts);
+                $draft = $recommender->recommend($sourceLocale, $topicMetadata, $difficulty, $difficulties[$difficulty], $contextPrompts, $question['prompt']);
                 $question = $packs->validateRecommendedQuestionDraft($sourceLocale, $topic, $difficulty, $draft);
             }
 

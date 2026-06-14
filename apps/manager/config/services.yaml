@@ -1,6 +1,6 @@
 parameters:
   openai.empty: ''
-  manager.default_version: '0.2.0'
+  manager.default_version: '0.3.0'
   manager.database_url: '%env(MANAGER_DATABASE_URL)%'
   manager.content_root: '%env(MANAGER_CONTENT_ROOT)%'
   manager.fallback_locale: '%env(FALLBACK_LOCALE)%'

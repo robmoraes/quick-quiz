@@ -9,6 +9,24 @@ format.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-14
+
+### Added
+
+- Create with AI now treats Prompt text as generation guidance when generating
+  a complete question draft, while answer-only suggestions continue to use
+  Prompt as the existing question statement.
+- Reusable AI help drawer for manager screens with AI actions, including
+  accordion help entries when multiple AI resources are available.
+- SPA favicon assets are now used by the manager app.
+
+### Changed
+
+- Questions list table keeps enough minimum vertical space for single-row AI
+  edit dropdown menus.
+- AI help drawer opens on the right side with an edge toggle for closing and
+  reopening the drawer.
+
 ## [0.2.0] - 2026-06-13
 
 ### Added
@@ -58,6 +76,7 @@ format.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.2.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.3.0...HEAD
+[0.3.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.2.0...manager%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.1.0...manager%2Fv0.2.0
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/manager%2Fv0.1.0

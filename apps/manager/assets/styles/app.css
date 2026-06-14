@@ -166,6 +166,90 @@ a:focus-visible {
   background: var(--manager-surface);
 }
 
+.manager-questions-table-container {
+  min-height: 240px;
+}
+
+.manager-ai-help-drawer {
+  background: var(--manager-surface);
+  border-left: 1px solid var(--manager-border);
+  bottom: 42px;
+  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.24);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  right: 0;
+  top: 57px;
+  transform: translateX(100%);
+  transition: transform 160ms ease;
+  width: 360px;
+  z-index: 1030;
+}
+
+.manager-ai-help-drawer.is-open {
+  transform: translateX(0);
+}
+
+.manager-ai-help-edge-toggle {
+  align-items: center;
+  background: var(--manager-surface-raised);
+  border: 1px solid var(--manager-border);
+  border-radius: 8px 0 0 8px;
+  color: var(--manager-link);
+  display: inline-flex;
+  height: 44px;
+  justify-content: center;
+  left: -43px;
+  position: absolute;
+  top: 0.75rem;
+  width: 44px;
+}
+
+.manager-ai-help-edge-toggle:hover,
+.manager-ai-help-edge-toggle:focus-visible {
+  background: var(--manager-surface-hover);
+  color: var(--manager-link-hover);
+}
+
+.manager-ai-help-edge-toggle:focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(250, 204, 21, 0.28);
+  outline: 0;
+}
+
+.manager-ai-help-header {
+  align-items: start;
+  border-bottom: 1px solid var(--manager-border);
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.manager-ai-help-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.manager-ai-help-content,
+.manager-ai-help-accordion .accordion-body {
+  color: var(--manager-muted);
+  font-size: 0.95rem;
+}
+
+.manager-ai-help-content p:last-child,
+.manager-ai-help-accordion .accordion-body p:last-child {
+  margin-bottom: 0;
+}
+
+.manager-ai-help-accordion {
+  --bs-accordion-bg: var(--manager-surface-raised);
+  --bs-accordion-border-color: var(--manager-border);
+  --bs-accordion-btn-bg: var(--manager-surface-raised);
+  --bs-accordion-btn-color: var(--manager-text);
+  --bs-accordion-active-bg: var(--manager-surface-hover);
+  --bs-accordion-active-color: var(--manager-text);
+}
+
 .manager-actions-cell {
   min-width: 190px;
   white-space: nowrap;
@@ -204,6 +288,17 @@ a:focus-visible {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+@media (min-width: 992px) {
+  body.manager-ai-help-open main.app-shell {
+    margin-left: 1rem;
+    margin-right: 376px;
+    max-width: calc(100% - 392px);
+    transition:
+      margin-right 160ms ease,
+      max-width 160ms ease;
+  }
 }
 
 code {

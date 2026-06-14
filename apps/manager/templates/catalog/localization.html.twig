@@ -2,6 +2,19 @@
 
 {% block title %}Localized catalog - QuickQuiz Manager{% endblock %}
 
+{% block ai_help %}
+  {% if openAiConfigured %}
+    {% include 'components/ai_help_drawer.html.twig' with {
+      items: [
+        {
+          title: 'Save translation with AI',
+          body: '<p>Uses the fallback catalog metadata as source context and asks AI to save the localized name and description for this locale.</p>'
+        }
+      ]
+    } %}
+  {% endif %}
+{% endblock %}
+
 {% block body %}
   <h1 class="h3 mb-3">Localized catalog: {{ locale }} / {{ topic.key }}</h1>
   <section class="card">
