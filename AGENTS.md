@@ -79,6 +79,8 @@ docs(openapi): add api contract
 
 Pull requests should include a summary, validations, screenshots for UI changes, and API contract changes.
 
+GitHub issues must be created in English.
+
 ## Timeline Maintenance
 
 Keep `docs/timeline/YYYY-MM-DD.md` updated. Use one-line entries: `HH:MM-03: scope: what changed`.
