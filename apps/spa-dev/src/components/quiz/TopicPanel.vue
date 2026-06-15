@@ -100,10 +100,10 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import logoUrl from 'src/assets/logo-large.svg';
 import AvailabilityCounters from './AvailabilityCounters.vue';
-import type { StartPanelEmit, StartPanelProps, TopicFilterUpdater } from './contracts';
+import type { TopicFilterUpdater, TopicPanelEmit, TopicPanelProps } from './contracts';
 
-const props = defineProps<StartPanelProps>();
-const emit = defineEmits<StartPanelEmit>();
+const props = defineProps<TopicPanelProps>();
+const emit = defineEmits<TopicPanelEmit>();
 const { t } = useI18n();
 
 const selectedTopicModel = computed({

@@ -1,6 +1,6 @@
 <template>
   <q-page class="quiz-page" :class="{ 'quiz-page--ad-interstitial': screen === 'fatalLoss' }">
-    <StartPanel
+    <TopicPanel
       v-if="screen === 'start'"
       v-model:selected-topic="selectedTopic"
       :topic-options="topicOptions"
@@ -113,7 +113,7 @@ import QuestionPanel from 'src/components/quiz/QuestionPanel.vue';
 import ResultPanel from 'src/components/quiz/ResultPanel.vue';
 import RulesModal from 'src/components/quiz/RulesModal.vue';
 import SettingsDialog from 'src/components/quiz/SettingsDialog.vue';
-import StartPanel from 'src/components/quiz/StartPanel.vue';
+import TopicPanel from 'src/components/quiz/TopicPanel.vue';
 import { useQuizCatalog } from 'src/composables/useQuizCatalog';
 import { useQuizPreferences } from 'src/composables/useQuizPreferences';
 import { useQuizRun } from 'src/composables/useQuizRun';
