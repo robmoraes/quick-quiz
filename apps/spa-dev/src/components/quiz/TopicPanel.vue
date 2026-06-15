@@ -1,6 +1,6 @@
 <template>
   <section class="start-panel">
-    <div class="row items-center q-mb-xs">
+    <div class="row items-center q-mb-md">
       <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
 
       <div class="col text-h4 text-center">{{ t('beforeGame.startPanel.title') }}</div>

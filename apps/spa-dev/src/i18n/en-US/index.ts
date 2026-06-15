@@ -29,7 +29,7 @@ export default {
     hardcoreConfirm: 'Accept fatal risk',
   },
   form: {
-    topic: 'Topic',
+    topic: 'Choose the Topic',
   },
   topicInfo: {
     title: 'About this topic',
