@@ -1,6 +1,6 @@
 parameters:
   openai.empty: ''
-  manager.default_version: '0.3.0'
+  manager.default_version: '0.4.0'
   manager.database_url: '%env(MANAGER_DATABASE_URL)%'
   manager.content_root: '%env(MANAGER_CONTENT_ROOT)%'
   manager.fallback_locale: '%env(FALLBACK_LOCALE)%'
@@ -32,6 +32,10 @@ services:
       $supportedLocales: '%manager.supported_locales%'
       $themeContext: '@App\Service\ThemeContext'
       $runQuestionLimit: '%manager.run_question_limit%'
+
+  App\Service\AdService:
+    arguments:
+      $contentRoot: '%manager.content_root%'
 
   App\Service\OpenAiQuestionLocalizer:
     arguments:

@@ -1,0 +1,129 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}Advertising - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  {% set selectedTheme = ad.theme|default(ad.themes.theme|default('')) %}
+  {% set selectedTopics = ad.topics|default(ad.themes.topics|default([])) %}
+
+  <h1 class="h3 mb-3">{% if isNew %}New ad{% else %}Edit ad{% endif %}</h1>
+
+  <section class="card">
+    <div class="card-body">
+      {% if error is defined %}
+        <p class="alert alert-danger">{{ error }}</p>
+      {% endif %}
+
+      <form method="post" action="{{ path('ad_save') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <input type="hidden" name="id" value="{{ ad.id|default('') }}">
+
+        {% if not isNew %}
+          <div class="mb-3">
+            <label class="form-label" for="id_display">Ad ID</label>
+            <input class="form-control" id="id_display" value="{{ ad.id|default('') }}" readonly>
+          </div>
+        {% endif %}
+
+        <div class="row">
+          <div class="col-md-8 mb-3">
+            <label class="form-label" for="uri">Ad URL</label>
+            <input class="form-control" id="uri" name="uri" type="url" value="{{ ad.uri|default('') }}" required>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="provider_id">Provider ID</label>
+            <input class="form-control" id="provider_id" name="provider_id" value="{{ ad.provider_id|default('') }}">
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="description">Description</label>
+          <textarea class="form-control" id="description" name="description" required>{{ ad.description|default('') }}</textarea>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="image">Image URL</label>
+          <input class="form-control" id="image" name="image" type="url" value="{{ ad.image|default('') }}" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="theme">Theme</label>
+          <select class="form-select" id="theme" name="theme" data-manager-ad-theme-select>
+            <option value="">No theme targeting</option>
+            {% for theme in themes %}
+              <option value="{{ theme.id }}" {% if selectedTheme == theme.id %}selected{% endif %}>
+                {{ theme.name|default(theme.id) }} ({{ theme.id }})
+              </option>
+            {% endfor %}
+          </select>
+          {% if themes is empty %}
+            <div class="form-text">No themes configured.</div>
+          {% endif %}
+        </div>
+
+        <fieldset class="mb-3">
+          <legend class="form-label">Topics</legend>
+          {% for theme in themes %}
+            <div
+              class="manager-ad-topic-panel"
+              data-manager-ad-topic-panel="{{ theme.id }}"
+              {% if selectedTheme != theme.id %}hidden{% endif %}>
+              <div class="manager-checkbox-grid">
+                {% for topic in topicsByTheme[theme.id]|default([]) %}
+                  <label class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      name="topics[]"
+                      value="{{ topic.key }}"
+                      {% if selectedTheme == theme.id and topic.key in selectedTopics %}checked{% endif %}>
+                    <span class="form-check-label">
+                      {{ topic.name|default(topic.key) ?: topic.key }}
+                      <span class="manager-muted small">({{ topic.key }})</span>
+                      {% if not topic.active %}
+                        <span class="badge text-bg-secondary ms-1">inactive</span>
+                      {% endif %}
+                    </span>
+                  </label>
+                {% else %}
+                  <span class="manager-muted">No topics configured for this theme.</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <span class="manager-muted">Select a theme before choosing topics.</span>
+          {% endfor %}
+          <div class="form-text">Topic targeting is optional. Leave all unchecked to target the full theme.</div>
+        </fieldset>
+
+        <div class="row align-items-end">
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="created_at">Created at</label>
+            <input class="form-control" id="created_at" name="created_at" value="{{ ad.created_at|default('') }}" placeholder="2026-01-01T00:00:00-03:00">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label" for="expires_in">Expires in</label>
+            <input class="form-control" id="expires_in" name="expires_in" value="{{ ad.expires_in|default('') }}" placeholder="2026-12-31T23:59:59-03:00">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="active" value="1" {% if ad.active|default(false) %}checked{% endif %}>
+              <span class="form-check-label">Active</span>
+            </label>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-check">
+              <input class="form-check-input" type="checkbox" name="emphasis" value="1" {% if ad.emphasis|default(false) %}checked{% endif %}>
+              <span class="form-check-label">Emphasis</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Save</button>
+          <a class="btn btn-outline-secondary" href="{{ path('ads') }}">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </section>
+{% endblock %}

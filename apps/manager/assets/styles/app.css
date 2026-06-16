@@ -262,6 +262,22 @@ a:focus-visible {
   white-space: nowrap;
 }
 
+.manager-ad-thumb {
+  aspect-ratio: 4 / 3;
+  background: var(--manager-surface-raised);
+  border: 1px solid var(--manager-border);
+  border-radius: 6px;
+  height: 72px;
+  object-fit: cover;
+  width: 96px;
+}
+
+.manager-checkbox-grid {
+  display: grid;
+  gap: 0.5rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .manager-sort-controls {
   align-items: center;
   display: flex;
