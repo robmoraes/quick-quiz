@@ -19,7 +19,7 @@
       color="amber-8"
       text-color="black"
       icon="terminal"
-      label="bash qq/deploy.sh"
+      label="bash play_game.sh"
       class="q-mt-xl"
       @click="emit('advance')"
     />
