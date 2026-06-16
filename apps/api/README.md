@@ -1,7 +1,7 @@
 # QuickQuiz Dev API
 
-Go API for QuickQuiz catalogs, runs, answers, results, themes, and session
-availability.
+Go API for QuickQuiz catalogs, ads, runs, answers, results, themes, and
+session availability.
 
 Monorepo documentation:
 
@@ -59,6 +59,7 @@ Environment variables:
 
 - `GET /healthz`
 - `GET /api/catalog`
+- `GET /api/ads?limit=3&topic=php&emphasis=2`
 - `POST /api/session/reset`
 - `POST /api/runs`
 - `POST /api/runs/{runId}/answers`

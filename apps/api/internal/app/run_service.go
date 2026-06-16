@@ -90,7 +90,7 @@ type AnswerOutput struct {
 }
 
 func (s *RunService) Metadata(ctx context.Context, theme, locale string) (domain.CatalogMetadata, error) {
-	if err := s.validateTheme(ctx, theme); err != nil {
+	if err := validateTheme(ctx, s.questions, theme); err != nil {
 		return domain.CatalogMetadata{}, err
 	}
 
@@ -109,7 +109,7 @@ func (s *RunService) CreateRun(ctx context.Context, input CreateRunInput) (Creat
 	if input.SessionID == "" || input.Topic == "" || !input.Difficulty.Valid() {
 		return CreateRunOutput{}, ErrInvalidInput
 	}
-	if err := s.validateTheme(ctx, input.Theme); err != nil {
+	if err := validateTheme(ctx, s.questions, input.Theme); err != nil {
 		return CreateRunOutput{}, err
 	}
 
@@ -167,7 +167,7 @@ func (s *RunService) SessionDifficulties(ctx context.Context, input SessionDiffi
 	if input.SessionID == "" || input.Topic == "" {
 		return domain.SessionDifficulties{}, ErrInvalidInput
 	}
-	if err := s.validateTheme(ctx, input.Theme); err != nil {
+	if err := validateTheme(ctx, s.questions, input.Theme); err != nil {
 		return domain.SessionDifficulties{}, err
 	}
 
@@ -189,7 +189,7 @@ func (s *RunService) SessionTopics(ctx context.Context, input SessionTopicsInput
 	if input.SessionID == "" {
 		return domain.SessionTopics{}, ErrInvalidInput
 	}
-	if err := s.validateTheme(ctx, input.Theme); err != nil {
+	if err := validateTheme(ctx, s.questions, input.Theme); err != nil {
 		return domain.SessionTopics{}, err
 	}
 
@@ -237,7 +237,7 @@ func (s *RunService) ResetSession(ctx context.Context, sessionID, theme string) 
 	if sessionID == "" {
 		return ErrInvalidInput
 	}
-	if err := s.validateTheme(ctx, theme); err != nil {
+	if err := validateTheme(ctx, s.questions, theme); err != nil {
 		return err
 	}
 	return s.runs.DeleteBySession(ctx, sessionID, theme)
@@ -247,7 +247,7 @@ func (s *RunService) Answer(ctx context.Context, theme, runID, questionID, optio
 	if runID == "" || questionID == "" || optionID == "" {
 		return AnswerOutput{}, ErrInvalidInput
 	}
-	if err := s.validateTheme(ctx, theme); err != nil {
+	if err := validateTheme(ctx, s.questions, theme); err != nil {
 		return AnswerOutput{}, err
 	}
 
@@ -318,7 +318,7 @@ func (s *RunService) Finish(ctx context.Context, theme, runID string) error {
 	if runID == "" {
 		return ErrInvalidInput
 	}
-	if err := s.validateTheme(ctx, theme); err != nil {
+	if err := validateTheme(ctx, s.questions, theme); err != nil {
 		return err
 	}
 
@@ -339,7 +339,7 @@ func (s *RunService) Result(ctx context.Context, theme, runID string) (domain.Re
 	if runID == "" {
 		return domain.Result{}, ErrInvalidInput
 	}
-	if err := s.validateTheme(ctx, theme); err != nil {
+	if err := validateTheme(ctx, s.questions, theme); err != nil {
 		return domain.Result{}, err
 	}
 
@@ -437,24 +437,6 @@ func (s *RunService) sessionDifficultyAvailability(ctx context.Context, sessionI
 	}
 
 	return effectiveLocale, difficulties, nil
-}
-
-func (s *RunService) validateTheme(ctx context.Context, themeID string) error {
-	if themeID == "" {
-		return ErrThemeRequired
-	}
-
-	theme, err := s.questions.Theme(ctx, themeID)
-	if err != nil {
-		if errors.Is(err, domain.ErrThemeNotFound) {
-			return ErrThemeNotFound
-		}
-		return err
-	}
-	if !theme.Active {
-		return ErrThemeInactive
-	}
-	return nil
 }
 
 func (s *RunService) nextQuestionFromList(run *domain.Run, questions []domain.Question) (domain.ServedQuestion, error) {

@@ -8,6 +8,15 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-16
+
+### Added
+
+- Advertising delivery endpoint with theme filtering, random sampling, optional
+  emphasis ad count, and topic-prioritized fallback selection.
+- Local `ads/ads.json` loader with support for ad metadata, expiration,
+  active flags, emphasis flags, theme targeting, and optional topic targeting.
+
 ## [0.1.0] - 2026-06-12
 
 ### Added
@@ -30,5 +39,6 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 - The API release image repository is configurable through the
   `DOCKERHUB_API_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.1.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.2.0...HEAD
+[0.2.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.1.0...api%2Fv0.2.0
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/api%2Fv0.1.0
