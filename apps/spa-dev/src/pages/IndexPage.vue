@@ -225,9 +225,9 @@ async function initializeCatalog() {
 function advanceFromWelcomePanel() {
   welcomePanelVisible.value = false;
   try {
-    window.localStorage.setItem(welcomePanelSeenStorageKey, 'true');
+    window.sessionStorage.setItem(welcomePanelSeenStorageKey, 'true');
   } catch {
-    // Local storage can be unavailable in restricted browser modes.
+    // Session storage can be unavailable in restricted browser modes.
   }
 }
 
@@ -237,7 +237,7 @@ function isWelcomePanelPending() {
   }
 
   try {
-    return window.localStorage.getItem(welcomePanelSeenStorageKey) !== 'true';
+    return window.sessionStorage.getItem(welcomePanelSeenStorageKey) !== 'true';
   } catch {
     return true;
   }
