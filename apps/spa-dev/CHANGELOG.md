@@ -9,6 +9,20 @@ format.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-16
+
+### Added
+
+- API-backed advertising cards in the side layout slots, with regular ads on
+  the left and emphasis ads on the right.
+- Mobile result advertising fallback when side slots are hidden.
+
+### Changed
+
+- Ad requests now include the selected topic when available so the API can
+  prioritize topic-targeted products.
+- The top advertising region was removed to give more space to quiz content.
+
 ## [0.3.0] - 2026-06-16
 
 ### Added
@@ -82,7 +96,8 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.3.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.4.0...HEAD
+[0.4.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.3.0...spa-dev%2Fv0.4.0
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.2.0...spa-dev%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.2...spa-dev%2Fv0.2.0
 [0.1.2]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.1...spa-dev%2Fv0.1.2

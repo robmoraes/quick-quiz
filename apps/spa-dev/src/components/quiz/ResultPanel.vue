@@ -55,6 +55,8 @@
       </div>
     </div>
 
+    <LayoutAds class="result-ad-slot lt-md" placement="result" />
+
     <q-markup-table flat bordered separator="horizontal" class="answer-table">
       <thead>
         <tr>
@@ -135,9 +137,9 @@
       </div>
     </div>
 
-    <div class="terminal-floating-action">
+    <q-page-sticky class="gt-xs" position="bottom-right" :offset="[18, 18]">
       <q-btn round text-color="white" icon="terminal" size="md" @click="showTerminal = true" />
-    </div>
+    </q-page-sticky>
 
     <q-dialog v-model="showTerminal" maximized @show="focusTerminalPrompt">
       <q-card class="bg-black text-green-5 column">
@@ -187,6 +189,7 @@ import {
 } from 'src/services/syslog-terminal';
 import QuizMarkdown from './QuizMarkdown.vue';
 import SyslogEventLine from './SyslogEventLine.vue';
+import LayoutAds from './LayoutAds.vue';
 
 defineProps<ResultPanelProps>();
 const emit = defineEmits<ResultPanelEmit>();

@@ -14,6 +14,7 @@ import {
   type PublicQuestion,
   type RunResult,
 } from 'src/services/api';
+import { requestAdRefresh } from 'src/services/ad-refresh';
 import { resetResultViewCount } from 'src/services/result-ad-frequency';
 import {
   appendSessionEvent,
@@ -328,6 +329,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       },
     });
     resetLocalSession();
+    requestAdRefresh();
     clearSessionState();
     fatalLossMessageVisible.value = false;
     screen.value = 'fatalLoss';
@@ -363,6 +365,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       throw error;
     }
     recordRunResult(runResult);
+    requestAdRefresh();
     result.value = runResult;
     currentQuestion.value = null;
     feedback.value = 'idle';
