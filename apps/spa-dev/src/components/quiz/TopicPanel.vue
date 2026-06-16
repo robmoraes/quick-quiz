@@ -1,6 +1,6 @@
 <template>
   <section class="start-panel">
-    <div class="row items-center q-mb-xs">
+    <div class="row items-center q-mb-md">
       <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
 
       <div class="col text-h4 text-center">{{ t('beforeGame.startPanel.title') }}</div>
@@ -100,10 +100,10 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import logoUrl from 'src/assets/logo-large.svg';
 import AvailabilityCounters from './AvailabilityCounters.vue';
-import type { StartPanelEmit, StartPanelProps, TopicFilterUpdater } from './contracts';
+import type { TopicFilterUpdater, TopicPanelEmit, TopicPanelProps } from './contracts';
 
-const props = defineProps<StartPanelProps>();
-const emit = defineEmits<StartPanelEmit>();
+const props = defineProps<TopicPanelProps>();
+const emit = defineEmits<TopicPanelEmit>();
 const { t } = useI18n();
 
 const selectedTopicModel = computed({

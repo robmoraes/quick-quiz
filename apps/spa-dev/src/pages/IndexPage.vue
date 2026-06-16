@@ -1,7 +1,9 @@
 <template>
   <q-page class="quiz-page" :class="{ 'quiz-page--ad-interstitial': screen === 'fatalLoss' }">
-    <StartPanel
-      v-if="screen === 'start'"
+    <WelcomePanel v-if="welcomePanelVisible" @advance="advanceFromWelcomePanel" />
+
+    <TopicPanel
+      v-else-if="screen === 'start'"
       v-model:selected-topic="selectedTopic"
       :topic-options="topicOptions"
       :selected-topic-description="selectedTopicDescription"
@@ -113,7 +115,8 @@ import QuestionPanel from 'src/components/quiz/QuestionPanel.vue';
 import ResultPanel from 'src/components/quiz/ResultPanel.vue';
 import RulesModal from 'src/components/quiz/RulesModal.vue';
 import SettingsDialog from 'src/components/quiz/SettingsDialog.vue';
-import StartPanel from 'src/components/quiz/StartPanel.vue';
+import TopicPanel from 'src/components/quiz/TopicPanel.vue';
+import WelcomePanel from 'src/components/quiz/WelcomePanel.vue';
 import { useQuizCatalog } from 'src/composables/useQuizCatalog';
 import { useQuizPreferences } from 'src/composables/useQuizPreferences';
 import { useQuizRun } from 'src/composables/useQuizRun';
@@ -184,7 +187,9 @@ const {
   loadSettingsDraft,
 } = useQuizPreferences();
 
+const welcomePanelSeenStorageKey = 'quickquiz.welcomePanelSeen';
 const rulesOpen = ref(false);
+const welcomePanelVisible = ref(isWelcomePanelPending());
 
 const currentRulesText = computed(() => (locale.value === 'pt-BR' ? helpRfcPtBR : helpRfcEnUS));
 
@@ -215,5 +220,26 @@ async function saveSettings() {
 async function initializeCatalog() {
   await loadCatalog();
   await restoreSessionAvailability();
+}
+
+function advanceFromWelcomePanel() {
+  welcomePanelVisible.value = false;
+  try {
+    window.sessionStorage.setItem(welcomePanelSeenStorageKey, 'true');
+  } catch {
+    // Session storage can be unavailable in restricted browser modes.
+  }
+}
+
+function isWelcomePanelPending() {
+  if (typeof window === 'undefined') {
+    return true;
+  }
+
+  try {
+    return window.sessionStorage.getItem(welcomePanelSeenStorageKey) !== 'true';
+  } catch {
+    return true;
+  }
 }
 </script>

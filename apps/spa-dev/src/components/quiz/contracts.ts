@@ -69,7 +69,7 @@ export interface ResultView extends ResultSnapshot {
 
 export type TopicFilterUpdater = (callback: () => void) => void;
 
-export interface StartPanelProps {
+export interface TopicPanelProps {
   selectedTopic: string;
   topicOptions: TopicSelectOption[];
   selectedTopicDescription: string;
@@ -84,7 +84,7 @@ export interface StartPanelProps {
   endSessionActionLabel: string | undefined;
 }
 
-export type StartPanelEmit = {
+export type TopicPanelEmit = {
   (event: 'update:selectedTopic', value: string): void;
   (event: 'clear-topic'): void;
   (event: 'filter-topic-options', inputValue: string, update: TopicFilterUpdater): void;

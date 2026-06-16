@@ -9,6 +9,19 @@ format.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-16
+
+### Added
+
+- Added a first-visit welcome panel before the topic selection flow.
+
+### Changed
+
+- Updated the welcome panel action label.
+- Refined topic selection copy.
+- Changed the welcome panel seen flag to use session storage instead of local
+  storage.
+
 ## [0.2.0] - 2026-06-13
 
 ### Added
@@ -69,7 +82,8 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.2.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.3.0...HEAD
+[0.3.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.2.0...spa-dev%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.2...spa-dev%2Fv0.2.0
 [0.1.2]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.1...spa-dev%2Fv0.1.2
 [0.1.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.0...spa-dev%2Fv0.1.1
