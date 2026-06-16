@@ -38,6 +38,26 @@ type Theme struct {
 	Active      bool   `json:"active"`
 }
 
+type Ad struct {
+	ID          string     `json:"id"`
+	ProviderID  string     `json:"providerId,omitempty"`
+	URI         string     `json:"uri"`
+	Description string     `json:"description"`
+	Image       string     `json:"image"`
+	CreatedAt   string     `json:"createdAt,omitempty"`
+	ExpiresIn   *time.Time `json:"-"`
+	Active      bool       `json:"-"`
+	Emphasis    bool       `json:"-"`
+	Themes      []string   `json:"-"`
+	Topics      []string   `json:"-"`
+}
+
+type Ads struct {
+	Theme    string `json:"theme"`
+	Ads      []Ad   `json:"ads"`
+	Emphasis []Ad   `json:"emphasis,omitempty"`
+}
+
 type Question struct {
 	ID             string     `json:"id"`
 	Theme          string     `json:"theme,omitempty"`

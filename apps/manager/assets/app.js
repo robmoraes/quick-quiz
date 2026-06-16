@@ -82,8 +82,34 @@ function initializeAiHelpDrawers() {
   });
 }
 
+function initializeAdTopicFields() {
+  document.querySelectorAll('[data-manager-ad-theme-select]').forEach((select) => {
+    const form = select.closest('form');
+    if (form === null) {
+      return;
+    }
+
+    const panels = form.querySelectorAll('[data-manager-ad-topic-panel]');
+    const syncPanels = (clearHidden) => {
+      panels.forEach((panel) => {
+        const visible = panel.dataset.managerAdTopicPanel === select.value;
+        panel.hidden = !visible;
+        if (!visible && clearHidden) {
+          panel.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+            checkbox.checked = false;
+          });
+        }
+      });
+    };
+
+    syncPanels(false);
+    select.addEventListener('change', () => syncPanels(true));
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initializeCreatedAtFields();
   initializeCreatedAtDisplays();
   initializeAiHelpDrawers();
+  initializeAdTopicFields();
 });

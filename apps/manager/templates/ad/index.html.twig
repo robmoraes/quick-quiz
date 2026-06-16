@@ -1,0 +1,146 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}Advertising - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <h1 class="h3 mb-0">Advertising</h1>
+    {% if adsFileExists %}
+      <a class="btn btn-primary" href="{{ path('ad_new') }}">New ad</a>
+    {% endif %}
+  </div>
+
+  <section class="card mb-3">
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Content root</dt>
+        <dd class="col-sm-9"><code>{{ contentRoot }}</code></dd>
+        <dt class="col-sm-3">Ads file</dt>
+        <dd class="col-sm-9"><code>{{ contentRoot }}/ads/ads.json</code></dd>
+      </dl>
+    </div>
+  </section>
+
+  {% if not adsFileExists %}
+    <section class="alert alert-info">
+      <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+        <span>Advertising storage has not been created yet.</span>
+        <form method="post" action="{{ path('ads_create_file') }}">
+          <input type="hidden" name="_csrf" value="{{ csrf }}">
+          <button class="btn btn-primary" type="submit">criar publicidade</button>
+        </form>
+      </div>
+    </section>
+  {% else %}
+    <form class="manager-sort-controls" method="get" action="{{ path('ads') }}">
+      <div>
+        <label class="form-label" for="theme">Theme</label>
+        <select class="form-select" id="theme" name="theme">
+          <option value="">All themes</option>
+          {% for theme in themes %}
+            <option value="{{ theme.id }}" {% if selectedAdTheme == theme.id %}selected{% endif %}>
+              {{ theme.name|default(theme.id) }} ({{ theme.id }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="manager-sort-submit">
+        <button class="btn btn-outline-secondary" type="submit">Apply</button>
+        {% if selectedAdTheme %}
+          <a class="btn btn-outline-secondary" href="{{ path('ads') }}">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle manager-table">
+        <thead>
+        <tr>
+          <th>Preview</th>
+          <th>Ad</th>
+          <th>Themes</th>
+          <th>Dates</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for ad in ads %}
+          <tr>
+            <td>
+              {% if ad.image %}
+                <img class="manager-ad-thumb" src="{{ ad.image }}" alt="">
+              {% else %}
+                <span class="text-muted">No image</span>
+              {% endif %}
+            </td>
+            <td>
+              <strong>{{ ad.description|default(ad.uri) }}</strong>
+              <div class="small"><code>{{ ad.id }}</code></div>
+              {% if ad.provider_id %}
+                <div class="small">Provider: <code>{{ ad.provider_id }}</code></div>
+              {% endif %}
+              <div class="small text-break">
+                <a href="{{ ad.uri }}" target="_blank" rel="noreferrer">{{ ad.uri }}</a>
+              </div>
+            </td>
+            <td>
+              {% if ad.themes.theme %}
+                <span class="badge text-bg-secondary">{{ ad.themes.theme }}</span>
+                {% if ad.themes.topics %}
+                  <div class="small mt-1">
+                    Topics:
+                    {% for topic in ad.themes.topics %}
+                      <code>{{ topic }}</code>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">none</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="small">Created: {{ ad.created_at|default('-') }}</div>
+              <div class="small">Expires: {{ ad.expires_in|default('-') }}</div>
+            </td>
+            <td>
+              {% if ad.active %}
+                <span class="badge text-bg-info">active</span>
+              {% else %}
+                <span class="text-muted">inactive</span>
+              {% endif %}
+              {% if ad.emphasis %}
+                <span class="badge text-bg-warning ms-1">emphasis</span>
+              {% endif %}
+            </td>
+            <td class="manager-actions-cell">
+              <div class="manager-action-row">
+                <a
+                  class="btn btn-sm btn-outline-secondary"
+                  href="{{ path('ad_edit', {id: ad.id}) }}"
+                  title="Edit ad"
+                  aria-label="Edit ad">
+                  <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                </a>
+                <form method="post" action="{{ path('ad_delete', {id: ad.id}) }}" class="inline-form">
+                  <input type="hidden" name="_csrf" value="{{ csrf }}">
+                  <button
+                    class="btn btn-sm btn-outline-secondary"
+                    type="submit"
+                    title="Delete ad"
+                    aria-label="Delete ad"
+                    onclick="return confirm('Delete this ad?')">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">No ads configured.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+{% endblock %}

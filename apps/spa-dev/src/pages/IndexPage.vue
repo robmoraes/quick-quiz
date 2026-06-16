@@ -16,9 +16,9 @@
       :can-end-session="canEndSession"
       :next-action-label="actionLabel('actions.next', canEndSession)"
       :end-session-action-label="actionLabel('actions.endSession', canEndSession)"
-      @clear-topic="clearSelectedTopic"
+      @clear-topic="handleClearSelectedTopic"
       @filter-topic-options="filterTopicOptions"
-      @topic-changed="onTopicChanged"
+      @topic-changed="handleTopicChanged"
       @open-settings="settingsOpen = true"
       @open-rules="rulesOpen = true"
       @next="goToDifficulty"
@@ -118,6 +118,7 @@ import SettingsDialog from 'src/components/quiz/SettingsDialog.vue';
 import TopicPanel from 'src/components/quiz/TopicPanel.vue';
 import WelcomePanel from 'src/components/quiz/WelcomePanel.vue';
 import { useQuizCatalog } from 'src/composables/useQuizCatalog';
+import { useLayoutAds } from 'src/composables/useLayoutAds';
 import { useQuizPreferences } from 'src/composables/useQuizPreferences';
 import { useQuizRun } from 'src/composables/useQuizRun';
 
@@ -125,6 +126,7 @@ const $q = useQuasar();
 const { t } = useI18n();
 
 const quizCatalog = useQuizCatalog();
+const { setLayoutAdsTopic, refreshLayoutAds } = useLayoutAds();
 const {
   selectedTopic,
   selectedDifficulty,
@@ -140,8 +142,8 @@ const {
   selectedDifficultyClass,
   selectedDifficultyPrefix,
   selectedDifficultyMessage,
-  onTopicChanged,
-  clearSelectedTopic,
+  onTopicChanged: updateCatalogTopic,
+  clearSelectedTopic: clearCatalogSelectedTopic,
   filterTopicOptions,
   onDifficultyChanged,
   loadCatalog,
@@ -229,6 +231,21 @@ function advanceFromWelcomePanel() {
   } catch {
     // Session storage can be unavailable in restricted browser modes.
   }
+}
+
+function handleTopicChanged(value?: string | null) {
+  updateCatalogTopic(value);
+  updateAdsTopic(value ?? '');
+}
+
+function handleClearSelectedTopic() {
+  clearCatalogSelectedTopic();
+  updateAdsTopic('');
+}
+
+function updateAdsTopic(topic: string) {
+  setLayoutAdsTopic(topic);
+  void refreshLayoutAds();
 }
 
 function isWelcomePanelPending() {

@@ -31,12 +31,19 @@ func main() {
 	}
 
 	questionStore := store.NewMemoryQuestionStoreWithThemeMetadata(questionDataset.Questions, questionDataset.Topics, questionDataset.Themes)
+	adsDataset, err := store.LoadAdsFromRoot(cfg.QuestionSource)
+	if err != nil {
+		logger.Error("failed to load ads", "source", cfg.QuestionSource, "error", err)
+		os.Exit(1)
+	}
+	adStore := store.NewMemoryAdStore(adsDataset)
 	runStore := store.NewMemoryRunStore(cfg.SessionTTL)
 	runService := app.NewRunService(questionStore, runStore, cfg.RunQuestionLimit, localeManager)
+	adService := app.NewAdService(adStore, questionStore)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(runService, logger),
+		Handler:           httpapi.NewRouter(runService, adService, logger),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,

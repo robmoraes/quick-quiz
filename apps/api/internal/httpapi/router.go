@@ -7,12 +7,13 @@ import (
 	"quickquiz/api/internal/app"
 )
 
-func NewRouter(runs *app.RunService, logger *slog.Logger) http.Handler {
+func NewRouter(runs *app.RunService, ads *app.AdService, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
-	handler := NewHandler(runs)
+	handler := NewHandler(runs, ads)
 
 	mux.HandleFunc("GET /healthz", handler.Health)
 	mux.HandleFunc("GET /api/catalog", handler.Catalog)
+	mux.HandleFunc("GET /api/ads", handler.Ads)
 	mux.HandleFunc("GET /api/session/topics", handler.SessionTopics)
 	mux.HandleFunc("GET /api/session/difficulties", handler.SessionDifficulties)
 	mux.HandleFunc("POST /api/session/reset", handler.ResetSession)

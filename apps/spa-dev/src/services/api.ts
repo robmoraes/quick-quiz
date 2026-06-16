@@ -37,6 +37,20 @@ export interface Catalog {
   difficulties: DifficultyInfo[];
 }
 
+export interface Ad {
+  id: string;
+  providerId?: string;
+  uri: string;
+  description: string;
+  image: string;
+}
+
+export interface Ads {
+  theme: string;
+  ads: Ad[];
+  emphasis?: Ad[];
+}
+
 export interface SessionDifficulties {
   theme: string;
   locale: string;
@@ -114,6 +128,18 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080
 
 export async function getCatalog(): Promise<Catalog> {
   return request<Catalog>('/api/catalog');
+}
+
+export async function getAds(limit = 2, emphasis = 0, topic = ''): Promise<Ads> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const requestedTopic = topic.trim();
+  if (emphasis > 0) {
+    params.set('emphasis', String(emphasis));
+  }
+  if (requestedTopic) {
+    params.set('topic', requestedTopic);
+  }
+  return request<Ads>(`/api/ads?${params.toString()}`);
 }
 
 export async function getSessionTopics(): Promise<SessionTopics> {
