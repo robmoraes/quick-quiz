@@ -51,8 +51,9 @@ services:
       OPENAI_TIMEOUT: ${OPENAI_TIMEOUT:-30s}
     read_only: true
     restart: unless-stopped
+    user: "${QUICKQUIZ_RUNTIME_UID:-1000}:${QUICKQUIZ_RUNTIME_GID:-1000}"
     volumes:
-      - ${QUICKQUIZ_CONTENT_ROOT}:/app/.local:ro
+      - ${QUICKQUIZ_CONTENT_ROOT}:/app/.local
     networks:
       - web
     labels:

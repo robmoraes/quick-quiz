@@ -8,6 +8,14 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+### Fixed
+
+- Cloud Compose now mounts the API content root as writable and runs the API
+  with the shared runtime UID/GID so generated solution artifacts can be
+  persisted.
+- Unexpected API application errors are logged with the original error details
+  before returning generic server error responses.
+
 ## [0.3.0] - 2026-06-17
 
 ### Added
