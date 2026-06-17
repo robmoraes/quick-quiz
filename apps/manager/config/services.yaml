@@ -1,6 +1,6 @@
 parameters:
   openai.empty: ''
-  manager.default_version: '0.4.0'
+  manager.default_version: '0.5.0'
   manager.database_url: '%env(MANAGER_DATABASE_URL)%'
   manager.content_root: '%env(MANAGER_CONTENT_ROOT)%'
   manager.fallback_locale: '%env(FALLBACK_LOCALE)%'
@@ -25,6 +25,10 @@ services:
     arguments:
       $databaseUrl: '%manager.database_url%'
 
+  App\Repository\AiPromptRepository:
+    arguments:
+      $databaseUrl: '%manager.database_url%'
+
   App\Service\QuizPackService:
     arguments:
       $contentRoot: '%manager.content_root%'
@@ -37,12 +41,21 @@ services:
     arguments:
       $contentRoot: '%manager.content_root%'
 
+  App\Service\OpenAiModelProvider:
+    arguments:
+      $apiKey: '%openai.api_key%'
+      $defaultModel: '%openai.model%'
+      $project: '%openai.project%'
+      $organization: '%openai.org_id%'
+
   App\Service\OpenAiQuestionLocalizer:
     arguments:
       $apiKey: '%openai.api_key%'
       $model: '%openai.model%'
       $project: '%openai.project%'
       $organization: '%openai.org_id%'
+      $aiPrompts: '@App\Service\AiPromptProvider'
+      $modelProvider: '@App\Service\OpenAiModelProvider'
 
   App\Service\QuestionLocalizer: '@App\Service\OpenAiQuestionLocalizer'
 
@@ -52,6 +65,8 @@ services:
       $model: '%openai.model%'
       $project: '%openai.project%'
       $organization: '%openai.org_id%'
+      $aiPrompts: '@App\Service\AiPromptProvider'
+      $modelProvider: '@App\Service\OpenAiModelProvider'
 
   App\Service\CatalogAssistant: '@App\Service\OpenAiCatalogAssistant'
 
@@ -59,6 +74,7 @@ services:
     arguments:
       $apiKey: '%openai.api_key%'
       $model: '%openai.model%'
+      $modelProvider: '@App\Service\OpenAiModelProvider'
 
   App\Service\ManagerVersion:
     arguments:
@@ -70,5 +86,7 @@ services:
       $model: '%openai.model%'
       $project: '%openai.project%'
       $organization: '%openai.org_id%'
+      $aiPrompts: '@App\Service\AiPromptProvider'
+      $modelProvider: '@App\Service\OpenAiModelProvider'
 
   App\Service\QuestionRecommender: '@App\Service\OpenAiQuestionRecommender'

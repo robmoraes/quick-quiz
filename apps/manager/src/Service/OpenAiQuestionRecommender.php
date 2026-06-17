@@ -16,6 +16,8 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
         private readonly string $model = '',
         private readonly string $project = '',
         private readonly string $organization = '',
+        private readonly ?AiPromptProvider $aiPrompts = null,
+        private readonly ?OpenAiModelProvider $modelProvider = null,
     ) {
     }
 
@@ -48,12 +50,12 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
     /** @param array<string,mixed> $body @return array<string,mixed> */
     private function requestRecommendation(array $body): array
     {
-        if (trim($this->apiKey) === '' || trim($this->model) === '') {
+        if ($this->apiKey() === '' || $this->model() === '') {
             throw new RuntimeException('OpenAI configuration is missing. Set OPENAI_API_KEY and OPENAI_MODEL.');
         }
 
         $headers = [
-            'Authorization' => 'Bearer '.$this->apiKey,
+            'Authorization' => 'Bearer '.$this->apiKey(),
             'Content-Type' => 'application/json',
         ];
         if (trim($this->project) !== '') {
@@ -107,23 +109,15 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
         }
 
         return [
-            'model' => $this->model,
+            'model' => $this->model(),
             'input' => [
                 [
                     'role' => 'developer',
                     'content' => [
                         [
                             'type' => 'input_text',
-                            'text' => implode("\n", [
-                                'You recommend one new QuickQuiz question draft.',
-                                'Use the requested locale to choose the human language of the draft.',
-                                'Always return exactly '.self::WRONG_OPTION_TARGET.' wrongOptions.',
-                                'Avoid repeating existing prompts exactly.',
-                                'Use existing prompts only as context; they do not include answers.',
-                                'If generationGuidance is provided, treat it as directional guidance for creating the question, not as the question prompt itself.',
-                                'Do not copy generationGuidance into prompt unless that exact wording is genuinely the best generated question.',
-                                'Do not choose or return locale, topic key, difficulty, question id, explanations, hints, or extra fields.',
-                                'Return only data that matches the schema.',
+                            'text' => $this->promptText(AiPromptDefaults::QUESTION_RECOMMENDATION, [
+                                'wrongOptionTarget' => self::WRONG_OPTION_TARGET,
                             ]),
                         ],
                     ],
@@ -173,20 +167,15 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
     private function answersRequestBody(string $locale, array $topic, int $difficultyId, array $difficulty, string $prompt, array $existingPrompts): array
     {
         return [
-            'model' => $this->model,
+            'model' => $this->model(),
             'input' => [
                 [
                     'role' => 'developer',
                     'content' => [
                         [
                             'type' => 'input_text',
-                            'text' => implode("\n", [
-                                'You recommend answer options for one existing QuickQuiz prompt.',
-                                'Write answers in the same human language as the provided prompt.',
-                                'Use the requested locale only as a formatting hint when the prompt language is ambiguous.',
-                                'Do not rewrite, translate, summarize, or return the prompt.',
-                                'Always return exactly '.self::WRONG_OPTION_TARGET.' wrongOptions.',
-                                'Return only correctOptions and wrongOptions that match the schema.',
+                            'text' => $this->promptText(AiPromptDefaults::ANSWER_RECOMMENDATION, [
+                                'wrongOptionTarget' => self::WRONG_OPTION_TARGET,
                             ]),
                         ],
                     ],
@@ -235,6 +224,34 @@ final class OpenAiQuestionRecommender implements QuestionRecommender
                 ],
             ],
         ];
+    }
+
+    /** @param array<string,int|string> $variables */
+    private function promptText(string $key, array $variables = []): string
+    {
+        if ($this->aiPrompts instanceof AiPromptProvider) {
+            return $this->aiPrompts->text($key, $variables);
+        }
+
+        return AiPromptDefaults::renderDefault($key, $variables);
+    }
+
+    private function apiKey(): string
+    {
+        if ($this->modelProvider instanceof OpenAiModelProvider) {
+            return $this->modelProvider->apiKey();
+        }
+
+        return trim($this->apiKey);
+    }
+
+    private function model(): string
+    {
+        if ($this->modelProvider instanceof OpenAiModelProvider) {
+            return $this->modelProvider->activeModel();
+        }
+
+        return trim($this->model);
     }
 
     /**

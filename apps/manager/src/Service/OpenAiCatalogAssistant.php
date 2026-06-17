@@ -14,6 +14,8 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
         private readonly string $model = '',
         private readonly string $project = '',
         private readonly string $organization = '',
+        private readonly ?AiPromptProvider $aiPrompts = null,
+        private readonly ?OpenAiModelProvider $modelProvider = null,
     ) {
     }
 
@@ -26,13 +28,7 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
 
         return $this->parseTopicResponse($this->request($this->requestBody(
             schemaName: 'quickquiz_topic_description_suggestion',
-            developerInstructions: [
-                'You write concise QuickQuiz catalog topic descriptions.',
-                'Use the requested canonical BCP 47 locale for the description language.',
-                'Return only the name and description fields that match the schema.',
-                'Keep name exactly as provided.',
-                'Write one short operational description suitable for an admin catalog.',
-            ],
+            promptKey: AiPromptDefaults::CATALOG_DESCRIPTION_SUGGESTION,
             payload: [
                 'canonicalLocale' => $canonicalLocale,
                 'name' => $name,
@@ -46,13 +42,7 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
 
         return $this->parseTopicResponse($this->request($this->requestBody(
             schemaName: 'quickquiz_topic_canonicalization',
-            developerInstructions: [
-                'You normalize QuickQuiz catalog topic metadata.',
-                'Detect the human language used by the provided name and description.',
-                'Translate or rewrite both fields into the requested canonical BCP 47 locale.',
-                'Return only the name and description fields that match the schema.',
-                'Do not add explanations, locale fields, metadata, or extra keys.',
-            ],
+            promptKey: AiPromptDefaults::CATALOG_CANONICALIZATION,
             payload: [
                 'canonicalLocale' => $canonicalLocale,
                 'topic' => [
@@ -69,12 +59,7 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
 
         return $this->parseTopicResponse($this->request($this->requestBody(
             schemaName: 'quickquiz_topic_translation',
-            developerInstructions: [
-                'You translate QuickQuiz catalog topic metadata.',
-                'Translate both fields into the requested target BCP 47 locale.',
-                'Return only the name and description fields that match the schema.',
-                'Do not add explanations, locale fields, metadata, or extra keys.',
-            ],
+            promptKey: AiPromptDefaults::CATALOG_TRANSLATION,
             payload: [
                 'targetLocale' => $targetLocale,
                 'topic' => [
@@ -85,18 +70,18 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
         )));
     }
 
-    /** @param list<string> $developerInstructions @param array<string,mixed> $payload @return array<string,mixed> */
-    private function requestBody(string $schemaName, array $developerInstructions, array $payload): array
+    /** @param array<string,mixed> $payload @return array<string,mixed> */
+    private function requestBody(string $schemaName, string $promptKey, array $payload): array
     {
         return [
-            'model' => $this->model,
+            'model' => $this->model(),
             'input' => [
                 [
                     'role' => 'developer',
                     'content' => [
                         [
                             'type' => 'input_text',
-                            'text' => implode("\n", $developerInstructions),
+                            'text' => $this->promptText($promptKey),
                         ],
                     ],
                 ],
@@ -129,15 +114,24 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
         ];
     }
 
+    private function promptText(string $key): string
+    {
+        if ($this->aiPrompts instanceof AiPromptProvider) {
+            return $this->aiPrompts->text($key);
+        }
+
+        return AiPromptDefaults::renderDefault($key);
+    }
+
     /** @param array<string,mixed> $body @return array<string,mixed> */
     private function request(array $body): array
     {
-        if (trim($this->apiKey) === '' || trim($this->model) === '') {
+        if ($this->apiKey() === '' || $this->model() === '') {
             throw new RuntimeException('OpenAI configuration is missing. Set OPENAI_API_KEY and OPENAI_MODEL.');
         }
 
         $headers = [
-            'Authorization' => 'Bearer '.$this->apiKey,
+            'Authorization' => 'Bearer '.$this->apiKey(),
             'Content-Type' => 'application/json',
         ];
         if (trim($this->project) !== '') {
@@ -206,6 +200,24 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
             }
         }
         return '';
+    }
+
+    private function apiKey(): string
+    {
+        if ($this->modelProvider instanceof OpenAiModelProvider) {
+            return $this->modelProvider->apiKey();
+        }
+
+        return trim($this->apiKey);
+    }
+
+    private function model(): string
+    {
+        if ($this->modelProvider instanceof OpenAiModelProvider) {
+            return $this->modelProvider->activeModel();
+        }
+
+        return trim($this->model);
     }
 
     private function assertTopicText(string $name, string $description): void

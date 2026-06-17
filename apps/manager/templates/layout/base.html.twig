@@ -27,6 +27,9 @@
               <li class="nav-item">
                 <a class="nav-link" href="{{ path('ads') }}">Advertising</a>
               </li>
+              <li class="nav-item">
+                <a class="nav-link" href="{{ path('ai_prompts') }}">AI Prompts</a>
+              </li>
               {% if selectedTheme %}
                 <li class="nav-item">
                   <a class="nav-link" href="{{ path('catalog') }}">Catalog</a>
@@ -63,7 +66,20 @@
       <div class="container-fluid app-shell d-flex align-items-center justify-content-between gap-3 py-2">
         <span class="small manager-muted">QuickQuiz Manager · v{{ managerVersion }}</span>
         {% if openAiConfigured %}
-          <span class="badge text-bg-success">AI active · {{ openAiModel }}</span>
+          <form class="manager-ai-model-form" method="post" action="{{ path('openai_model_select') }}">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+            <input type="hidden" name="returnTo" value="{{ currentPath }}">
+            <label class="visually-hidden" for="openai-model">OpenAI model</label>
+            <span class="badge text-bg-success manager-ai-model-badge">
+              <select class="form-select form-select-sm manager-ai-model-select" id="openai-model" name="model" onchange="this.form.submit()">
+                {% for model in openAiModels %}
+                  <option value="{{ model }}" {% if model == openAiModel %}selected{% endif %}>{{ model }}</option>
+                {% else %}
+                  <option value="{{ openAiModel }}" selected>{{ openAiModel }}</option>
+                {% endfor %}
+              </select>
+            </span>
+          </form>
         {% else %}
           <span class="badge text-bg-secondary">AI inactive</span>
         {% endif %}

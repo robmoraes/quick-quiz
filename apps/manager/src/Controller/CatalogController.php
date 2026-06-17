@@ -157,6 +157,18 @@ final class CatalogController extends BaseController
             $topic['name'] = $canonical['name'];
             $topic['description'] = $canonical['description'];
             $packs->saveTopic($topic);
+            foreach ($packs->supportedLocales() as $locale) {
+                if ($locale === $packs->fallbackLocale()) {
+                    continue;
+                }
+
+                $translated = $assistant->translate($locale, $canonical['name'], $canonical['description']);
+                $packs->saveLocalizedTopic($locale, [
+                    'key' => (string) ($topic['key'] ?? ''),
+                    'name' => $translated['name'],
+                    'description' => $translated['description'],
+                ]);
+            }
 
             return $this->redirect('catalog');
         } catch (RuntimeException $error) {
