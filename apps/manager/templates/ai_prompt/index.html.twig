@@ -1,0 +1,76 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}AI Prompts - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">AI Prompts</h1>
+      <div class="manager-muted">Theme: <code>{{ promptTheme }}</code></div>
+    </div>
+  </div>
+
+  {% if error is defined %}
+    <p class="alert alert-danger">{{ error }}</p>
+  {% endif %}
+  {% if importedCount is defined and importedCount >= 0 %}
+    <p class="alert alert-success">{{ importedCount }} prompt{% if importedCount != 1 %}s{% endif %} imported.</p>
+  {% endif %}
+
+  <section class="card mb-3">
+    <div class="card-body">
+      <form class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3" method="post" action="{{ path('ai_prompts_import') }}" enctype="multipart/form-data">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <div class="flex-grow-1">
+          <label class="form-label" for="promptFile">Import JSON</label>
+          <input class="form-control" id="promptFile" name="promptFile" type="file" accept="application/json,.json" required>
+          <div class="form-text">Select a JSON file with <code>theme</code> set to <code>{{ promptTheme }}</code> and a top-level <code>prompts</code> array.</div>
+        </div>
+        <button class="btn btn-outline-primary" type="submit">Import JSON</button>
+      </form>
+    </div>
+  </section>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle manager-table">
+      <thead>
+      <tr>
+        <th>Prompt</th>
+        <th>Status</th>
+        <th>Updated</th>
+        <th>Actions</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for prompt in prompts %}
+        <tr>
+          <td>
+            <strong>{{ prompt.title }}</strong>
+            <div class="small manager-muted">{{ prompt.description }}</div>
+            <div class="small"><code>{{ prompt.key }}</code></div>
+          </td>
+          <td>
+            {% if prompt.isCustomized %}
+              <span class="badge text-bg-info">custom</span>
+            {% else %}
+              <span class="badge text-bg-secondary">default</span>
+            {% endif %}
+          </td>
+          <td>{{ prompt.updatedAt|default('-') }}</td>
+          <td class="manager-actions-cell">
+            <div class="manager-action-row">
+              <a
+                class="btn btn-sm btn-outline-secondary"
+                href="{{ path('ai_prompt_edit', {key: prompt.key}) }}"
+                title="Edit prompt"
+                aria-label="Edit prompt">
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

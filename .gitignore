@@ -43,3 +43,5 @@ apps/api/bin/
 
 # docs de dominio local
 docs/.local
+
+.tmp

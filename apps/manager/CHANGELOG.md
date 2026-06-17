@@ -9,6 +9,22 @@ format.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-17
+
+### Added
+
+- SQLite-backed AI prompt management scoped by selected theme, including list,
+  edit, restore default, and JSON upload import flows.
+- Runtime OpenAI model selection in the manager footer, with available models
+  fetched once per session and filtered for QuickQuiz content generation use.
+
+### Changed
+
+- Manager OpenAI services now load theme-specific prompt overrides and use the
+  runtime-selected model for question, localization, and catalog AI actions.
+- Catalog Save with AI now saves translated localized topic metadata for
+  supported locales instead of copying fallback text.
+
 ## [0.4.0] - 2026-06-16
 
 ### Added
@@ -85,7 +101,8 @@ format.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.4.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.5.0...HEAD
+[0.5.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.4.0...manager%2Fv0.5.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.3.0...manager%2Fv0.4.0
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.2.0...manager%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.1.0...manager%2Fv0.2.0

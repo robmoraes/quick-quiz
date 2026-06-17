@@ -306,6 +306,43 @@ a:focus-visible {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.manager-ai-prompt-textarea {
+  min-height: 320px;
+}
+
+.manager-ai-prompt-default {
+  background: #111315;
+  border: 1px solid var(--manager-border);
+  border-radius: 8px;
+  color: var(--manager-muted);
+  max-width: 760px;
+  overflow-x: auto;
+  padding: 1rem;
+  white-space: pre-wrap;
+}
+
+.manager-ai-model-form {
+  margin: 0;
+}
+
+.manager-ai-model-badge {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+  padding-right: 0.35rem;
+}
+
+.manager-ai-model-select {
+  background-color: rgba(17, 19, 21, 0.42);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  font-size: 0.75rem;
+  max-width: 220px;
+  min-height: 1.45rem;
+  padding-bottom: 0.05rem;
+  padding-top: 0.05rem;
+}
+
 @media (min-width: 992px) {
   body.manager-ai-help-open main.app-shell {
     margin-left: 1rem;

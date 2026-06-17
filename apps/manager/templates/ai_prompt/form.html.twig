@@ -1,0 +1,73 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}AI Prompt - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">{{ prompt.title }}</h1>
+      <div class="manager-muted">{{ prompt.description }}</div>
+      <div class="manager-muted small">Theme: <code>{{ promptTheme }}</code></div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ path('ai_prompts') }}">Back</a>
+  </div>
+
+  <section class="card">
+    <div class="card-body">
+      {% if error is defined %}
+        <p class="alert alert-danger">{{ error }}</p>
+      {% endif %}
+
+      <dl class="row">
+        <dt class="col-sm-2">Key</dt>
+        <dd class="col-sm-10"><code>{{ prompt.key }}</code></dd>
+        <dt class="col-sm-2">Theme</dt>
+        <dd class="col-sm-10"><code>{{ prompt.theme }}</code></dd>
+        <dt class="col-sm-2">Status</dt>
+        <dd class="col-sm-10">
+          {% if prompt.isCustomized %}
+            <span class="badge text-bg-info">custom</span>
+          {% else %}
+            <span class="badge text-bg-secondary">default</span>
+          {% endif %}
+        </dd>
+        <dt class="col-sm-2">Updated</dt>
+        <dd class="col-sm-10">{{ prompt.updatedAt|default('-') }}</dd>
+      </dl>
+
+      <form method="post" action="{{ path('ai_prompt_save', {key: prompt.key}) }}">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+
+        <div class="mb-3">
+          <label class="form-label" for="text">Developer instructions</label>
+          <textarea class="form-control text-mono manager-ai-prompt-textarea" id="text" name="text" required>{{ prompt.text }}</textarea>
+          <div class="form-text">Available placeholders are preserved as text, for example <code>{{ '{{ wrongOptionTarget }}' }}</code>.</div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-primary" type="submit">Save</button>
+          <a class="btn btn-outline-secondary" href="{{ path('ai_prompts') }}">Cancel</a>
+        </div>
+      </form>
+
+      <hr>
+
+      <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-start justify-content-between">
+        <div>
+          <h2 class="h6">Default prompt</h2>
+          <pre class="manager-ai-prompt-default mb-0">{{ prompt.defaultText }}</pre>
+        </div>
+        <form method="post" action="{{ path('ai_prompt_restore', {key: prompt.key}) }}">
+          <input type="hidden" name="_csrf" value="{{ csrf }}">
+          <button
+            class="btn btn-outline-secondary"
+            type="submit"
+            {% if not prompt.isCustomized %}disabled{% endif %}
+            onclick="return confirm('Restore this prompt to the default text?')">
+            Restore default
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+{% endblock %}
