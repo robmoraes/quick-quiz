@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,10 +17,14 @@ type Handler struct {
 	runs      *app.RunService
 	ads       *app.AdService
 	solutions *app.SolutionService
+	logger    *slog.Logger
 }
 
-func NewHandler(runs *app.RunService, ads *app.AdService, solutions *app.SolutionService) *Handler {
-	return &Handler{runs: runs, ads: ads, solutions: solutions}
+func NewHandler(runs *app.RunService, ads *app.AdService, solutions *app.SolutionService, logger *slog.Logger) *Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &Handler{runs: runs, ads: ads, solutions: solutions, logger: logger}
 }
 
 func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
@@ -29,7 +34,7 @@ func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
 func (h *Handler) Catalog(w http.ResponseWriter, r *http.Request) {
 	catalog, err := h.runs.Metadata(r.Context(), themeFromRequest(r), localeFromRequest(r, ""))
 	if err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -43,7 +48,7 @@ func (h *Handler) SessionTopics(w http.ResponseWriter, r *http.Request) {
 		Locale:    localeFromRequest(r, ""),
 	})
 	if err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -58,7 +63,7 @@ func (h *Handler) SessionDifficulties(w http.ResponseWriter, r *http.Request) {
 		Topic:     r.URL.Query().Get("topic"),
 	})
 	if err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -84,7 +89,7 @@ func (h *Handler) Ads(w http.ResponseWriter, r *http.Request) {
 		EmphasisLimit: emphasisLimit,
 	})
 	if err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -110,7 +115,7 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 		Difficulty: request.Difficulty,
 	})
 	if err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -119,7 +124,7 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ResetSession(w http.ResponseWriter, r *http.Request) {
 	if err := h.runs.ResetSession(r.Context(), sessionID(r), themeFromRequest(r)); err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -138,7 +143,7 @@ func (h *Handler) Answer(w http.ResponseWriter, r *http.Request) {
 
 	output, err := h.runs.Answer(r.Context(), themeFromRequest(r), r.PathValue("runId"), request.QuestionID, request.OptionID)
 	if err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -147,7 +152,7 @@ func (h *Handler) Answer(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Finish(w http.ResponseWriter, r *http.Request) {
 	if err := h.runs.Finish(r.Context(), themeFromRequest(r), r.PathValue("runId")); err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -160,7 +165,7 @@ func (h *Handler) Finish(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Result(w http.ResponseWriter, r *http.Request) {
 	result, err := h.runs.Result(r.Context(), themeFromRequest(r), r.PathValue("runId"))
 	if err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
@@ -175,14 +180,14 @@ func (h *Handler) QuestionSolution(w http.ResponseWriter, r *http.Request) {
 		QuestionID: strings.TrimSpace(r.PathValue("questionId")),
 	})
 	if err != nil {
-		h.writeAppError(w, err)
+		h.writeAppError(w, r, err)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, solution)
 }
 
-func (h *Handler) writeAppError(w http.ResponseWriter, err error) {
+func (h *Handler) writeAppError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, app.ErrThemeRequired):
 		writeError(w, http.StatusBadRequest, "theme_required", "Theme is required")
@@ -209,10 +214,22 @@ func (h *Handler) writeAppError(w http.ResponseWriter, err error) {
 	case errors.Is(err, app.ErrSolutionRateLimited):
 		writeError(w, http.StatusTooManyRequests, "solution_rate_limited", "Solution rate limited")
 	case errors.Is(err, app.ErrSolutionUnavailable):
+		h.logAppError(r, "solution_unavailable", http.StatusServiceUnavailable, err)
 		writeError(w, http.StatusServiceUnavailable, "solution_unavailable", "Solution unavailable")
 	default:
+		h.logAppError(r, "internal_error", http.StatusInternalServerError, err)
 		writeError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 	}
+}
+
+func (h *Handler) logAppError(r *http.Request, code string, status int, err error) {
+	h.logger.Error("http application error",
+		"method", r.Method,
+		"path", r.URL.Path,
+		"status", status,
+		"code", code,
+		"error", err,
+	)
 }
 
 func decodeJSON(r *http.Request, target any) error {

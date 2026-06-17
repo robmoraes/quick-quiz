@@ -8,8 +8,12 @@ import (
 )
 
 func NewRouter(runs *app.RunService, ads *app.AdService, solutions *app.SolutionService, logger *slog.Logger) http.Handler {
+	if logger == nil {
+		logger = slog.Default()
+	}
+
 	mux := http.NewServeMux()
-	handler := NewHandler(runs, ads, solutions)
+	handler := NewHandler(runs, ads, solutions, logger)
 
 	mux.HandleFunc("GET /healthz", handler.Health)
 	mux.HandleFunc("GET /api/catalog", handler.Catalog)

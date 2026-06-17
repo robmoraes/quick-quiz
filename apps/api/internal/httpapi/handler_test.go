@@ -1,7 +1,9 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -120,6 +122,29 @@ func TestQuestionSolutionEndpointReturnsGeneratedSolution(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"cached":false`) {
 		t.Fatalf("expected first solution response to be uncached, got %s", response.Body.String())
+	}
+}
+
+func TestHandlerLogsUnexpectedApplicationErrors(t *testing.T) {
+	var logs bytes.Buffer
+	handler := NewHandler(nil, nil, nil, slog.New(slog.NewJSONHandler(&logs, nil)))
+	request := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+	response := httptest.NewRecorder()
+
+	handler.writeAppError(response, request, errors.New("storage is read-only"))
+
+	if response.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500, got %d", response.Code)
+	}
+	logLine := logs.String()
+	if !strings.Contains(logLine, `"msg":"http application error"`) {
+		t.Fatalf("expected application error log, got %s", logLine)
+	}
+	if !strings.Contains(logLine, `"path":"/api/test"`) {
+		t.Fatalf("expected request path in log, got %s", logLine)
+	}
+	if !strings.Contains(logLine, `"error":"storage is read-only"`) {
+		t.Fatalf("expected original error in log, got %s", logLine)
 	}
 }
 

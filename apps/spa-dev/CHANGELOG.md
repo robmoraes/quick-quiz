@@ -9,6 +9,12 @@ format.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-06-17
+
+### Added
+
+- Added a playful localized message for solution request rate limits.
+
 ## [0.5.0] - 2026-06-17
 
 ### Added
@@ -107,7 +113,8 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.1...HEAD
+[0.5.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.0...spa-dev%2Fv0.5.1
 [0.5.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.4.0...spa-dev%2Fv0.5.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.3.0...spa-dev%2Fv0.4.0
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.2.0...spa-dev%2Fv0.3.0
