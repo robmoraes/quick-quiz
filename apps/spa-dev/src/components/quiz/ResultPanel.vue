@@ -287,7 +287,11 @@
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import logoUrl from 'src/assets/logo-large.svg';
-import { getQuestionSolution, type QuestionSolution } from 'src/services/api';
+import {
+  getQuestionSolution,
+  isApiErrorCode,
+  type QuestionSolution,
+} from 'src/services/api';
 import type { ResultAnswer, ResultPanelEmit, ResultPanelProps } from './contracts';
 import {
   syslogPrompt,
@@ -341,11 +345,13 @@ async function openSolution(answer: ResultAnswer) {
     }
     solution.value = loaded;
     markSolutionRead(answer);
-  } catch {
+  } catch (error) {
     if (requestId !== solutionRequestId) {
       return;
     }
-    solutionError.value = t('errors.solution');
+    solutionError.value = isApiErrorCode(error, 'solution_rate_limited')
+      ? t('errors.solutionRateLimited')
+      : t('errors.solution');
   } finally {
     if (requestId === solutionRequestId) {
       solutionLoading.value = false;

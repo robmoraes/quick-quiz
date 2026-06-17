@@ -155,5 +155,7 @@ export default {
     difficulties: 'Could not refresh available severities',
     noDifficulties: 'No difficulties available for this topic',
     solution: 'Could not load the question solution',
+    solutionRateLimited:
+      'Well, well, the hacker is back. I knew challenging programmers would turn against me, but not through this door. Do not quit: keep exercising your knowledge in the quiz ;)',
   },
 };

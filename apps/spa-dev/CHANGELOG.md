@@ -9,6 +9,10 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Added a playful localized message for solution request rate limits.
+
 ## [0.5.0] - 2026-06-17
 
 ### Added

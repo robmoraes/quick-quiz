@@ -155,5 +155,7 @@ export default {
     difficulties: 'Nao foi possivel atualizar as severidades disponiveis',
     noDifficulties: 'Nenhuma dificuldade disponivel para este topico',
     solution: 'Nao foi possivel carregar a solucao da questao',
+    solutionRateLimited:
+      'Olha so, o hacker voltou. Eu sabia que desafiar programadores ia se voltar contra mim, mas nao por aqui. Nao desista: exercite seu conhecimento no quiz ;)',
   },
 };
