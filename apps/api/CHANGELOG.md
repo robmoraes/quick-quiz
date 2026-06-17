@@ -8,6 +8,8 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-06-17
+
 ### Fixed
 
 - Cloud Compose now mounts the API content root as writable and runs the API
@@ -56,7 +58,8 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 - The API release image repository is configurable through the
   `DOCKERHUB_API_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.1...HEAD
+[0.3.1]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.0...api%2Fv0.3.1
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.2.0...api%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.1.0...api%2Fv0.2.0
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/api%2Fv0.1.0
