@@ -8,6 +8,17 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-06-17
+
+### Fixed
+
+- Cloud Compose now uses API-specific OpenAI environment variables for the API
+  service, keeping Manager runtime model selection isolated from solution
+  generation.
+- Cloud Compose now requires the API OpenAI key, model, and solution prompt path
+  at config-render time so missing solution-generation settings fail before
+  deployment.
+
 ## [0.3.1] - 2026-06-17
 
 ### Fixed
@@ -58,7 +69,8 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 - The API release image repository is configurable through the
   `DOCKERHUB_API_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.1...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.2...HEAD
+[0.3.2]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.1...api%2Fv0.3.2
 [0.3.1]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.0...api%2Fv0.3.1
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.2.0...api%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.1.0...api%2Fv0.2.0
