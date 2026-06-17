@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -98,6 +99,30 @@ func TestAdsEndpointRejectsInvalidEmphasisLimit(t *testing.T) {
 	}
 }
 
+func TestQuestionSolutionEndpointReturnsGeneratedSolution(t *testing.T) {
+	router := testRouter()
+
+	request := httptest.NewRequest(http.MethodGet, "/api/runs/run_solution_001/questions/go-easy-001/solution", nil)
+	request.Header.Set("X-QuickQuiz-Theme", "dev")
+	request.Header.Set("X-QuickQuiz-Locale", "en-US")
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"questionId":"go-easy-001"`) {
+		t.Fatalf("expected solution question id, got %s", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"explanation":"Generated test solution for en-US"`) {
+		t.Fatalf("expected generated explanation, got %s", response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"cached":false`) {
+		t.Fatalf("expected first solution response to be uncached, got %s", response.Body.String())
+	}
+}
+
 func testRouter() http.Handler {
 	questionStore := store.NewMemoryQuestionStoreWithThemeMetadata(
 		[]domain.Question{{
@@ -113,7 +138,9 @@ func testRouter() http.Handler {
 		nil,
 		[]domain.Theme{{ID: "dev", Name: "Development", Active: true}},
 	)
-	runService := app.NewRunService(questionStore, store.NewMemoryRunStore(time.Hour), 10, i18n.NewManager("en-US", []string{"en-US"}))
+	runStore := store.NewMemoryRunStore(time.Hour)
+	seedSolutionRun(runStore)
+	runService := app.NewRunService(questionStore, runStore, 10, i18n.NewManager("en-US", []string{"en-US"}))
 	adService := app.NewAdService(store.NewMemoryAdStore([]domain.Ad{
 		{
 			ID:          "ad-a",
@@ -145,6 +172,48 @@ func testRouter() http.Handler {
 			Topics:      []string{"php"},
 		},
 	}), questionStore)
+	solutionService := app.NewSolutionService(
+		questionStore,
+		runStore,
+		store.NewMemorySolutionStore(nil),
+		&testSolutionGenerator{},
+		i18n.NewManager("en-US", []string{"en-US"}),
+	)
 
-	return NewRouter(runService, adService, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return NewRouter(runService, adService, solutionService, slog.New(slog.NewTextHandler(io.Discard, nil)))
+}
+
+type testSolutionGenerator struct{}
+
+func (g *testSolutionGenerator) GenerateSolution(_ context.Context, input app.GenerateSolutionInput) (string, error) {
+	return "Generated test solution for " + input.Locale, nil
+}
+
+func (g *testSolutionGenerator) Model() string {
+	return "test-model"
+}
+
+func seedSolutionRun(runStore *store.MemoryRunStore) {
+	now := time.Now().UTC()
+	_ = runStore.Create(context.Background(), &domain.Run{
+		ID:            "run_solution_001",
+		SessionID:     "session_solution_001",
+		Theme:         "dev",
+		Locale:        "en-US",
+		Topic:         "go",
+		Difficulty:    domain.DifficultyEasy,
+		QuestionLimit: 1,
+		UsedQuestionIDs: map[string]bool{
+			"go-easy-001": true,
+		},
+		Answers: []domain.AnswerRecord{{
+			QuestionID: "go-easy-001",
+			Prompt:     "Fake question",
+			Correct:    false,
+		}},
+		Finished:     true,
+		FinishReason: domain.FinishReasonMaxQuestionsReached,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	})
 }

@@ -9,6 +9,17 @@ format.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-17
+
+### Added
+
+- Added shareable topic URLs through the `topic` query parameter.
+- Added an answer-table solution action that opens a full in-panel AI
+  explanation view for rejected answers as a review comment with a notification badge.
+- Added run-scoped question solution requests for rejected answers.
+- Added read-state behavior that hides the review comment badge after the
+  solution comment is loaded.
+
 ## [0.4.0] - 2026-06-16
 
 ### Added
@@ -96,7 +107,8 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.4.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.0...HEAD
+[0.5.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.4.0...spa-dev%2Fv0.5.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.3.0...spa-dev%2Fv0.4.0
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.2.0...spa-dev%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.1.2...spa-dev%2Fv0.2.0

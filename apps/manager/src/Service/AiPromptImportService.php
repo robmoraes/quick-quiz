@@ -7,8 +7,10 @@ use RuntimeException;
 
 final class AiPromptImportService
 {
-    public function __construct(private readonly AiPromptRepository $prompts)
-    {
+    public function __construct(
+        private readonly AiPromptRepository $prompts,
+        private readonly AiPromptExportService $exporter,
+    ) {
     }
 
     public function importJson(string $theme, string $contents): int
@@ -53,6 +55,7 @@ final class AiPromptImportService
 
             AiPromptDefaults::get($key);
             $this->prompts->save($theme, $key, $text);
+            $this->exporter->export($theme, $key, $text);
             $count++;
         }
 

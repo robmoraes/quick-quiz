@@ -107,8 +107,9 @@
 import helpRfcEnUS from 'src/assets/help/rfc-0001-quick-quiz-dev-game-rules-protocol.en-US.txt?raw';
 import helpRfcPtBR from 'src/assets/help/rfc-0001-quick-quiz-dev-game-rules-protocol.pt-BR.txt?raw';
 import { useQuasar } from 'quasar';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import DifficultyPanel from 'src/components/quiz/DifficultyPanel.vue';
 import FatalLossPanel from 'src/components/quiz/FatalLossPanel.vue';
 import QuestionPanel from 'src/components/quiz/QuestionPanel.vue';
@@ -124,6 +125,8 @@ import { useQuizRun } from 'src/composables/useQuizRun';
 
 const $q = useQuasar();
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 
 const quizCatalog = useQuizCatalog();
 const { setLayoutAdsTopic, refreshLayoutAds } = useLayoutAds();
@@ -190,10 +193,33 @@ const {
 } = useQuizPreferences();
 
 const welcomePanelSeenStorageKey = 'quickquiz.welcomePanelSeen';
+const catalogReady = ref(false);
 const rulesOpen = ref(false);
 const welcomePanelVisible = ref(isWelcomePanelPending());
 
 const currentRulesText = computed(() => (locale.value === 'pt-BR' ? helpRfcPtBR : helpRfcEnUS));
+
+watch(
+  () => route.query.topic,
+  (value) => {
+    const routeTopic = normalizeTopicQueryValue(value);
+    if (routeTopic === selectedTopic.value) {
+      return;
+    }
+
+    selectedTopic.value = routeTopic;
+    if (catalogReady.value) {
+      syncSelectedTopic();
+    }
+    syncSelectedDifficulty();
+  },
+  { immediate: true },
+);
+
+watch(selectedTopic, (topic) => {
+  syncTopicQuery(topic);
+  updateAdsTopic(topic);
+});
 
 onMounted(() => {
   initializeSession();
@@ -221,6 +247,7 @@ async function saveSettings() {
 
 async function initializeCatalog() {
   await loadCatalog();
+  catalogReady.value = true;
   await restoreSessionAvailability();
 }
 
@@ -235,17 +262,42 @@ function advanceFromWelcomePanel() {
 
 function handleTopicChanged(value?: string | null) {
   updateCatalogTopic(value);
-  updateAdsTopic(value ?? '');
 }
 
 function handleClearSelectedTopic() {
   clearCatalogSelectedTopic();
-  updateAdsTopic('');
 }
 
 function updateAdsTopic(topic: string) {
   setLayoutAdsTopic(topic);
   void refreshLayoutAds();
+}
+
+function syncTopicQuery(topic: string) {
+  if (normalizeTopicQueryValue(route.query.topic) === topic) {
+    return;
+  }
+
+  const query = { ...route.query };
+  if (topic) {
+    query.topic = topic;
+  } else {
+    delete query.topic;
+  }
+
+  void router.replace({ query });
+}
+
+function normalizeTopicQueryValue(value: unknown) {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return normalizeTopicQueryValue(value[0]);
+  }
+
+  return '';
 }
 
 function isWelcomePanelPending() {

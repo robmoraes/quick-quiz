@@ -26,6 +26,7 @@ const (
 var (
 	ErrInvalidDifficulty = errors.New("invalid difficulty")
 	ErrInvalidQuestion   = errors.New("invalid question")
+	ErrSolutionNotFound  = errors.New("solution not found")
 	ErrThemeNotFound     = errors.New("theme not found")
 )
 
@@ -67,6 +68,18 @@ type Question struct {
 	Prompt         string     `json:"prompt"`
 	CorrectOptions []string   `json:"correctOptions"`
 	WrongOptions   []string   `json:"wrongOptions"`
+}
+
+type QuestionSolution struct {
+	Theme        string     `json:"theme"`
+	Locale       string     `json:"locale"`
+	Topic        string     `json:"topic"`
+	Difficulty   Difficulty `json:"difficulty"`
+	QuestionID   string     `json:"questionId"`
+	Explanation  string     `json:"explanation"`
+	Model        string     `json:"model,omitempty"`
+	QuestionHash string     `json:"-"`
+	GeneratedAt  string     `json:"generatedAt,omitempty"`
 }
 
 func (q Question) Validate() error {
@@ -124,20 +137,21 @@ type AnswerRecord struct {
 }
 
 type Run struct {
-	ID              string
-	SessionID       string
-	Theme           string
-	Locale          string
-	Topic           string
-	Difficulty      Difficulty
-	QuestionLimit   int
-	UsedQuestionIDs map[string]bool
-	CurrentQuestion *ServedQuestion
-	Answers         []AnswerRecord
-	Finished        bool
-	FinishReason    FinishReason
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID                         string
+	SessionID                  string
+	Theme                      string
+	Locale                     string
+	Topic                      string
+	Difficulty                 Difficulty
+	QuestionLimit              int
+	UsedQuestionIDs            map[string]bool
+	SolutionRequestQuestionIDs map[string]bool
+	CurrentQuestion            *ServedQuestion
+	Answers                    []AnswerRecord
+	Finished                   bool
+	FinishReason               FinishReason
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
 }
 
 type ServedQuestion struct {

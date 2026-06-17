@@ -83,6 +83,30 @@ func (s *MemoryRunStore) UsedQuestionIDs(_ context.Context, sessionID, theme, to
 	return usedQuestionIDs, nil
 }
 
+func (s *MemoryRunStore) TrackSolutionRequest(_ context.Context, runID, questionID string, limit int) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.cleanupLocked()
+	run, ok := s.runs[runID]
+	if !ok {
+		return false, errRunNotFound{}
+	}
+	if run.SolutionRequestQuestionIDs == nil {
+		run.SolutionRequestQuestionIDs = make(map[string]bool)
+	}
+	if run.SolutionRequestQuestionIDs[questionID] {
+		return true, nil
+	}
+	if limit <= 0 || len(run.SolutionRequestQuestionIDs) >= limit {
+		return false, nil
+	}
+
+	run.SolutionRequestQuestionIDs[questionID] = true
+	run.UpdatedAt = time.Now().UTC()
+	return true, nil
+}
+
 func (s *MemoryRunStore) cleanupLocked() {
 	if s.ttl <= 0 {
 		return
@@ -102,6 +126,11 @@ func cloneRun(run *domain.Run) *domain.Run {
 	cloned.UsedQuestionIDs = make(map[string]bool, len(run.UsedQuestionIDs))
 	for id, used := range run.UsedQuestionIDs {
 		cloned.UsedQuestionIDs[id] = used
+	}
+
+	cloned.SolutionRequestQuestionIDs = make(map[string]bool, len(run.SolutionRequestQuestionIDs))
+	for id, requested := range run.SolutionRequestQuestionIDs {
+		cloned.SolutionRequestQuestionIDs[id] = requested
 	}
 
 	cloned.Answers = append([]domain.AnswerRecord(nil), run.Answers...)

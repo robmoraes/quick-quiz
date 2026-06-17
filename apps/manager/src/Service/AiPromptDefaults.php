@@ -13,6 +13,7 @@ final class AiPromptDefaults
     public const CATALOG_DESCRIPTION_SUGGESTION = 'catalog_description_suggestion';
     public const CATALOG_CANONICALIZATION = 'catalog_canonicalization';
     public const CATALOG_TRANSLATION = 'catalog_translation';
+    public const QUESTION_SOLUTION = 'question_solution';
 
     /**
      * @return array<string,array{key:string,title:string,description:string,defaultText:string}>
@@ -112,6 +113,18 @@ final class AiPromptDefaults
                     'Translate both fields into the requested target BCP 47 locale.',
                     'Return only the name and description fields that match the schema.',
                     'Do not add explanations, locale fields, metadata, or extra keys.',
+                ]),
+            ],
+            self::QUESTION_SOLUTION => [
+                'key' => self::QUESTION_SOLUTION,
+                'title' => 'Question solution explanation',
+                'description' => 'Explains why the correct answer is correct when the API lazily creates a solution.',
+                'defaultText' => implode("\n", [
+                    'You explain the correct answer for a programming quiz question.',
+                    'Use only the requested locale for natural language.',
+                    'Preserve code, identifiers, commands, APIs, and technical names exactly as they should appear.',
+                    'Explain why the correct answer is correct and briefly address the main misconception behind the wrong answers.',
+                    'Return only the final explanation text.',
                 ]),
             ],
         ];

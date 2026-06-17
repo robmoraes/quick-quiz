@@ -14,7 +14,7 @@ final class AiPromptRepositoryTest extends TestCase
 
         $prompts = $repository->listPrompts('dev');
 
-        self::assertCount(7, $prompts);
+        self::assertCount(8, $prompts);
         self::assertSame('dev', $prompts[0]['theme']);
         self::assertSame(AiPromptDefaults::QUESTION_RECOMMENDATION, $prompts[0]['key']);
         self::assertFalse($prompts[0]['isCustomized']);
