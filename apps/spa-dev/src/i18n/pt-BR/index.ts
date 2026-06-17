@@ -121,6 +121,16 @@ export default {
       hardcore_wrong_answer: 'Hardcore encerrou no erro',
     },
   },
+  solution: {
+    title: 'Solução',
+    open: 'Comentário de revisão',
+    back: 'Voltar ao resultado',
+    question: 'Questão',
+    explanation: 'Explicação',
+    generating: 'Gerando solução...',
+    cached: 'solução armazenada',
+    generated: 'nova solução',
+  },
   difficulty: {
     info: 'INFO',
     warn: 'WARN',
@@ -144,5 +154,6 @@ export default {
     topics: 'Nao foi possivel atualizar os topicos disponiveis',
     difficulties: 'Nao foi possivel atualizar as severidades disponiveis',
     noDifficulties: 'Nenhuma dificuldade disponivel para este topico',
+    solution: 'Nao foi possivel carregar a solucao da questao',
   },
 };

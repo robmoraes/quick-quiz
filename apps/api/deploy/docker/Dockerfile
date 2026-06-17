@@ -37,6 +37,10 @@ ENV SUPPORTED_LOCALES=en-US,pt-BR
 ENV RUN_QUESTION_LIMIT=10
 ENV SESSION_TTL=30m
 ENV SHUTDOWN_TIMEOUT=10s
+ENV OPENAI_BASE_URL=https://api.openai.com/v1
+ENV OPENAI_MODEL=gpt-5.4-mini
+ENV OPENAI_SOLUTION_PROMPT_FILE=/app/.local/{{theme}}/ai-prompts/question-solution-prompt.txt
+ENV OPENAI_TIMEOUT=30s
 
 EXPOSE 8080
 VOLUME ["/app/.local"]

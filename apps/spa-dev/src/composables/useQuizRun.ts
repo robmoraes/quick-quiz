@@ -29,6 +29,7 @@ import type { QuizCatalog } from './useQuizCatalog';
 import type {
   AnswerFeedback,
   QuizScreen,
+  ResultAnswer,
   ResultSnapshot,
   ResultView,
 } from 'src/components/quiz/contracts';
@@ -64,7 +65,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
         title: t('result.runTitle'),
         subtitle: finishReasonLabel(result.value.finishReason, t),
         stats: result.value.stats,
-        answers: result.value.answers,
+        answers: resultAnswers(result.value),
         events: cloneSessionEvents(sessionEvents.value),
       };
     }
@@ -682,7 +683,7 @@ function buildSessionResultFromRuns(
   sessionRuns: RunResult[],
   sessionEvents: SessionEvent[],
 ): ResultSnapshot {
-  const answers = sessionRuns.flatMap((run) => run.answers);
+  const answers = sessionRuns.flatMap(resultAnswers);
   const answered = answers.length;
   const correct = answers.filter((answer) => answer.correct).length;
   const wrong = answered - correct;
@@ -697,6 +698,16 @@ function buildSessionResultFromRuns(
     answers,
     events: cloneSessionEvents(sessionEvents),
   };
+}
+
+function resultAnswers(run: RunResult): ResultAnswer[] {
+  return run.answers.map((answer) => ({
+    ...answer,
+    runId: run.runId,
+    topic: run.topic,
+    difficulty: run.difficulty,
+    locale: run.locale,
+  }));
 }
 
 function finishReasonLabel(reason: string, t: (key: string) => string) {

@@ -43,6 +43,11 @@ SUPPORTED_LOCALES=en-US,pt-BR
 RUN_QUESTION_LIMIT=10
 SESSION_TTL=30m
 SHUTDOWN_TIMEOUT=10s
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-5.4-mini
+OPENAI_SOLUTION_PROMPT_FILE=/app/.local/{{theme}}/ai-prompts/question-solution-prompt.txt
+OPENAI_TIMEOUT=30s
 EOF
 ```
 

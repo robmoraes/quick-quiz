@@ -121,6 +121,16 @@ export default {
       hardcore_wrong_answer: 'Hardcore ended on mistake',
     },
   },
+  solution: {
+    title: 'Solution',
+    open: 'Review comment',
+    back: 'Back to result',
+    question: 'Question',
+    explanation: 'Explanation',
+    generating: 'Generating solution...',
+    cached: 'stored solution',
+    generated: 'new solution',
+  },
   difficulty: {
     info: 'INFO',
     warn: 'WARN',
@@ -144,5 +154,6 @@ export default {
     topics: 'Could not refresh available topics',
     difficulties: 'Could not refresh available severities',
     noDifficulties: 'No difficulties available for this topic',
+    solution: 'Could not load the question solution',
   },
 };

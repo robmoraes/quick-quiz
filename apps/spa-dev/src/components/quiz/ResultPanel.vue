@@ -1,5 +1,86 @@
 <template>
-  <section class="result-panel">
+  <section class="result-panel" :class="{ 'result-panel--solution': selectedSolutionAnswer }">
+    <template v-if="selectedSolutionAnswer">
+      <div class="row items-center q-mb-md">
+        <q-btn
+          flat
+          round
+          icon="arrow_back"
+          :aria-label="t('solution.back')"
+          @click="closeSolution"
+        >
+          <q-tooltip>{{ t('solution.back') }}</q-tooltip>
+        </q-btn>
+
+        <div class="col text-h5 text-center">{{ t('solution.title') }}</div>
+
+        <q-space />
+
+        <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
+      </div>
+
+      <div class="solution-screen">
+        <div class="solution-screen__meta">
+          <q-chip
+            dense
+            square
+            :color="selectedSolutionAnswer.correct ? 'green-9' : 'red-9'"
+            text-color="white"
+          >
+            {{
+              selectedSolutionAnswer.correct
+                ? t('result.reviewAccept')
+                : t('result.reviewRejected')
+            }}
+          </q-chip>
+          <q-chip dense square color="cyan-10" text-color="white">
+            {{ selectedSolutionAnswer.questionId }}
+          </q-chip>
+        </div>
+
+        <section class="solution-screen__question">
+          <h2>{{ t('solution.question') }}</h2>
+          <QuizMarkdown :text="selectedSolutionAnswer.prompt" variant="review" />
+        </section>
+
+        <section class="solution-screen__explanation">
+          <h2>{{ t('solution.explanation') }}</h2>
+
+          <div v-if="solutionLoading" class="solution-screen__loading">
+            <q-spinner-dots color="cyan-3" size="34px" />
+            <span>{{ t('solution.generating') }}</span>
+          </div>
+
+          <q-banner v-else-if="solutionError" rounded class="solution-screen__error">
+            {{ solutionError }}
+          </q-banner>
+
+          <template v-else-if="solution">
+            <QuizMarkdown :text="solution.explanation" variant="review" />
+            <div class="solution-screen__details">
+              <span>{{ solution.cached ? t('solution.cached') : t('solution.generated') }}</span>
+              <span v-if="solution.model">{{ solution.model }}</span>
+              <span v-if="solution.generatedAt">{{ solution.generatedAt }}</span>
+            </div>
+          </template>
+        </section>
+      </div>
+
+      <div class="command-actions row q-col-gutter-sm">
+        <div class="col-12">
+          <q-btn
+            flat
+            color="white"
+            icon="arrow_back"
+            :label="t('solution.back')"
+            class="full-width"
+            @click="closeSolution"
+          />
+        </div>
+      </div>
+    </template>
+
+    <template v-else>
     <div class="row items-center q-mb-xs">
       <img :src="logoUrl" :alt="t('app.title')" class="brand-logo" />
 
@@ -64,6 +145,9 @@
             <q-icon name="commit" size="18px" :aria-label="t('result.icon')" />
           </th>
           <th>{{ t('result.pullRequest') }}</th>
+          <th class="answer-table__icon">
+            <q-icon name="rate_review" size="18px" :aria-label="t('solution.open')" />
+          </th>
           <th class="gt-xs">{{ t('result.codeReview') }}</th>
         </tr>
       </thead>
@@ -79,6 +163,27 @@
           <td>
             <QuizMarkdown :text="answer.prompt" variant="review" />
           </td>
+          <td class="answer-table__icon">
+            <q-btn
+              v-if="!answer.correct"
+              flat
+              round
+              dense
+              color="cyan-3"
+              icon="rate_review"
+              :aria-label="t('solution.open')"
+              @click="openSolution(answer)"
+            >
+              <q-badge
+                v-if="isSolutionUnread(answer)"
+                floating
+                color="red-8"
+                rounded
+                label="1"
+              />
+              <q-tooltip>{{ t('solution.open') }}</q-tooltip>
+            </q-btn>
+          </td>
           <td class="gt-xs">
             <q-chip dense square :color="answer.correct ? 'green-9' : 'red-9'" text-color="white">
               {{ answer.correct ? t('result.reviewAccept') : t('result.reviewRejected') }}
@@ -86,8 +191,8 @@
           </td>
         </tr>
         <tr v-if="result.answers.length === 0">
-          <td class="lt-sm" colspan="2">{{ t('result.noAnswers') }}</td>
-          <td class="gt-xs" colspan="3">{{ t('result.noAnswers') }}</td>
+          <td class="lt-sm" colspan="3">{{ t('result.noAnswers') }}</td>
+          <td class="gt-xs" colspan="4">{{ t('result.noAnswers') }}</td>
         </tr>
       </tbody>
     </q-markup-table>
@@ -174,6 +279,7 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    </template>
   </section>
 </template>
 
@@ -181,7 +287,8 @@
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import logoUrl from 'src/assets/logo-large.svg';
-import type { ResultPanelEmit, ResultPanelProps } from './contracts';
+import { getQuestionSolution, type QuestionSolution } from 'src/services/api';
+import type { ResultAnswer, ResultPanelEmit, ResultPanelProps } from './contracts';
 import {
   syslogPrompt,
   syslogTailCommand,
@@ -198,6 +305,12 @@ const { t } = useI18n();
 const showTerminal = ref(false);
 const terminalPrompt = ref('');
 const terminalInput = ref<{ focus: () => void }>();
+const selectedSolutionAnswer = ref<ResultAnswer | null>(null);
+const solution = ref<QuestionSolution | null>(null);
+const solutionLoading = ref(false);
+const solutionError = ref('');
+const readSolutionKeys = ref(new Set<string>());
+let solutionRequestId = 0;
 
 function focusTerminalPrompt() {
   terminalInput.value?.focus();
@@ -208,5 +321,57 @@ function sendTerminalCommand() {
     showTerminal.value = false;
     terminalPrompt.value = '';
   }
+}
+
+async function openSolution(answer: ResultAnswer) {
+  if (answer.correct) {
+    return;
+  }
+
+  const requestId = ++solutionRequestId;
+  selectedSolutionAnswer.value = answer;
+  solution.value = null;
+  solutionError.value = '';
+  solutionLoading.value = true;
+
+  try {
+    const loaded = await getQuestionSolution(answer.runId, answer.questionId);
+    if (requestId !== solutionRequestId) {
+      return;
+    }
+    solution.value = loaded;
+    markSolutionRead(answer);
+  } catch {
+    if (requestId !== solutionRequestId) {
+      return;
+    }
+    solutionError.value = t('errors.solution');
+  } finally {
+    if (requestId === solutionRequestId) {
+      solutionLoading.value = false;
+    }
+  }
+}
+
+function closeSolution() {
+  solutionRequestId++;
+  selectedSolutionAnswer.value = null;
+  solution.value = null;
+  solutionError.value = '';
+  solutionLoading.value = false;
+}
+
+function isSolutionUnread(answer: ResultAnswer) {
+  return !readSolutionKeys.value.has(solutionReadKey(answer));
+}
+
+function markSolutionRead(answer: ResultAnswer) {
+  const next = new Set(readSolutionKeys.value);
+  next.add(solutionReadKey(answer));
+  readSolutionKeys.value = next;
+}
+
+function solutionReadKey(answer: ResultAnswer) {
+  return `${answer.runId}:${answer.questionId}`;
 }
 </script>

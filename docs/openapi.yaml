@@ -12,6 +12,7 @@ tags:
   - name: Advertising
   - name: Session
   - name: Runs
+  - name: Solutions
 paths:
   /healthz:
     get:
@@ -266,6 +267,43 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/runs/{runId}/questions/{questionId}/solution:
+    get:
+      tags:
+        - Solutions
+      summary: Gets or lazily generates a question solution.
+      description: Returns the stored solution for a rejected answer in the requested run. If no fresh solution exists, the API derives topic and difficulty from the run, generates and stores solutions for all supported locales that have the question package, then returns the requested locale.
+      operationId: getQuestionSolution
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/AcceptLanguage"
+        - $ref: "#/components/parameters/RunID"
+        - $ref: "#/components/parameters/QuestionID"
+      responses:
+        "200":
+          description: Question solution is available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionSolution"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "403":
+          $ref: "#/components/responses/SolutionForbidden"
+        "404":
+          description: Run or question not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          $ref: "#/components/responses/SolutionRateLimited"
+        "503":
+          $ref: "#/components/responses/SolutionUnavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   parameters:
     Theme:
@@ -346,6 +384,14 @@ components:
         maximum: 20
       example: 2
       description: Maximum number of emphasis ads to return separately from the regular ads list.
+    QuestionID:
+      name: questionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      example: go-easy-001
 
   schemas:
     Difficulty:
@@ -786,6 +832,44 @@ components:
           type: boolean
           example: true
 
+    QuestionSolution:
+      type: object
+      required:
+        - theme
+        - locale
+        - topic
+        - difficulty
+        - questionId
+        - explanation
+        - cached
+      properties:
+        theme:
+          type: string
+          example: dev
+        locale:
+          type: string
+          example: pt-BR
+        topic:
+          type: string
+          example: go
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        questionId:
+          type: string
+          example: go-easy-001
+        explanation:
+          type: string
+          example: gofmt is the correct answer because it formats Go source code according to the standard Go style.
+        model:
+          type: string
+          example: gpt-5.4-mini
+        generatedAt:
+          type: string
+          example: "2026-06-17T04:47:00Z"
+        cached:
+          type: boolean
+          example: true
+
     ErrorResponse:
       type: object
       required:
@@ -817,8 +901,32 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
+    QuestionNotFound:
+      description: Question not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    SolutionForbidden:
+      description: Solution is only available for questions that were answered incorrectly in the requested run.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    SolutionRateLimited:
+      description: Solution request limit reached for the requested run.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     NoQuestionsLeft:
       description: No questions available.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    SolutionUnavailable:
+      description: Solution generator is unavailable or failed.
       content:
         application/json:
           schema:

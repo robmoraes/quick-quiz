@@ -9,6 +9,13 @@ format.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-17
+
+### Added
+
+- AI prompt management now includes the API question-solution prompt and exports
+  it to the selected theme content folder for the Go API to consume.
+
 ## [0.5.0] - 2026-06-17
 
 ### Added
@@ -101,7 +108,8 @@ format.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.5.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.6.0...HEAD
+[0.6.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.5.0...manager%2Fv0.6.0
 [0.5.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.4.0...manager%2Fv0.5.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.3.0...manager%2Fv0.4.0
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.2.0...manager%2Fv0.3.0

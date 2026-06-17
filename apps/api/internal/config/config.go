@@ -16,6 +16,17 @@ type Config struct {
 	SupportedLocales []string
 	SessionTTL       time.Duration
 	ShutdownTimeout  time.Duration
+	OpenAI           OpenAIConfig
+}
+
+type OpenAIConfig struct {
+	APIKey             string
+	BaseURL            string
+	Model              string
+	Organization       string
+	Project            string
+	SolutionPromptFile string
+	Timeout            time.Duration
 }
 
 func Load() Config {
@@ -29,6 +40,15 @@ func Load() Config {
 		SupportedLocales: getEnvList("SUPPORTED_LOCALES", []string{"en-US", "pt-BR"}),
 		SessionTTL:       getEnvDuration("SESSION_TTL", 30*time.Minute),
 		ShutdownTimeout:  getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
+		OpenAI: OpenAIConfig{
+			APIKey:             getEnv("OPENAI_API_KEY", ""),
+			BaseURL:            getEnv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+			Model:              getEnv("OPENAI_MODEL", "gpt-5.4-mini"),
+			Organization:       getEnv("OPENAI_ORGANIZATION", ""),
+			Project:            getEnv("OPENAI_PROJECT", ""),
+			SolutionPromptFile: getEnv("OPENAI_SOLUTION_PROMPT_FILE", ".local/{{theme}}/ai-prompts/question-solution-prompt.txt"),
+			Timeout:            getEnvDuration("OPENAI_TIMEOUT", 30*time.Second),
+		},
 	}
 }
 

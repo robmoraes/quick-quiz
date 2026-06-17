@@ -13,15 +13,19 @@ import (
 )
 
 var (
-	ErrInvalidInput     = errors.New("invalid input")
-	ErrThemeRequired    = errors.New("theme is required")
-	ErrThemeNotFound    = errors.New("theme not found")
-	ErrThemeInactive    = errors.New("theme inactive")
-	ErrRunNotFound      = errors.New("run not found")
-	ErrRunFinished      = errors.New("run already finished")
-	ErrQuestionMismatch = errors.New("question does not match current run state")
-	ErrOptionNotFound   = errors.New("option not found")
-	ErrNoQuestionsLeft  = errors.New("no questions left")
+	ErrInvalidInput        = errors.New("invalid input")
+	ErrThemeRequired       = errors.New("theme is required")
+	ErrThemeNotFound       = errors.New("theme not found")
+	ErrThemeInactive       = errors.New("theme inactive")
+	ErrRunNotFound         = errors.New("run not found")
+	ErrRunFinished         = errors.New("run already finished")
+	ErrQuestionMismatch    = errors.New("question does not match current run state")
+	ErrQuestionNotFound    = errors.New("question not found")
+	ErrOptionNotFound      = errors.New("option not found")
+	ErrNoQuestionsLeft     = errors.New("no questions left")
+	ErrSolutionForbidden   = errors.New("solution forbidden")
+	ErrSolutionRateLimited = errors.New("solution rate limited")
+	ErrSolutionUnavailable = errors.New("solution unavailable")
 )
 
 type QuestionRepository interface {
@@ -36,6 +40,7 @@ type RunRepository interface {
 	Save(ctx context.Context, run *domain.Run) error
 	DeleteBySession(ctx context.Context, sessionID, theme string) error
 	UsedQuestionIDs(ctx context.Context, sessionID, theme, topic string, difficulty domain.Difficulty) (map[string]bool, error)
+	TrackSolutionRequest(ctx context.Context, runID, questionID string, limit int) (bool, error)
 }
 
 type RunService struct {

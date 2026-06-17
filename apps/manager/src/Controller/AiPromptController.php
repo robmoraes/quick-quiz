@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Repository\AiPromptRepository;
+use App\Service\AiPromptExportService;
 use App\Service\AiPromptImportService;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -91,7 +92,7 @@ final class AiPromptController extends BaseController
     }
 
     #[Route('/ai-prompts/{key}/save', name: 'ai_prompt_save', requirements: ['key' => '[a-z0-9_]+'], methods: ['POST'])]
-    public function save(AiPromptRepository $prompts, Request $request, string $key): Response
+    public function save(AiPromptRepository $prompts, AiPromptExportService $exporter, Request $request, string $key): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -103,7 +104,9 @@ final class AiPromptController extends BaseController
 
         try {
             $this->csrf->assertValid($request);
-            $prompts->save($theme, $key, (string) $request->request->get('text', ''));
+            $text = (string) $request->request->get('text', '');
+            $prompts->save($theme, $key, $text);
+            $exporter->export($theme, $key, $prompts->text($theme, $key));
 
             return $this->redirect('ai_prompts');
         } catch (RuntimeException $error) {
@@ -124,7 +127,7 @@ final class AiPromptController extends BaseController
     }
 
     #[Route('/ai-prompts/{key}/restore', name: 'ai_prompt_restore', requirements: ['key' => '[a-z0-9_]+'], methods: ['POST'])]
-    public function restore(AiPromptRepository $prompts, Request $request, string $key): Response
+    public function restore(AiPromptRepository $prompts, AiPromptExportService $exporter, Request $request, string $key): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -136,6 +139,7 @@ final class AiPromptController extends BaseController
 
         $this->csrf->assertValid($request);
         $prompts->restoreDefault($theme, $key);
+        $exporter->export($theme, $key, $prompts->text($theme, $key));
 
         return $this->redirect('ai_prompt_edit', ['key' => $key]);
     }

@@ -13,12 +13,13 @@ import (
 )
 
 type Handler struct {
-	runs *app.RunService
-	ads  *app.AdService
+	runs      *app.RunService
+	ads       *app.AdService
+	solutions *app.SolutionService
 }
 
-func NewHandler(runs *app.RunService, ads *app.AdService) *Handler {
-	return &Handler{runs: runs, ads: ads}
+func NewHandler(runs *app.RunService, ads *app.AdService, solutions *app.SolutionService) *Handler {
+	return &Handler{runs: runs, ads: ads, solutions: solutions}
 }
 
 func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
@@ -166,6 +167,21 @@ func (h *Handler) Result(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+func (h *Handler) QuestionSolution(w http.ResponseWriter, r *http.Request) {
+	solution, err := h.solutions.QuestionSolution(r.Context(), app.QuestionSolutionInput{
+		Theme:      themeFromRequest(r),
+		Locale:     localeFromRequest(r, ""),
+		RunID:      strings.TrimSpace(r.PathValue("runId")),
+		QuestionID: strings.TrimSpace(r.PathValue("questionId")),
+	})
+	if err != nil {
+		h.writeAppError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, solution)
+}
+
 func (h *Handler) writeAppError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, app.ErrThemeRequired):
@@ -182,10 +198,18 @@ func (h *Handler) writeAppError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "run_finished", "Run already finished")
 	case errors.Is(err, app.ErrQuestionMismatch):
 		writeError(w, http.StatusConflict, "question_mismatch", "Question does not match current run state")
+	case errors.Is(err, app.ErrQuestionNotFound):
+		writeError(w, http.StatusNotFound, "question_not_found", "Question not found")
 	case errors.Is(err, app.ErrOptionNotFound):
 		writeError(w, http.StatusBadRequest, "option_not_found", "Option not found")
 	case errors.Is(err, app.ErrNoQuestionsLeft):
 		writeError(w, http.StatusConflict, "no_questions_left", "No questions available")
+	case errors.Is(err, app.ErrSolutionForbidden):
+		writeError(w, http.StatusForbidden, "solution_forbidden", "Solution forbidden")
+	case errors.Is(err, app.ErrSolutionRateLimited):
+		writeError(w, http.StatusTooManyRequests, "solution_rate_limited", "Solution rate limited")
+	case errors.Is(err, app.ErrSolutionUnavailable):
+		writeError(w, http.StatusServiceUnavailable, "solution_unavailable", "Solution unavailable")
 	default:
 		writeError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 	}

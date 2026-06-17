@@ -119,6 +119,18 @@ export interface RunResult {
   }>;
 }
 
+export interface QuestionSolution {
+  theme: string;
+  locale: string;
+  topic: string;
+  difficulty: Difficulty;
+  questionId: string;
+  explanation: string;
+  model?: string;
+  generatedAt?: string;
+  cached: boolean;
+}
+
 export interface ApiError extends Error {
   code?: string;
   status: number;
@@ -175,6 +187,14 @@ export async function finishRun(runId: string): Promise<void> {
 
 export async function getResult(runId: string): Promise<RunResult> {
   return request<RunResult>(`/api/runs/${runId}/result`);
+}
+
+export async function getQuestionSolution(runId: string, questionId: string): Promise<QuestionSolution> {
+  const encodedRunId = encodeURIComponent(runId);
+  const encodedQuestionId = encodeURIComponent(questionId);
+  return request<QuestionSolution>(
+    `/api/runs/${encodedRunId}/questions/${encodedQuestionId}/solution`,
+  );
 }
 
 export async function resetSession(): Promise<void> {

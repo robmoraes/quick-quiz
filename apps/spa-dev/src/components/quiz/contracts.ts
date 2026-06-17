@@ -19,7 +19,12 @@ export type QuizScreen =
 
 export type AnswerFeedback = 'idle' | 'correct' | 'wrong';
 
-export type ResultAnswer = RunResult['answers'][number];
+export type ResultAnswer = RunResult['answers'][number] & {
+  runId: string;
+  topic: string;
+  difficulty: Difficulty;
+  locale: string;
+};
 export type ResultStats = RunResult['stats'];
 export type ResultVariant = 'run' | 'session';
 

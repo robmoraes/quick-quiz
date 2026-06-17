@@ -41,6 +41,10 @@ services:
     arguments:
       $contentRoot: '%manager.content_root%'
 
+  App\Service\AiPromptExportService:
+    arguments:
+      $contentRoot: '%manager.content_root%'
+
   App\Service\OpenAiModelProvider:
     arguments:
       $apiKey: '%openai.api_key%'

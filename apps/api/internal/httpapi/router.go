@@ -7,9 +7,9 @@ import (
 	"quickquiz/api/internal/app"
 )
 
-func NewRouter(runs *app.RunService, ads *app.AdService, logger *slog.Logger) http.Handler {
+func NewRouter(runs *app.RunService, ads *app.AdService, solutions *app.SolutionService, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
-	handler := NewHandler(runs, ads)
+	handler := NewHandler(runs, ads, solutions)
 
 	mux.HandleFunc("GET /healthz", handler.Health)
 	mux.HandleFunc("GET /api/catalog", handler.Catalog)
@@ -21,6 +21,7 @@ func NewRouter(runs *app.RunService, ads *app.AdService, logger *slog.Logger) ht
 	mux.HandleFunc("POST /api/runs/{runId}/answers", handler.Answer)
 	mux.HandleFunc("POST /api/runs/{runId}/finish", handler.Finish)
 	mux.HandleFunc("GET /api/runs/{runId}/result", handler.Result)
+	mux.HandleFunc("GET /api/runs/{runId}/questions/{questionId}/solution", handler.QuestionSolution)
 
 	return recoverer(requestLogger(logger)(cors(mux)))
 }

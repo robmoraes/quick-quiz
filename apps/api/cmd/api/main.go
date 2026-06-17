@@ -40,10 +40,21 @@ func main() {
 	runStore := store.NewMemoryRunStore(cfg.SessionTTL)
 	runService := app.NewRunService(questionStore, runStore, cfg.RunQuestionLimit, localeManager)
 	adService := app.NewAdService(adStore, questionStore)
+	solutionStore := store.NewFileSolutionStore(cfg.QuestionSource)
+	solutionGenerator := app.NewOpenAISolutionGenerator(app.OpenAISolutionGeneratorConfig{
+		APIKey:       cfg.OpenAI.APIKey,
+		BaseURL:      cfg.OpenAI.BaseURL,
+		Model:        cfg.OpenAI.Model,
+		Organization: cfg.OpenAI.Organization,
+		Project:      cfg.OpenAI.Project,
+		PromptFile:   cfg.OpenAI.SolutionPromptFile,
+		Timeout:      cfg.OpenAI.Timeout,
+	}, nil)
+	solutionService := app.NewSolutionService(questionStore, runStore, solutionStore, solutionGenerator, localeManager)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(runService, adService, logger),
+		Handler:           httpapi.NewRouter(runService, adService, solutionService, logger),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      15 * time.Second,
