@@ -8,6 +8,8 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-20
+
 ### Added
 
 - Added a run state endpoint that returns active/finished run status and the
@@ -74,7 +76,8 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 - The API release image repository is configurable through the
   `DOCKERHUB_API_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.2...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.4.0...HEAD
+[0.4.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.2...api%2Fv0.4.0
 [0.3.2]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.1...api%2Fv0.3.2
 [0.3.1]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.0...api%2Fv0.3.1
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.2.0...api%2Fv0.3.0

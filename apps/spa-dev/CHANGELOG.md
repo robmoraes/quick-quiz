@@ -9,6 +9,8 @@ format.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-20
+
 ### Added
 
 - Added active-run state reconciliation with periodic and focus-triggered API
@@ -118,7 +120,8 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.1...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.6.0...HEAD
+[0.6.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.1...spa-dev%2Fv0.6.0
 [0.5.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.0...spa-dev%2Fv0.5.1
 [0.5.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.4.0...spa-dev%2Fv0.5.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.3.0...spa-dev%2Fv0.4.0
