@@ -24,6 +24,7 @@ func NewRouter(runs *app.RunService, ads *app.AdService, solutions *app.Solution
 	mux.HandleFunc("POST /api/runs", handler.CreateRun)
 	mux.HandleFunc("POST /api/runs/{runId}/answers", handler.Answer)
 	mux.HandleFunc("POST /api/runs/{runId}/finish", handler.Finish)
+	mux.HandleFunc("GET /api/runs/{runId}/state", handler.RunState)
 	mux.HandleFunc("GET /api/runs/{runId}/result", handler.Result)
 	mux.HandleFunc("GET /api/runs/{runId}/questions/{questionId}/solution", handler.QuestionSolution)
 

@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useQuasar } from 'quasar';
 import {
@@ -6,6 +6,7 @@ import {
   createRun,
   finishRun,
   getResult,
+  getRunState,
   getSessionId,
   isApiErrorCode,
   resetLocalSession,
@@ -13,6 +14,7 @@ import {
   Difficulty,
   type PublicQuestion,
   type RunResult,
+  type RunState,
 } from 'src/services/api';
 import { requestAdRefresh } from 'src/services/ad-refresh';
 import { resetResultViewCount } from 'src/services/result-ad-frequency';
@@ -38,7 +40,9 @@ interface UseQuizRunOptions {
   catalog: QuizCatalog;
 }
 
-type RunFlowOperation = 'answer' | 'result' | 'endSession';
+type RunFlowOperation = 'answer' | 'result' | 'endSession' | 'state' | 'localState';
+
+const RUN_STATE_CHECK_INTERVAL_MS = 15000;
 
 export function useQuizRun({ catalog }: UseQuizRunOptions) {
   const $q = useQuasar();
@@ -57,6 +61,9 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   const feedback = ref<AnswerFeedback>('idle');
   const fatalLossMessageVisible = ref(false);
   const errorMessage = catalog.errorMessage;
+  let runStateCheckTimer: number | undefined;
+  let runStateCheckInFlight = false;
+  let runStateCheckErrorNotified = false;
 
   const displayedResult = computed<ResultView | null>(() => {
     if (screen.value === 'runResult' && result.value) {
@@ -120,6 +127,27 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   );
 
   catalog.setSessionEventRecorder(recordSessionEvent);
+
+  watch(
+    () => [screen.value, runId.value, currentQuestion.value?.id ?? '', busy.value] as const,
+    () => {
+      guardQuestionScreenState();
+      syncRunStateMonitor();
+    },
+    { immediate: true },
+  );
+
+  onMounted(() => {
+    syncRunStateMonitor();
+    window.addEventListener('focus', reconcileVisibleRunState);
+    document.addEventListener('visibilitychange', reconcileVisibleRunState);
+  });
+
+  onUnmounted(() => {
+    stopRunStateMonitor();
+    window.removeEventListener('focus', reconcileVisibleRunState);
+    document.removeEventListener('visibilitychange', reconcileVisibleRunState);
+  });
 
   function initializeSession() {
     playQuizSound('appLoaded');
@@ -426,6 +454,169 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   async function refreshActiveAvailability() {
     await catalog.refreshTopicAvailability();
     await catalog.refreshDifficultyAvailability();
+  }
+
+  function guardQuestionScreenState() {
+    if (screen.value !== 'question') {
+      return;
+    }
+    if (!runId.value) {
+      recoverExpiredRun('localState');
+      return;
+    }
+    if (!currentQuestion.value) {
+      void reconcileActiveRunState('localState');
+    }
+  }
+
+  function syncRunStateMonitor() {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (screen.value !== 'question' || !runId.value) {
+      stopRunStateMonitor();
+      return;
+    }
+    if (runStateCheckTimer !== undefined) {
+      return;
+    }
+    runStateCheckTimer = window.setInterval(() => {
+      void reconcileActiveRunState('state');
+    }, RUN_STATE_CHECK_INTERVAL_MS);
+  }
+
+  function stopRunStateMonitor() {
+    if (runStateCheckTimer === undefined) {
+      return;
+    }
+    window.clearInterval(runStateCheckTimer);
+    runStateCheckTimer = undefined;
+  }
+
+  function reconcileVisibleRunState() {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return;
+    }
+    void reconcileActiveRunState('state');
+  }
+
+  async function reconcileActiveRunState(operation: RunFlowOperation) {
+    const allowLocalRecovery = operation === 'localState';
+    if (
+      screen.value !== 'question' ||
+      !runId.value ||
+      runStateCheckInFlight ||
+      (!allowLocalRecovery && busy.value)
+    ) {
+      return;
+    }
+
+    const checkedRunId = runId.value;
+    runStateCheckInFlight = true;
+
+    try {
+      const state = await getRunState(checkedRunId);
+      if (runId.value !== checkedRunId || screen.value !== 'question') {
+        return;
+      }
+      runStateCheckErrorNotified = false;
+      await applyRunState(state, operation);
+    } catch (error) {
+      if (handleRunNotFound(error, operation)) {
+        return;
+      }
+      notifyRunStateCheckFailed();
+      if (!currentQuestion.value) {
+        recoverExpiredRun(operation);
+      }
+    } finally {
+      runStateCheckInFlight = false;
+    }
+  }
+
+  async function applyRunState(state: RunState, operation: RunFlowOperation) {
+    if (state.finished || state.status === 'finished') {
+      const loaded = await loadRunResult(true);
+      if (loaded) {
+        notifyRunSynchronized();
+      }
+      return;
+    }
+
+    if (!state.question) {
+      recoverExpiredRun(operation);
+      return;
+    }
+
+    const current = currentQuestion.value;
+    const shouldSynchronize =
+      !current ||
+      current.id !== state.question.id ||
+      current.options.length === 0 ||
+      catalog.selectedTopic.value !== state.topic ||
+      catalog.selectedDifficulty.value !== state.difficulty;
+
+    catalog.selectedTopic.value = state.topic;
+    catalog.selectedDifficulty.value = state.difficulty;
+    currentQuestion.value = state.question;
+    result.value = null;
+    sessionResult.value = null;
+    sessionOpen.value = true;
+    sessionCompleted.value = false;
+    feedback.value = 'idle';
+    screen.value = 'question';
+
+    if (!shouldSynchronize) {
+      return;
+    }
+
+    recordSessionEvent({
+      event: 'run.synchronized',
+      severity: 'warn',
+      sessionId: getSessionId(),
+      runId: state.runId,
+      message: 'Frontend run state synchronized from backend',
+      fields: {
+        locale: state.locale,
+        topic: state.topic,
+        difficulty: state.difficulty,
+        operation,
+        questionId: state.question.id,
+        questionCurrent: state.question.current,
+        questionTotal: state.question.total,
+      },
+    });
+    notifyRunSynchronized();
+  }
+
+  function notifyRunStateCheckFailed() {
+    if (runStateCheckErrorNotified) {
+      return;
+    }
+    runStateCheckErrorNotified = true;
+    $q.notify({
+      message: t('game.runStateCheckFailed'),
+      caption: 'QQUnit',
+      icon: 'cloud_off',
+      color: 'orange-9',
+      textColor: 'white',
+      position: 'top',
+      timeout: 1800,
+      group: false,
+    });
+  }
+
+  function notifyRunSynchronized() {
+    $q.notify({
+      message: t('game.runSynchronized'),
+      caption: 'QQUnit',
+      icon: 'sync',
+      color: 'blue-grey-8',
+      textColor: 'white',
+      position: 'top',
+      timeout: 1400,
+      group: false,
+    });
   }
 
   async function newRun() {

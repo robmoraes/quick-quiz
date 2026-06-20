@@ -87,6 +87,8 @@ export default {
     },
     correct: 'Tests passed',
     wrong: 'Tests failed',
+    runSynchronized: 'Run state synchronized. Continue from the current question.',
+    runStateCheckFailed: 'Could not check the run state. Keep playing if the question is visible.',
   },
   devtools: {
     welcome: 'Well well, looks like we have a hacker here. Welcome to Quick Quiz Dev',

@@ -23,6 +23,13 @@ const (
 	FinishReasonHardcoreWrongAnswer FinishReason = "hardcore_wrong_answer"
 )
 
+type RunStatus string
+
+const (
+	RunStatusActive   RunStatus = "active"
+	RunStatusFinished RunStatus = "finished"
+)
+
 var (
 	ErrInvalidDifficulty = errors.New("invalid difficulty")
 	ErrInvalidQuestion   = errors.New("invalid question")
@@ -172,6 +179,20 @@ type Result struct {
 	FinishReason FinishReason   `json:"finishReason"`
 	Stats        ResultStats    `json:"stats"`
 	Answers      []AnswerRecord `json:"answers"`
+}
+
+type RunState struct {
+	RunID        string          `json:"runId"`
+	Theme        string          `json:"theme"`
+	Locale       string          `json:"locale"`
+	Topic        string          `json:"topic"`
+	Difficulty   Difficulty      `json:"difficulty"`
+	Status       RunStatus       `json:"status"`
+	Finished     bool            `json:"finished"`
+	FinishReason FinishReason    `json:"finishReason,omitempty"`
+	Answered     int             `json:"answered"`
+	Total        int             `json:"total"`
+	Question     *PublicQuestion `json:"question,omitempty"`
 }
 
 type ResultStats struct {

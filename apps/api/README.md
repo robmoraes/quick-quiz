@@ -70,6 +70,7 @@ Environment variables:
 - `POST /api/runs`
 - `POST /api/runs/{runId}/answers`
 - `POST /api/runs/{runId}/finish`
+- `GET /api/runs/{runId}/state`
 - `GET /api/runs/{runId}/result`
 - `GET /api/runs/{runId}/questions/{questionId}/solution`
 

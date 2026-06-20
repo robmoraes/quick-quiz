@@ -9,6 +9,11 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Added active-run state reconciliation with periodic and focus-triggered API
+  checks, including recovery from missing local question state.
+
 ## [0.5.1] - 2026-06-17
 
 ### Added
