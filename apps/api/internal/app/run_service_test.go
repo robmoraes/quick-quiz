@@ -44,6 +44,71 @@ func TestCreateRunReturnsQuestionWithoutCorrectAnswerLeak(t *testing.T) {
 	}
 }
 
+func TestRunStateReturnsActiveQuestionAndFinishedSummary(t *testing.T) {
+	service := NewRunService(
+		store.NewMemoryQuestionStore(testQuestions()),
+		store.NewMemoryRunStore(time.Hour),
+		1,
+		testLocaleManager(),
+	)
+	ctx := context.Background()
+
+	run, err := service.CreateRun(ctx, CreateRunInput{
+		SessionID:  "session_test",
+		Theme:      "dev",
+		Topic:      "go",
+		Difficulty: domain.DifficultyEasy,
+	})
+	if err != nil {
+		t.Fatalf("CreateRun() error = %v", err)
+	}
+
+	state, err := service.RunState(ctx, "dev", run.RunID)
+	if err != nil {
+		t.Fatalf("RunState() active error = %v", err)
+	}
+	if state.Status != domain.RunStatusActive || state.Finished {
+		t.Fatalf("expected active run state, got %+v", state)
+	}
+	if state.Question == nil || state.Question.ID != run.Question.ID {
+		t.Fatalf("expected current public question in active state, got %+v", state.Question)
+	}
+	if state.Answered != 0 || state.Total != 1 {
+		t.Fatalf("expected active progress 0/1, got answered=%d total=%d", state.Answered, state.Total)
+	}
+
+	correctOptionID := ""
+	for _, option := range run.Question.Options {
+		if option.Text == "correct answer" {
+			correctOptionID = option.ID
+			break
+		}
+	}
+	if correctOptionID == "" {
+		t.Fatal("expected correct option in created run")
+	}
+	if _, err := service.Answer(ctx, "dev", run.RunID, run.Question.ID, correctOptionID); err != nil {
+		t.Fatalf("Answer() error = %v", err)
+	}
+
+	state, err = service.RunState(ctx, "dev", run.RunID)
+	if err != nil {
+		t.Fatalf("RunState() finished error = %v", err)
+	}
+	if state.Status != domain.RunStatusFinished || !state.Finished {
+		t.Fatalf("expected finished run state, got %+v", state)
+	}
+	if state.Question != nil {
+		t.Fatalf("expected finished state without current question, got %+v", state.Question)
+	}
+	if state.FinishReason != domain.FinishReasonMaxQuestionsReached {
+		t.Fatalf("expected max-questions finish reason, got %q", state.FinishReason)
+	}
+	if state.Answered != 1 || state.Total != 1 {
+		t.Fatalf("expected finished progress 1/1, got answered=%d total=%d", state.Answered, state.Total)
+	}
+}
+
 func TestCreateRunCapsTotalAtConfiguredQuestionLimit(t *testing.T) {
 	service := NewRunService(
 		store.NewMemoryQuestionStore([]domain.Question{

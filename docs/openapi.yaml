@@ -244,6 +244,30 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/runs/{runId}/state:
+    get:
+      tags:
+        - Runs
+      summary: Gets the current run state.
+      description: Returns the public current question when the run is active so clients can reconcile interrupted frontend state.
+      operationId: getRunState
+      parameters:
+        - $ref: "#/components/parameters/Theme"
+        - $ref: "#/components/parameters/RunID"
+      responses:
+        "200":
+          description: Run state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunState"
+        "400":
+          $ref: "#/components/responses/InvalidInput"
+        "404":
+          $ref: "#/components/responses/RunNotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/runs/{runId}/result:
     get:
       tags:
@@ -675,6 +699,53 @@ components:
         locale:
           type: string
           example: pt-BR
+        question:
+          $ref: "#/components/schemas/PublicQuestion"
+
+    RunState:
+      type: object
+      required:
+        - runId
+        - theme
+        - locale
+        - topic
+        - difficulty
+        - status
+        - finished
+        - answered
+        - total
+      properties:
+        runId:
+          type: string
+          example: run_014c27d8d07ed827411d70c1edfdcd96
+        theme:
+          type: string
+          example: dev
+        locale:
+          type: string
+          example: pt-BR
+        topic:
+          type: string
+          example: go
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        status:
+          type: string
+          enum:
+            - active
+            - finished
+          example: active
+        finished:
+          type: boolean
+          example: false
+        finishReason:
+          $ref: "#/components/schemas/FinishReason"
+        answered:
+          type: integer
+          example: 0
+        total:
+          type: integer
+          example: 10
         question:
           $ref: "#/components/schemas/PublicQuestion"
 

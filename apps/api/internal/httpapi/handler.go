@@ -162,6 +162,16 @@ func (h *Handler) Finish(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) RunState(w http.ResponseWriter, r *http.Request) {
+	state, err := h.runs.RunState(r.Context(), themeFromRequest(r), r.PathValue("runId"))
+	if err != nil {
+		h.writeAppError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, state)
+}
+
 func (h *Handler) Result(w http.ResponseWriter, r *http.Request) {
 	result, err := h.runs.Result(r.Context(), themeFromRequest(r), r.PathValue("runId"))
 	if err != nil {

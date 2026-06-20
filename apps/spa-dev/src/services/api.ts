@@ -99,6 +99,20 @@ export interface AnswerResponse {
   question?: PublicQuestion;
 }
 
+export interface RunState {
+  runId: string;
+  theme: string;
+  locale: string;
+  topic: string;
+  difficulty: Difficulty;
+  status: 'active' | 'finished';
+  finished: boolean;
+  finishReason?: string;
+  answered: number;
+  total: number;
+  question?: PublicQuestion;
+}
+
 export interface RunResult {
   runId: string;
   theme: string;
@@ -183,6 +197,11 @@ export async function answerQuestion(
 
 export async function finishRun(runId: string): Promise<void> {
   await request(`/api/runs/${runId}/finish`, { method: 'POST' });
+}
+
+export async function getRunState(runId: string): Promise<RunState> {
+  const encodedRunId = encodeURIComponent(runId);
+  return request<RunState>(`/api/runs/${encodedRunId}/state`);
 }
 
 export async function getResult(runId: string): Promise<RunResult> {

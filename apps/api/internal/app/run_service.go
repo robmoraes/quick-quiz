@@ -248,6 +248,45 @@ func (s *RunService) ResetSession(ctx context.Context, sessionID, theme string) 
 	return s.runs.DeleteBySession(ctx, sessionID, theme)
 }
 
+func (s *RunService) RunState(ctx context.Context, theme, runID string) (domain.RunState, error) {
+	if runID == "" {
+		return domain.RunState{}, ErrInvalidInput
+	}
+	if err := validateTheme(ctx, s.questions, theme); err != nil {
+		return domain.RunState{}, err
+	}
+
+	run, err := s.runs.Get(ctx, runID)
+	if err != nil {
+		return domain.RunState{}, ErrRunNotFound
+	}
+	if run.Theme != theme {
+		return domain.RunState{}, ErrRunNotFound
+	}
+
+	state := domain.RunState{
+		RunID:      run.ID,
+		Theme:      run.Theme,
+		Locale:     run.Locale,
+		Topic:      run.Topic,
+		Difficulty: run.Difficulty,
+		Status:     domain.RunStatusActive,
+		Finished:   run.Finished,
+		Answered:   len(run.Answers),
+		Total:      run.QuestionLimit,
+	}
+	if run.Finished {
+		state.Status = domain.RunStatusFinished
+		state.FinishReason = run.FinishReason
+		return state, nil
+	}
+	if run.CurrentQuestion != nil {
+		question := publicQuestion(*run.CurrentQuestion)
+		state.Question = &question
+	}
+	return state, nil
+}
+
 func (s *RunService) Answer(ctx context.Context, theme, runID, questionID, optionID string) (AnswerOutput, error) {
 	if runID == "" || questionID == "" || optionID == "" {
 		return AnswerOutput{}, ErrInvalidInput

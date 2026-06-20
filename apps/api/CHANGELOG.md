@@ -8,6 +8,11 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+### Added
+
+- Added a run state endpoint that returns active/finished run status and the
+  public current question for frontend recovery.
+
 ## [0.3.2] - 2026-06-17
 
 ### Fixed

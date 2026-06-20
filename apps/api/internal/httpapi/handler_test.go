@@ -3,6 +3,7 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -122,6 +123,71 @@ func TestQuestionSolutionEndpointReturnsGeneratedSolution(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), `"cached":false`) {
 		t.Fatalf("expected first solution response to be uncached, got %s", response.Body.String())
+	}
+}
+
+func TestRunStateEndpointReturnsActiveRunState(t *testing.T) {
+	router := testRouter()
+
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/runs", strings.NewReader(`{"topic":"go","difficulty":1}`))
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRequest.Header.Set("X-QuickQuiz-Theme", "dev")
+	createRequest.Header.Set("X-QuickQuiz-Session-ID", "session_state_001")
+	createResponse := httptest.NewRecorder()
+
+	router.ServeHTTP(createResponse, createRequest)
+
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected create status 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+	var createPayload struct {
+		RunID string `json:"runId"`
+	}
+	if err := json.NewDecoder(createResponse.Body).Decode(&createPayload); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if createPayload.RunID == "" {
+		t.Fatal("expected created run id")
+	}
+
+	stateRequest := httptest.NewRequest(http.MethodGet, "/api/runs/"+createPayload.RunID+"/state", nil)
+	stateRequest.Header.Set("X-QuickQuiz-Theme", "dev")
+	stateResponse := httptest.NewRecorder()
+
+	router.ServeHTTP(stateResponse, stateRequest)
+
+	if stateResponse.Code != http.StatusOK {
+		t.Fatalf("expected state status 200, got %d: %s", stateResponse.Code, stateResponse.Body.String())
+	}
+	body := stateResponse.Body.String()
+	for _, expected := range []string{
+		`"runId":"` + createPayload.RunID + `"`,
+		`"status":"active"`,
+		`"finished":false`,
+		`"answered":0`,
+		`"total":1`,
+		`"question"`,
+	} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("expected state response to contain %s, got %s", expected, body)
+		}
+	}
+}
+
+func TestRunStateEndpointReturnsRunNotFound(t *testing.T) {
+	router := testRouter()
+
+	request := httptest.NewRequest(http.MethodGet, "/api/runs/run_missing/state", nil)
+	request.Header.Set("X-QuickQuiz-Theme", "dev")
+	response := httptest.NewRecorder()
+
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d: %s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"code":"run_not_found"`) {
+		t.Fatalf("expected run_not_found error, got %s", response.Body.String())
 	}
 }
 

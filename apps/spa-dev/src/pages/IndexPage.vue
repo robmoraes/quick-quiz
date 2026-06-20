@@ -65,6 +65,10 @@
       @end-session="confirmEndSession"
     />
 
+    <div v-else-if="screen === 'question'" class="column items-center justify-center q-pa-xl">
+      <q-spinner-dots color="amber-8" size="42px" />
+    </div>
+
     <FatalLossPanel
       v-else-if="screen === 'fatalLoss'"
       :message-visible="fatalLossMessageVisible"
