@@ -639,7 +639,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     $q.notify({
       message: t('errors.runExpired'),
       caption: 'QQUnit',
-      icon: 'timer_off',
+      icon: 'sync_problem',
       color: 'amber-9',
       textColor: 'black',
       position: 'top',
