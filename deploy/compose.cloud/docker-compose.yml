@@ -82,6 +82,24 @@ services:
       - traefik.http.routers.quickquiz-dev.tls.certresolver=letsencrypt
       - traefik.http.services.quickquiz-dev.loadbalancer.server.port=8080
 
+  spa-dslab:
+    image: ${QUICKQUIZ_IMAGE_DSLAB:-robmoraes/quick-quiz-dslab:latest}
+    depends_on:
+      - api
+    read_only: true
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    networks:
+      - web
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.quickquiz-dslab.rule=Host(`${DSLAB_DOMAIN:-dslab.quickquiz.com.br}`)
+      - traefik.http.routers.quickquiz-dslab.entrypoints=websecure
+      - traefik.http.routers.quickquiz-dslab.tls=true
+      - traefik.http.routers.quickquiz-dslab.tls.certresolver=letsencrypt
+      - traefik.http.services.quickquiz-dslab.loadbalancer.server.port=8080
+
   manager-fpm:
     image: ${QUICKQUIZ_IMAGE_MANAGER_FPM}
     environment:
@@ -105,11 +123,19 @@ services:
       - /app/var:rw,noexec,nosuid,size=64m,mode=1777
     networks:
       - web
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 9000) ? 0 : 1);'"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
 
   manager-web:
     image: ${QUICKQUIZ_IMAGE_MANAGER_WEB}
     depends_on:
-      - manager-fpm
+      manager-fpm:
+        condition: service_healthy
+        restart: true
     read_only: true
     restart: unless-stopped
     tmpfs:
