@@ -8,6 +8,7 @@ Docker packaging for running and testing QuickQuiz Dev locally with a production
 
 - `api`: statically compiled Go API in a multi-stage image, running without root.
 - `spa-dev`: static Quasar/Vue build served by Nginx without root.
+- `spa-dslab`: static DSLab-themed Quasar/Vue build served by Nginx without root.
 - `manager-fpm`: Symfony manager app with production Composer dependencies, PHP-FPM, OPcache, and SQLite.
 - `manager-web`: lightweight Nginx frontend for the manager through FastCGI.
 
@@ -57,6 +58,7 @@ The deploy Makefile defaults to these Docker Hub repositories:
 ```text
 robmoraes/quick-quiz-api
 robmoraes/quick-quiz-dev
+robmoraes/quick-quiz-dslab
 robmoraes/quick-quiz-manager-fpm
 robmoraes/quick-quiz-manager-web
 ```
@@ -66,6 +68,7 @@ You can override each repository with:
 ```sh
 API_REPOSITORY=example/api
 SPA_DEV_REPOSITORY=example/spa
+SPA_DSLAB_REPOSITORY=example/spa-dslab
 MANAGER_FPM_REPOSITORY=example/manager-fpm
 MANAGER_WEB_REPOSITORY=example/manager-web
 ```
@@ -76,56 +79,74 @@ The Makefile uses `docker buildx` and builds `linux/amd64` images by default.
 
 For the optional cloud publishing flow using AWS EC2, Docker Compose, Traefik, and the project domains, see [Cloud Publishing](./CLOUD-PUBLISHING.md).
 
-Export all four images as OCI artifacts under `deploy/dist`:
+Export all five images as OCI artifacts under `deploy/dist`:
 
 ```sh
-make -C deploy build-images TAG=v0.1.0-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=oci
+make -C deploy build-images \
+  TAG=v0.1.0-beta \
+  SPA_DEV_API_BASE_URL=https://dev.quickquiz.com.br \
+  SPA_DSLAB_API_BASE_URL=https://dslab.quickquiz.com.br \
+  OUTPUT=oci
 ```
 
-Push all four images with the same tag:
+Push all five images with the same tag:
 
 ```sh
-make -C deploy build-images TAG=v0.1.0-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=push
+make -C deploy build-images \
+  TAG=v0.1.0-beta \
+  SPA_DEV_API_BASE_URL=https://dev.quickquiz.com.br \
+  SPA_DSLAB_API_BASE_URL=https://dslab.quickquiz.com.br \
+  OUTPUT=push
 ```
 
 When `OUTPUT=push` is used, the Makefile also tags and pushes the same image as `latest` for each repository. For example, `TAG=v0.1.0-beta` publishes both `robmoraes/quick-quiz-api:v0.1.0-beta` and `robmoraes/quick-quiz-api:latest`.
 
-SPA Dev image builds require `VITE_API_BASE_URL`; there is intentionally no
-default because the value is compiled into the static frontend bundle.
+SPA image builds require an API base URL; use `SPA_DEV_API_BASE_URL` or
+`SPA_DSLAB_API_BASE_URL` for app-specific values. `VITE_API_BASE_URL` remains
+available as a shared fallback for local one-off builds. There is intentionally
+no default because the value is compiled into the static frontend bundle.
 
 Build or push only one image with an individual tag:
 
 ```sh
 make -C deploy api API_TAG=v0.1.1-beta OUTPUT=push
-make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=push
+make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta SPA_DEV_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=push
+make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta SPA_DSLAB_API_BASE_URL=https://dslab.quickquiz.com.br OUTPUT=push
 make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
 
-Build all four images with different tags:
+Build all five images with different tags:
 
 ```sh
 make -C deploy build-images \
   API_TAG=v0.1.1-api \
   SPA_DEV_TAG=v0.1.0-dev \
+  SPA_DSLAB_TAG=v0.1.0-dslab \
   MANAGER_FPM_TAG=v0.1.2-fpm \
   MANAGER_WEB_TAG=v0.1.2-web \
-  VITE_API_BASE_URL=https://dev.quickquiz.com.br \
+  SPA_DEV_API_BASE_URL=https://dev.quickquiz.com.br \
+  SPA_DSLAB_API_BASE_URL=https://dslab.quickquiz.com.br \
   OUTPUT=push
 ```
 
 Load images into the local Docker daemon:
 
 ```sh
-make -C deploy build-images VITE_API_BASE_URL=https://dev.quickquiz.com.br OUTPUT=load
+make -C deploy build-images \
+  SPA_DEV_API_BASE_URL=https://dev.quickquiz.com.br \
+  SPA_DSLAB_API_BASE_URL=https://dslab.quickquiz.com.br \
+  OUTPUT=load
 ```
 
 The GitHub Actions release workflow publishes app images when supported release
 tags are pushed. The workflow uses the `production` GitHub Environment and reads
-Docker Hub repositories and the SPA Dev API URL from environment variables:
+Docker Hub repositories and SPA API URLs from environment variables:
 
 - `DOCKERHUB_API_IMAGE`
 - `DOCKERHUB_SPA_DEV_IMAGE`
+- `DOCKERHUB_SPA_DSLAB_IMAGE`
 - `DOCKERHUB_MANAGER_FPM_IMAGE`
 - `DOCKERHUB_MANAGER_WEB_IMAGE`
 - `SPA_DEV_API_BASE_URL`
+- `SPA_DSLAB_API_BASE_URL`

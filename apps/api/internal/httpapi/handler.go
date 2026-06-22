@@ -172,6 +172,16 @@ func (h *Handler) RunState(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, state)
 }
 
+func (h *Handler) ActiveSessions(w http.ResponseWriter, r *http.Request) {
+	sessions, err := h.runs.ActiveSessions(r.Context())
+	if err != nil {
+		h.writeAppError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, sessions)
+}
+
 func (h *Handler) Result(w http.ResponseWriter, r *http.Request) {
 	result, err := h.runs.Result(r.Context(), themeFromRequest(r), r.PathValue("runId"))
 	if err != nil {

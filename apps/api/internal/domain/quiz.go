@@ -56,8 +56,12 @@ type Ad struct {
 	ExpiresIn   *time.Time `json:"-"`
 	Active      bool       `json:"-"`
 	Emphasis    bool       `json:"-"`
-	Themes      []string   `json:"-"`
-	Topics      []string   `json:"-"`
+	Targets     []AdTarget `json:"-"`
+}
+
+type AdTarget struct {
+	Theme  string
+	Topics []string
 }
 
 type Ads struct {
@@ -193,6 +197,31 @@ type RunState struct {
 	Answered     int             `json:"answered"`
 	Total        int             `json:"total"`
 	Question     *PublicQuestion `json:"question,omitempty"`
+}
+
+type ActiveSessions struct {
+	GeneratedAt time.Time       `json:"generatedAt"`
+	Total       int             `json:"total"`
+	Sessions    []ActiveSession `json:"sessions"`
+}
+
+type ActiveSession struct {
+	RunID                   string       `json:"runId"`
+	SessionID               string       `json:"sessionId"`
+	Theme                   string       `json:"theme"`
+	Locale                  string       `json:"locale"`
+	Topic                   string       `json:"topic"`
+	Difficulty              Difficulty   `json:"difficulty"`
+	Status                  RunStatus    `json:"status"`
+	Finished                bool         `json:"finished"`
+	FinishReason            FinishReason `json:"finishReason,omitempty"`
+	Answered                int          `json:"answered"`
+	Total                   int          `json:"total"`
+	CurrentQuestionID       string       `json:"currentQuestionId,omitempty"`
+	CurrentQuestionPosition int          `json:"currentQuestionPosition,omitempty"`
+	CreatedAt               time.Time    `json:"createdAt"`
+	UpdatedAt               time.Time    `json:"updatedAt"`
+	IdleSeconds             int64        `json:"idleSeconds"`
 }
 
 type ResultStats struct {

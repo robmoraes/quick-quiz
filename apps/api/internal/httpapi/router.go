@@ -27,6 +27,7 @@ func NewRouter(runs *app.RunService, ads *app.AdService, solutions *app.Solution
 	mux.HandleFunc("GET /api/runs/{runId}/state", handler.RunState)
 	mux.HandleFunc("GET /api/runs/{runId}/result", handler.Result)
 	mux.HandleFunc("GET /api/runs/{runId}/questions/{questionId}/solution", handler.QuestionSolution)
+	mux.HandleFunc("GET /api/sessions/active", handler.ActiveSessions)
 
 	return recoverer(requestLogger(logger)(cors(mux)))
 }

@@ -174,6 +174,100 @@ func TestRunStateEndpointReturnsActiveRunState(t *testing.T) {
 	}
 }
 
+func TestActiveSessionsEndpointReturnsOpenActiveSessions(t *testing.T) {
+	router := testRouter()
+
+	createRequest := httptest.NewRequest(http.MethodPost, "/api/runs", strings.NewReader(`{"topic":"go","difficulty":1}`))
+	createRequest.Header.Set("Content-Type", "application/json")
+	createRequest.Header.Set("X-QuickQuiz-Theme", "dev")
+	createRequest.Header.Set("X-QuickQuiz-Session-ID", "session_monitor_001")
+	createResponse := httptest.NewRecorder()
+	router.ServeHTTP(createResponse, createRequest)
+	if createResponse.Code != http.StatusCreated {
+		t.Fatalf("expected create status 201, got %d: %s", createResponse.Code, createResponse.Body.String())
+	}
+	var createPayload struct {
+		RunID string `json:"runId"`
+	}
+	if err := json.NewDecoder(createResponse.Body).Decode(&createPayload); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/sessions/active", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
+	}
+	var activePayload testActiveSessionsResponse
+	if err := json.NewDecoder(response.Body).Decode(&activePayload); err != nil {
+		t.Fatalf("decode active sessions response: %v", err)
+	}
+	session, ok := findTestActiveSession(activePayload.Sessions, "session_monitor_001")
+	if !ok {
+		t.Fatalf("expected session_monitor_001 in active sessions, got %#v", activePayload.Sessions)
+	}
+	if session.RunID != createPayload.RunID || session.Theme != "dev" || session.Topic != "go" {
+		t.Fatalf("expected created run metadata, got %#v", session)
+	}
+	if session.Status != domain.RunStatusActive || session.Finished {
+		t.Fatalf("expected active session metadata, got %#v", session)
+	}
+	if session.CurrentQuestionID != "go-easy-001" {
+		t.Fatalf("expected current question id, got %#v", session)
+	}
+
+	finishRequest := httptest.NewRequest(http.MethodPost, "/api/runs/"+createPayload.RunID+"/finish", nil)
+	finishRequest.Header.Set("X-QuickQuiz-Theme", "dev")
+	finishResponse := httptest.NewRecorder()
+	router.ServeHTTP(finishResponse, finishRequest)
+	if finishResponse.Code != http.StatusOK {
+		t.Fatalf("expected finish status 200, got %d: %s", finishResponse.Code, finishResponse.Body.String())
+	}
+
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status 200 after finish, got %d: %s", response.Code, response.Body.String())
+	}
+	activePayload.Sessions = nil
+	if err := json.NewDecoder(response.Body).Decode(&activePayload); err != nil {
+		t.Fatalf("decode finished active sessions response: %v", err)
+	}
+	session, ok = findTestActiveSession(activePayload.Sessions, "session_monitor_001")
+	if !ok {
+		t.Fatalf("expected finished session_monitor_001 in active sessions, got %#v", activePayload.Sessions)
+	}
+	if session.Status != domain.RunStatusFinished || !session.Finished || session.FinishReason != domain.FinishReasonPlayerQuit {
+		t.Fatalf("expected finished session metadata, got %#v", session)
+	}
+}
+
+type testActiveSessionsResponse struct {
+	Sessions []testActiveSession `json:"sessions"`
+}
+
+type testActiveSession struct {
+	RunID             string              `json:"runId"`
+	SessionID         string              `json:"sessionId"`
+	Theme             string              `json:"theme"`
+	Topic             string              `json:"topic"`
+	Status            domain.RunStatus    `json:"status"`
+	Finished          bool                `json:"finished"`
+	FinishReason      domain.FinishReason `json:"finishReason"`
+	CurrentQuestionID string              `json:"currentQuestionId"`
+}
+
+func findTestActiveSession(sessions []testActiveSession, sessionID string) (testActiveSession, bool) {
+	for _, session := range sessions {
+		if session.SessionID == sessionID {
+			return session, true
+		}
+	}
+	return testActiveSession{}, false
+}
+
 func TestRunStateEndpointReturnsRunNotFound(t *testing.T) {
 	router := testRouter()
 
@@ -240,7 +334,7 @@ func testRouter() http.Handler {
 			Description: "Ad A",
 			Image:       "https://example.com/ad-a.webp",
 			Active:      true,
-			Themes:      []string{"dev"},
+			Targets:     []domain.AdTarget{{Theme: "dev"}},
 		},
 		{
 			ID:          "ad-emphasis",
@@ -250,7 +344,7 @@ func testRouter() http.Handler {
 			Image:       "https://example.com/ad-emphasis.webp",
 			Active:      true,
 			Emphasis:    true,
-			Themes:      []string{"dev"},
+			Targets:     []domain.AdTarget{{Theme: "dev"}},
 		},
 		{
 			ID:          "ad-topic",
@@ -259,8 +353,7 @@ func testRouter() http.Handler {
 			Description: "Ad Topic",
 			Image:       "https://example.com/ad-topic.webp",
 			Active:      true,
-			Themes:      []string{"dev"},
-			Topics:      []string{"php"},
+			Targets:     []domain.AdTarget{{Theme: "dev", Topics: []string{"php"}}},
 		},
 	}), questionStore)
 	solutionService := app.NewSolutionService(

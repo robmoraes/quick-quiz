@@ -51,6 +51,18 @@ func (s *MemoryRunStore) Save(_ context.Context, run *domain.Run) error {
 	return nil
 }
 
+func (s *MemoryRunStore) ListTracked(_ context.Context) ([]domain.Run, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.cleanupLocked()
+	runs := make([]domain.Run, 0, len(s.runs))
+	for _, run := range s.runs {
+		runs = append(runs, *cloneRun(run))
+	}
+	return runs, nil
+}
+
 func (s *MemoryRunStore) DeleteBySession(_ context.Context, sessionID, theme string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

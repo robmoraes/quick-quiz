@@ -5,6 +5,7 @@ on:
     tags:
       - "api/**"
       - "spa-dev/**"
+      - "spa-dslab/**"
       - "manager/**"
       - "v*"
 
@@ -23,9 +24,11 @@ jobs:
     env:
       DOCKERHUB_API_IMAGE: ${{ vars.DOCKERHUB_API_IMAGE }}
       DOCKERHUB_SPA_DEV_IMAGE: ${{ vars.DOCKERHUB_SPA_DEV_IMAGE }}
+      DOCKERHUB_SPA_DSLAB_IMAGE: ${{ vars.DOCKERHUB_SPA_DSLAB_IMAGE }}
       DOCKERHUB_MANAGER_FPM_IMAGE: ${{ vars.DOCKERHUB_MANAGER_FPM_IMAGE }}
       DOCKERHUB_MANAGER_WEB_IMAGE: ${{ vars.DOCKERHUB_MANAGER_WEB_IMAGE }}
       SPA_DEV_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
+      SPA_DSLAB_API_BASE_URL: ${{ vars.SPA_DSLAB_API_BASE_URL }}
 
     steps:
       - name: Classify release tag
@@ -62,6 +65,16 @@ jobs:
           elif [[ "${tag}" =~ ^spa-dev/ ]]; then
             app="spa-dev"
             message="SPA Dev release tags must use spa-dev/vMAJOR.MINOR.PATCH."
+          elif [[ "${tag}" =~ ^spa-dslab/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            valid=true
+            implemented=true
+            app="spa-dslab"
+            version="${tag#spa-dslab/}"
+            image="${DOCKERHUB_SPA_DSLAB_IMAGE}"
+            message="SPA DSLab release tag accepted."
+          elif [[ "${tag}" =~ ^spa-dslab/ ]]; then
+            app="spa-dslab"
+            message="SPA DSLab release tags must use spa-dslab/vMAJOR.MINOR.PATCH."
           elif [[ "${tag}" =~ ^manager/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             valid=true
             implemented=true
@@ -73,9 +86,9 @@ jobs:
             app="manager"
             message="Manager release tags must use manager/vMAJOR.MINOR.PATCH."
           elif [[ "${tag}" =~ ^v ]]; then
-            message="Repository-wide release tags are unsupported. Use api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
+            message="Repository-wide release tags are unsupported. Use api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
           else
-            message="Unsupported release tag. Use api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
+            message="Unsupported release tag. Use api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
           fi
 
           {
@@ -143,6 +156,15 @@ jobs:
             fi
           fi
 
+          if [[ "${{ steps.tag.outputs.app }}" == "spa-dslab" ]]; then
+            if [[ -z "${DOCKERHUB_SPA_DSLAB_IMAGE}" ]]; then
+              missing+=("DOCKERHUB_SPA_DSLAB_IMAGE")
+            fi
+            if [[ -z "${SPA_DSLAB_API_BASE_URL}" ]]; then
+              missing+=("SPA_DSLAB_API_BASE_URL")
+            fi
+          fi
+
           if [[ "${{ steps.tag.outputs.app }}" == "manager" ]]; then
             if [[ -z "${DOCKERHUB_MANAGER_FPM_IMAGE}" ]]; then
               missing+=("DOCKERHUB_MANAGER_FPM_IMAGE")
@@ -199,26 +221,26 @@ jobs:
         run: go test ./...
 
       - name: Set up Node
-        if: steps.tag.outputs.app == 'spa-dev'
+        if: steps.tag.outputs.app == 'spa-dev' || steps.tag.outputs.app == 'spa-dslab'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: apps/spa-dev/package-lock.json
+          cache-dependency-path: apps/${{ steps.tag.outputs.app }}/package-lock.json
 
-      - name: Install SPA Dev dependencies
-        if: steps.tag.outputs.app == 'spa-dev'
-        working-directory: apps/spa-dev
+      - name: Install SPA dependencies
+        if: steps.tag.outputs.app == 'spa-dev' || steps.tag.outputs.app == 'spa-dslab'
+        working-directory: apps/${{ steps.tag.outputs.app }}
         run: npm ci
 
-      - name: Lint SPA Dev
-        if: steps.tag.outputs.app == 'spa-dev'
-        working-directory: apps/spa-dev
+      - name: Lint SPA
+        if: steps.tag.outputs.app == 'spa-dev' || steps.tag.outputs.app == 'spa-dslab'
+        working-directory: apps/${{ steps.tag.outputs.app }}
         run: npm run lint
 
-      - name: Build SPA Dev
-        if: steps.tag.outputs.app == 'spa-dev'
-        working-directory: apps/spa-dev
+      - name: Build SPA
+        if: steps.tag.outputs.app == 'spa-dev' || steps.tag.outputs.app == 'spa-dslab'
+        working-directory: apps/${{ steps.tag.outputs.app }}
         run: npm run build
 
       - name: Set up PHP
@@ -261,8 +283,15 @@ jobs:
         if: steps.tag.outputs.app == 'spa-dev'
         env:
           SPA_DEV_TAG: ${{ steps.tag.outputs.version }}
-          VITE_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
-        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" VITE_API_BASE_URL="${VITE_API_BASE_URL}" OUTPUT=push
+          SPA_DEV_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
+        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" SPA_DEV_API_BASE_URL="${SPA_DEV_API_BASE_URL}" OUTPUT=push
+
+      - name: Build and push SPA DSLab image
+        if: steps.tag.outputs.app == 'spa-dslab'
+        env:
+          SPA_DSLAB_TAG: ${{ steps.tag.outputs.version }}
+          SPA_DSLAB_API_BASE_URL: ${{ vars.SPA_DSLAB_API_BASE_URL }}
+        run: make -C deploy spa-dslab SPA_DSLAB_TAG="${SPA_DSLAB_TAG}" SPA_DSLAB_REPOSITORY="${DOCKERHUB_SPA_DSLAB_IMAGE}" SPA_DSLAB_API_BASE_URL="${SPA_DSLAB_API_BASE_URL}" OUTPUT=push
 
       - name: Build and push manager FPM image
         if: steps.tag.outputs.app == 'manager'
@@ -304,6 +333,21 @@ jobs:
             echo ""
             echo "- \`${SPA_DEV_IMAGE}:${SPA_DEV_TAG}\`"
             echo "- \`${SPA_DEV_IMAGE}:latest\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Summarize SPA DSLab image push
+        if: steps.tag.outputs.app == 'spa-dslab'
+        env:
+          SPA_DSLAB_TAG: ${{ steps.tag.outputs.version }}
+          SPA_DSLAB_IMAGE: ${{ steps.tag.outputs.image }}
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "## Published images"
+            echo ""
+            echo "- \`${SPA_DSLAB_IMAGE}:${SPA_DSLAB_TAG}\`"
+            echo "- \`${SPA_DSLAB_IMAGE}:latest\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Summarize manager image push

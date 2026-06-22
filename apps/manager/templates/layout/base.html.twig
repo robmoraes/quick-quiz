@@ -11,55 +11,81 @@
     <link rel="icon" type="image/ico" href="/favicon.ico">
     {{ importmap('app') }}
   </head>
-  <body>
-    <nav class="navbar navbar-expand-lg border-bottom manager-navbar">
-      <div class="container-fluid app-shell">
-        <a class="navbar-brand fw-semibold" href="{{ selectedTheme ? path('catalog') : path('themes') }}">QuickQuiz Manager</a>
+  <body class="{% if adminEmail %}manager-has-sidebar{% endif %}">
+    <header class="manager-topbar border-bottom">
+      <div class="container-fluid app-shell manager-topbar-shell">
+        <div class="d-flex align-items-center gap-2">
+          {% if adminEmail %}
+            <button class="btn btn-outline-secondary btn-sm manager-menu-button d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#managerSidebar" aria-controls="managerSidebar" aria-label="Open navigation">
+              <i class="bi bi-list" aria-hidden="true"></i>
+            </button>
+          {% endif %}
+          <a class="navbar-brand fw-semibold" href="{{ selectedTheme ? path('catalog') : path('themes') }}">QuickQuiz Manager</a>
+        </div>
         {% if adminEmail %}
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#managerNav" aria-controls="managerNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="managerNav">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-              <li class="nav-item">
-                <a class="nav-link" href="{{ path('themes') }}">Themes</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{ path('ads') }}">Advertising</a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="{{ path('ai_prompts') }}">AI Prompts</a>
-              </li>
-              {% if selectedTheme %}
-                <li class="nav-item">
-                  <a class="nav-link" href="{{ path('catalog') }}">Catalog</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" href="{{ path('questions') }}">Questions</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link" href="{{ path('stats') }}">Stats</a>
-                </li>
-              {% endif %}
-            </ul>
-            <div class="d-flex align-items-center gap-3">
-              {% if selectedTheme %}
-                <a class="badge text-bg-dark text-decoration-none" href="{{ path('themes') }}">Theme: {{ selectedTheme }}</a>
-              {% else %}
-                <a class="badge text-bg-warning text-dark text-decoration-none" href="{{ path('themes') }}">No theme selected</a>
-              {% endif %}
-              <span class="manager-muted small">{{ adminEmail }}</span>
-              <form method="post" action="{{ path('logout') }}">
-                <input type="hidden" name="_csrf" value="{{ csrf }}">
-                <button class="btn btn-outline-secondary btn-sm" type="submit">Logout</button>
-              </form>
-            </div>
+          <div class="manager-topbar-actions">
+            {% if selectedTheme %}
+              <a class="badge text-bg-dark text-decoration-none" href="{{ path('themes') }}">Theme: {{ selectedTheme }}</a>
+            {% else %}
+              <a class="badge text-bg-warning text-dark text-decoration-none" href="{{ path('themes') }}">No theme selected</a>
+            {% endif %}
+            <span class="manager-muted small">{{ adminEmail }}</span>
+            <form method="post" action="{{ path('logout') }}">
+              <input type="hidden" name="_csrf" value="{{ csrf }}">
+              <button class="btn btn-outline-secondary btn-sm" type="submit">
+                <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                <span>Logout</span>
+              </button>
+            </form>
           </div>
         {% endif %}
       </div>
-    </nav>
+    </header>
+    {% if adminEmail %}
+      <aside class="offcanvas-lg offcanvas-start manager-sidebar" tabindex="-1" id="managerSidebar" aria-labelledby="managerSidebarLabel">
+        <div class="offcanvas-header">
+          <h2 class="offcanvas-title h5" id="managerSidebarLabel">QuickQuiz</h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" data-bs-target="#managerSidebar" aria-label="Close navigation"></button>
+        </div>
+        <div class="offcanvas-body">
+          <nav class="manager-sidebar-nav" aria-label="Primary navigation">
+            <a class="manager-sidebar-link {% if currentPath starts with '/themes' %}active{% endif %}" href="{{ path('themes') }}">
+              <i class="bi bi-palette" aria-hidden="true"></i>
+              <span>Themes</span>
+            </a>
+            <a class="manager-sidebar-link {% if currentPath starts with '/ads' %}active{% endif %}" href="{{ path('ads') }}">
+              <i class="bi bi-badge-ad" aria-hidden="true"></i>
+              <span>Advertising</span>
+            </a>
+            <a class="manager-sidebar-link {% if currentPath starts with '/sessions' %}active{% endif %}" href="{{ path('session_monitor') }}">
+              <i class="bi bi-activity" aria-hidden="true"></i>
+              <span>Sessions</span>
+            </a>
+            <a class="manager-sidebar-link {% if currentPath starts with '/ai-prompts' %}active{% endif %}" href="{{ path('ai_prompts') }}">
+              <i class="bi bi-stars" aria-hidden="true"></i>
+              <span>AI Prompts</span>
+            </a>
+            {% if selectedTheme %}
+              <div class="manager-sidebar-section">Selected theme</div>
+              <a class="manager-sidebar-link {% if currentPath starts with '/catalog' %}active{% endif %}" href="{{ path('catalog') }}">
+                <i class="bi bi-journal-text" aria-hidden="true"></i>
+                <span>Catalog</span>
+              </a>
+              <a class="manager-sidebar-link {% if currentPath starts with '/questions' %}active{% endif %}" href="{{ path('questions') }}">
+                <i class="bi bi-ui-checks" aria-hidden="true"></i>
+                <span>Questions</span>
+              </a>
+              <a class="manager-sidebar-link {% if currentPath starts with '/stats' %}active{% endif %}" href="{{ path('stats') }}">
+                <i class="bi bi-bar-chart-line" aria-hidden="true"></i>
+                <span>Stats</span>
+              </a>
+            {% endif %}
+          </nav>
+        </div>
+      </aside>
+    {% endif %}
     {% block ai_help %}{% endblock %}
-    <main class="container-fluid app-shell py-4">
+    <main class="container-fluid app-shell manager-main {% if adminEmail %}manager-main-with-sidebar{% endif %} py-4">
       {% block body %}{% endblock %}
     </main>
     <footer class="manager-status-footer fixed-bottom border-top">

@@ -3,8 +3,12 @@
 {% block title %}Advertising - QuickQuiz Manager{% endblock %}
 
 {% block body %}
-  {% set selectedTheme = ad.theme|default(ad.themes.theme|default('')) %}
-  {% set selectedTopics = ad.topics|default(ad.themes.topics|default([])) %}
+  {% set targetTopicsByTheme = {} %}
+  {% for target in ad.themes|default([]) %}
+    {% if target.theme|default('') %}
+      {% set targetTopicsByTheme = targetTopicsByTheme|merge({ (target.theme): target.topics|default([]) }) %}
+    {% endif %}
+  {% endfor %}
 
   <h1 class="h3 mb-3">{% if isNew %}New ad{% else %}Edit ad{% endif %}</h1>
 
@@ -46,54 +50,63 @@
           <input class="form-control" id="image" name="image" type="url" value="{{ ad.image|default('') }}" required>
         </div>
 
-        <div class="mb-3">
-          <label class="form-label" for="theme">Theme</label>
-          <select class="form-select" id="theme" name="theme" data-manager-ad-theme-select>
-            <option value="">No theme targeting</option>
-            {% for theme in themes %}
-              <option value="{{ theme.id }}" {% if selectedTheme == theme.id %}selected{% endif %}>
-                {{ theme.name|default(theme.id) }} ({{ theme.id }})
-              </option>
-            {% endfor %}
-          </select>
-          {% if themes is empty %}
-            <div class="form-text">No themes configured.</div>
-          {% endif %}
-        </div>
-
         <fieldset class="mb-3">
-          <legend class="form-label">Topics</legend>
+          <legend class="form-label">Theme targets</legend>
           {% for theme in themes %}
+            {% set selectedTopics = targetTopicsByTheme[theme.id]|default(null) %}
+            {% set themeSelected = selectedTopics is not null %}
             <div
-              class="manager-ad-topic-panel"
-              data-manager-ad-topic-panel="{{ theme.id }}"
-              {% if selectedTheme != theme.id %}hidden{% endif %}>
-              <div class="manager-checkbox-grid">
-                {% for topic in topicsByTheme[theme.id]|default([]) %}
-                  <label class="form-check">
-                    <input
-                      class="form-check-input"
-                      type="checkbox"
-                      name="topics[]"
-                      value="{{ topic.key }}"
-                      {% if selectedTheme == theme.id and topic.key in selectedTopics %}checked{% endif %}>
-                    <span class="form-check-label">
-                      {{ topic.name|default(topic.key) ?: topic.key }}
-                      <span class="manager-muted small">({{ topic.key }})</span>
-                      {% if not topic.active %}
-                        <span class="badge text-bg-secondary ms-1">inactive</span>
-                      {% endif %}
-                    </span>
-                  </label>
-                {% else %}
-                  <span class="manager-muted">No topics configured for this theme.</span>
-                {% endfor %}
+              class="manager-ad-theme-target"
+              data-manager-ad-theme-target="{{ theme.id }}">
+              <label class="form-check manager-ad-theme-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  name="themes[{{ theme.id }}][enabled]"
+                  value="1"
+                  data-manager-ad-theme-checkbox="{{ theme.id }}"
+                  {% if themeSelected %}checked{% endif %}>
+                <span class="form-check-label">
+                  {{ theme.name|default(theme.id) ?: theme.id }}
+                  <span class="manager-muted small">({{ theme.id }})</span>
+                  {% if not theme.active %}
+                    <span class="badge text-bg-secondary ms-1">inactive</span>
+                  {% endif %}
+                </span>
+              </label>
+
+              <div
+                class="manager-ad-topic-panel"
+                data-manager-ad-topic-panel="{{ theme.id }}"
+                {% if not themeSelected %}hidden{% endif %}>
+                <div class="manager-checkbox-grid">
+                  {% for topic in topicsByTheme[theme.id]|default([]) %}
+                    <label class="form-check">
+                      <input
+                        class="form-check-input"
+                        type="checkbox"
+                        name="themes[{{ theme.id }}][topics][]"
+                        value="{{ topic.key }}"
+                        {% if themeSelected and topic.key in selectedTopics %}checked{% endif %}>
+                      <span class="form-check-label">
+                        {{ topic.name|default(topic.key) ?: topic.key }}
+                        <span class="manager-muted small">({{ topic.key }})</span>
+                        {% if not topic.active %}
+                          <span class="badge text-bg-secondary ms-1">inactive</span>
+                        {% endif %}
+                      </span>
+                    </label>
+                  {% else %}
+                    <span class="manager-muted">No topics configured for this theme.</span>
+                  {% endfor %}
+                </div>
+                <div class="form-text">Leave all topics unchecked to target every topic in this theme.</div>
               </div>
             </div>
           {% else %}
-            <span class="manager-muted">Select a theme before choosing topics.</span>
+            <span class="manager-muted">No themes configured.</span>
           {% endfor %}
-          <div class="form-text">Topic targeting is optional. Leave all unchecked to target the full theme.</div>
+          <div class="form-text">Theme targeting is optional. Ads without theme targets are saved but are not shown by the API.</div>
         </fieldset>
 
         <div class="row align-items-end">

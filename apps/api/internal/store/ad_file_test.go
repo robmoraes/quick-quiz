@@ -45,11 +45,45 @@ func TestLoadAdsFromRootReadsAdsIndex(t *testing.T) {
 	if !ads[0].Emphasis {
 		t.Fatal("expected emphasis flag")
 	}
-	if got := ads[0].Themes; len(got) != 1 || got[0] != "dev" {
-		t.Fatalf("expected dev theme, got %#v", got)
+	if got := ads[0].Targets; len(got) != 1 || got[0].Theme != "dev" {
+		t.Fatalf("expected dev theme target, got %#v", got)
 	}
-	if got := ads[0].Topics; len(got) != 2 || got[0] != "php" || got[1] != "js" {
+	if got := ads[0].Targets[0].Topics; len(got) != 2 || got[0] != "php" || got[1] != "js" {
 		t.Fatalf("expected php and js topics, got %#v", got)
+	}
+}
+
+func TestLoadAdsFromRootReadsMultipleThemeTargets(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "ads", "ads.json"), `{
+		"ads": [
+			{
+				"id": "bee135e0-dda7-4e12-87b8-1632126d546b",
+				"uri": "https://example.com/ad",
+				"description": "Example ad",
+				"image": "https://example.com/ad.webp",
+				"active": true,
+				"themes": [
+					{"theme": "dev", "topics": ["php"]},
+					{"theme": "dslab", "topics": ["route53", "swarm"]}
+				]
+			}
+		]
+	}`)
+
+	ads, err := LoadAdsFromRoot(root)
+	if err != nil {
+		t.Fatalf("LoadAdsFromRoot() error = %v", err)
+	}
+
+	if got := len(ads[0].Targets); got != 2 {
+		t.Fatalf("expected two targets, got %#v", ads[0].Targets)
+	}
+	if ads[0].Targets[0].Theme != "dev" || ads[0].Targets[0].Topics[0] != "php" {
+		t.Fatalf("expected dev/php target, got %#v", ads[0].Targets[0])
+	}
+	if ads[0].Targets[1].Theme != "dslab" || len(ads[0].Targets[1].Topics) != 2 {
+		t.Fatalf("expected dslab target with two topics, got %#v", ads[0].Targets[1])
 	}
 }
 
@@ -73,11 +107,11 @@ func TestLoadAdsFromRootReadsLegacyThemes(t *testing.T) {
 		t.Fatalf("LoadAdsFromRoot() error = %v", err)
 	}
 
-	if got := ads[0].Themes; len(got) != 1 || got[0] != "dev" {
-		t.Fatalf("expected dev theme, got %#v", got)
+	if got := ads[0].Targets; len(got) != 1 || got[0].Theme != "dev" {
+		t.Fatalf("expected dev theme target, got %#v", got)
 	}
-	if len(ads[0].Topics) != 0 {
-		t.Fatalf("expected no topics for legacy themes, got %#v", ads[0].Topics)
+	if len(ads[0].Targets[0].Topics) != 0 {
+		t.Fatalf("expected no topics for legacy themes, got %#v", ads[0].Targets[0].Topics)
 	}
 }
 

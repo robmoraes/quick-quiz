@@ -109,6 +109,71 @@ func TestRunStateReturnsActiveQuestionAndFinishedSummary(t *testing.T) {
 	}
 }
 
+func TestActiveSessionsReturnsCurrentRunMetadata(t *testing.T) {
+	service := NewRunService(
+		store.NewMemoryQuestionStore(testQuestions()),
+		store.NewMemoryRunStore(time.Hour),
+		1,
+		testLocaleManager(),
+	)
+	ctx := context.Background()
+
+	run, err := service.CreateRun(ctx, CreateRunInput{
+		SessionID:  "session_active",
+		Theme:      "dev",
+		Topic:      "go",
+		Difficulty: domain.DifficultyEasy,
+	})
+	if err != nil {
+		t.Fatalf("CreateRun() error = %v", err)
+	}
+
+	active, err := service.ActiveSessions(ctx)
+	if err != nil {
+		t.Fatalf("ActiveSessions() error = %v", err)
+	}
+	if active.Total != 1 || len(active.Sessions) != 1 {
+		t.Fatalf("expected one active session, got %+v", active)
+	}
+	session := active.Sessions[0]
+	if session.RunID != run.RunID || session.SessionID != "session_active" {
+		t.Fatalf("expected run/session metadata, got %+v", session)
+	}
+	if session.Theme != "dev" || session.Locale != "en-US" || session.Topic != "go" || session.Difficulty != domain.DifficultyEasy {
+		t.Fatalf("expected quiz metadata, got %+v", session)
+	}
+	if session.Status != domain.RunStatusActive || session.Answered != 0 || session.Total != 1 {
+		t.Fatalf("expected active progress metadata, got %+v", session)
+	}
+	if session.Finished || session.FinishReason != "" {
+		t.Fatalf("expected unfinished session metadata, got %+v", session)
+	}
+	if session.CurrentQuestionID != run.Question.ID || session.CurrentQuestionPosition != 1 {
+		t.Fatalf("expected current question metadata, got %+v", session)
+	}
+
+	if err := service.Finish(ctx, "dev", run.RunID); err != nil {
+		t.Fatalf("Finish() error = %v", err)
+	}
+	active, err = service.ActiveSessions(ctx)
+	if err != nil {
+		t.Fatalf("ActiveSessions() after finish error = %v", err)
+	}
+	if active.Total != 1 || len(active.Sessions) != 1 {
+		t.Fatalf("expected finished run to remain tracked until TTL, got %+v", active)
+	}
+	session = active.Sessions[0]
+	if session.Status != domain.RunStatusFinished || !session.Finished {
+		t.Fatalf("expected finished session metadata, got %+v", session)
+	}
+	if session.FinishReason != domain.FinishReasonPlayerQuit {
+		t.Fatalf("expected player quit finish reason, got %+v", session)
+	}
+	if session.CurrentQuestionID != "" || session.CurrentQuestionPosition != 0 {
+		t.Fatalf("expected finished session without current question, got %+v", session)
+	}
+}
+
 func TestCreateRunCapsTotalAtConfiguredQuestionLimit(t *testing.T) {
 	service := NewRunService(
 		store.NewMemoryQuestionStore([]domain.Question{

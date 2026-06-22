@@ -85,16 +85,22 @@
               </div>
             </td>
             <td>
-              {% if ad.themes.theme %}
-                <span class="badge text-bg-secondary">{{ ad.themes.theme }}</span>
-                {% if ad.themes.topics %}
-                  <div class="small mt-1">
-                    Topics:
-                    {% for topic in ad.themes.topics %}
-                      <code>{{ topic }}</code>{% if not loop.last %}, {% endif %}
-                    {% endfor %}
+              {% if ad.themes %}
+                {% for target in ad.themes %}
+                  <div class="{% if not loop.first %}mt-2{% endif %}">
+                    <span class="badge text-bg-secondary">{{ target.theme }}</span>
+                    {% if target.topics %}
+                      <div class="small mt-1">
+                        Topics:
+                        {% for topic in target.topics %}
+                          <code>{{ topic }}</code>{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                      </div>
+                    {% else %}
+                      <div class="small manager-muted mt-1">All topics</div>
+                    {% endif %}
                   </div>
-                {% endif %}
+                {% endfor %}
               {% else %}
                 <span class="text-muted">none</span>
               {% endif %}

@@ -68,7 +68,7 @@ final class AdService
         return $normalized;
     }
 
-    /** @return list<array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:array{theme:string,topics:list<string>}}> */
+    /** @return list<array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>}> */
     public function listAds(string $theme = ''): array
     {
         if (!$this->exists()) {
@@ -95,7 +95,7 @@ final class AdService
 
         return array_values(array_filter(
             $normalized,
-            static fn (array $ad): bool => $ad['themes']['theme'] === $theme,
+            static fn (array $ad): bool => self::adHasThemeTarget($ad, $theme),
         ));
     }
 
@@ -110,7 +110,7 @@ final class AdService
         return $topicsByTheme;
     }
 
-    /** @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:array{theme:string,topics:list<string>}} */
+    /** @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>} */
     public function emptyAd(): array
     {
         return [
@@ -123,11 +123,17 @@ final class AdService
             'expires_in' => null,
             'active' => true,
             'emphasis' => false,
-            'themes' => ['theme' => '', 'topics' => []],
+            'themes' => [],
         ];
     }
 
-    /** @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:array{theme:string,topics:list<string>}}|null */
+    /** @param array<string,mixed> $input @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>} */
+    public function formAd(array $input): array
+    {
+        return $this->normalizeAd($input);
+    }
+
+    /** @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>}|null */
     public function ad(string $id): ?array
     {
         foreach ($this->listAds() as $ad) {
@@ -206,11 +212,11 @@ final class AdService
         return ['ads' => array_values($ads)];
     }
 
-    /** @param array<string,mixed> $ad @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:array{theme:string,topics:list<string>}} */
+    /** @param array<string,mixed> $ad @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>} */
     private function normalizeAd(array $ad): array
     {
         $expiresIn = trim((string) ($ad['expires_in'] ?? ''));
-        $themes = $this->normalizeThemeTarget($ad);
+        $themes = $this->normalizeThemeTargets($ad);
 
         return [
             'id' => trim((string) ($ad['id'] ?? '')),
@@ -226,7 +232,7 @@ final class AdService
         ];
     }
 
-    /** @param array<string,mixed> $input @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:array{theme:string,topics:list<string>}} */
+    /** @param array<string,mixed> $input @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>} */
     private function validatedAd(array $input, string $id): array
     {
         $ad = $this->normalizeAd($input);
@@ -248,41 +254,95 @@ final class AdService
         if ($ad['expires_in'] !== null) {
             $ad['expires_in'] = $this->normalizeOptionalDatetime($ad['expires_in'], 'Expires in');
         }
-        $this->assertKnownThemeTarget($ad['themes']);
+        $this->assertKnownThemeTargets($ad['themes']);
 
         return $ad;
     }
 
-    /** @param array<string,mixed> $ad @return array{theme:string,topics:list<string>} */
-    private function normalizeThemeTarget(array $ad): array
+    /** @param array<string,mixed> $ad @return list<array{theme:string,topics:list<string>}> */
+    private function normalizeThemeTargets(array $ad): array
     {
         if (array_key_exists('theme', $ad) || array_key_exists('topics', $ad)) {
-            return [
+            return $this->deduplicateTargets([[
                 'theme' => trim((string) ($ad['theme'] ?? '')),
                 'topics' => $this->normalizeTopics($ad['topics'] ?? []),
-            ];
+            ]]);
         }
 
         $themes = $ad['themes'] ?? [];
         if (!is_array($themes)) {
-            return ['theme' => trim((string) $themes), 'topics' => []];
+            return $this->deduplicateTargets([[
+                'theme' => trim((string) $themes),
+                'topics' => [],
+            ]]);
         }
 
         if (array_key_exists('theme', $themes) || array_key_exists('topics', $themes)) {
-            return [
+            return $this->deduplicateTargets([[
                 'theme' => trim((string) ($themes['theme'] ?? '')),
                 'topics' => $this->normalizeTopics($themes['topics'] ?? []),
-            ];
+            ]]);
         }
 
-        foreach ($themes as $theme) {
-            $theme = trim((string) $theme);
+        $targets = [];
+        foreach ($themes as $key => $value) {
+            if (is_array($value)) {
+                $hasEnabledFlag = array_key_exists('enabled', $value);
+                if (is_string($key) && !$hasEnabledFlag) {
+                    continue;
+                }
+                $enabled = filter_var($value['enabled'] ?? true, FILTER_VALIDATE_BOOL);
+                $theme = trim((string) ($value['theme'] ?? (is_string($key) ? $key : '')));
+                if (!$enabled) {
+                    continue;
+                }
+                $targets[] = [
+                    'theme' => $theme,
+                    'topics' => $this->normalizeTopics($value['topics'] ?? []),
+                ];
+                continue;
+            }
+
+            $theme = trim((string) $value);
             if ($theme !== '') {
-                return ['theme' => $theme, 'topics' => []];
+                $targets[] = ['theme' => $theme, 'topics' => []];
             }
         }
 
-        return ['theme' => '', 'topics' => []];
+        return $this->deduplicateTargets($targets);
+    }
+
+    /** @param list<array{theme:string,topics:list<string>}> $targets @return list<array{theme:string,topics:list<string>}> */
+    private function deduplicateTargets(array $targets): array
+    {
+        $byTheme = [];
+        foreach ($targets as $target) {
+            $theme = trim($target['theme']);
+            if ($theme === '') {
+                continue;
+            }
+            $topics = $this->normalizeTopics($target['topics']);
+            if (!isset($byTheme[$theme])) {
+                $byTheme[$theme] = $topics;
+                continue;
+            }
+            if ($byTheme[$theme] === [] || $topics === []) {
+                $byTheme[$theme] = [];
+                continue;
+            }
+            if ($topics !== []) {
+                $byTheme[$theme] = array_values(array_unique([...$byTheme[$theme], ...$topics]));
+            }
+        }
+
+        $normalized = [];
+        foreach ($byTheme as $theme => $topics) {
+            $normalized[] = ['theme' => $theme, 'topics' => $topics];
+        }
+
+        usort($normalized, static fn (array $a, array $b): int => $a['theme'] <=> $b['theme']);
+
+        return $normalized;
     }
 
     /** @param mixed $topics @return list<string> */
@@ -306,13 +366,10 @@ final class AdService
         return array_values(array_unique($normalized));
     }
 
-    /** @param array{theme:string,topics:list<string>} $target */
-    private function assertKnownThemeTarget(array $target): void
+    /** @param list<array{theme:string,topics:list<string>}> $targets */
+    private function assertKnownThemeTargets(array $targets): void
     {
-        if ($target['theme'] === '') {
-            if ($target['topics'] !== []) {
-                throw new RuntimeException('Theme is required when topics are selected.');
-            }
+        if ($targets === []) {
             return;
         }
 
@@ -321,24 +378,37 @@ final class AdService
             $this->listThemes(),
         ));
 
-        if (!isset($known[$target['theme']])) {
-            throw new RuntimeException(sprintf('Unknown theme "%s".', $target['theme']));
-        }
+        foreach ($targets as $target) {
+            if (!isset($known[$target['theme']])) {
+                throw new RuntimeException(sprintf('Unknown theme "%s".', $target['theme']));
+            }
 
-        if ($target['topics'] === []) {
-            return;
-        }
+            if ($target['topics'] === []) {
+                continue;
+            }
 
-        $knownTopics = array_flip(array_map(
-            static fn (array $topic): string => $topic['key'],
-            $this->listTopicsForTheme($target['theme']),
-        ));
+            $knownTopics = array_flip(array_map(
+                static fn (array $topic): string => $topic['key'],
+                $this->listTopicsForTheme($target['theme']),
+            ));
 
-        foreach ($target['topics'] as $topic) {
-            if (!isset($knownTopics[$topic])) {
-                throw new RuntimeException(sprintf('Unknown topic "%s" for theme "%s".', $topic, $target['theme']));
+            foreach ($target['topics'] as $topic) {
+                if (!isset($knownTopics[$topic])) {
+                    throw new RuntimeException(sprintf('Unknown topic "%s" for theme "%s".', $topic, $target['theme']));
+                }
             }
         }
+    }
+
+    /** @param array<string,mixed> $ad */
+    private static function adHasThemeTarget(array $ad, string $theme): bool
+    {
+        foreach ($ad['themes'] as $target) {
+            if ($target['theme'] === $theme) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** @return list<array{key:string,name:string,active:bool}> */
