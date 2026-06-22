@@ -43,7 +43,7 @@ func TestAdServiceListFiltersEligibleAdsAndLimitsRandomSample(t *testing.T) {
 	if output.Ads[0].ID != "active-a" && output.Ads[0].ID != "active-b" {
 		t.Fatalf("expected eligible active ad, got %#v", output.Ads[0])
 	}
-	if output.Ads[0].Active || output.Ads[0].ExpiresIn != nil || len(output.Ads[0].Themes) != 0 || len(output.Ads[0].Topics) != 0 {
+	if output.Ads[0].Active || output.Ads[0].ExpiresIn != nil || len(output.Ads[0].Targets) != 0 {
 		t.Fatalf("expected public ad to hide control fields, got %#v", output.Ads[0])
 	}
 }
@@ -124,11 +124,11 @@ func TestAdServiceReturnsEmphasisSeparatelyWhenRequested(t *testing.T) {
 	}
 }
 
-func TestAdServicePrioritizesRequestedTopicAndFillsWithOtherAds(t *testing.T) {
+func TestAdServiceFiltersByRequestedTopicAndThemeWideAds(t *testing.T) {
 	topicAd := testAd("topic-php", true, nil, "dev")
-	topicAd.Topics = []string{"php"}
+	topicAd.Targets[0].Topics = []string{"php"}
 	otherTopicAd := testAd("topic-js", true, nil, "dev")
-	otherTopicAd.Topics = []string{"js"}
+	otherTopicAd.Targets[0].Topics = []string{"js"}
 	generalAd := testAd("general", true, nil, "dev")
 	adStore := store.NewMemoryAdStore([]domain.Ad{
 		otherTopicAd,
@@ -157,8 +157,45 @@ func TestAdServicePrioritizesRequestedTopicAndFillsWithOtherAds(t *testing.T) {
 	if output.Ads[0].ID != "topic-php" {
 		t.Fatalf("expected requested topic ad first, got %#v", output.Ads)
 	}
-	if output.Ads[1].ID != "topic-js" && output.Ads[1].ID != "general" {
-		t.Fatalf("expected fallback ad to fill remaining slot, got %#v", output.Ads[1])
+	if output.Ads[1].ID != "general" {
+		t.Fatalf("expected theme-wide ad to fill remaining slot, got %#v", output.Ads[1])
+	}
+	for _, ad := range output.Ads {
+		if ad.ID == "topic-js" {
+			t.Fatalf("expected unrelated topic ad to be filtered out, got %#v", output.Ads)
+		}
+	}
+}
+
+func TestAdServiceUsesTargetSpecificTopicsForRequestedTheme(t *testing.T) {
+	multiThemeAd := testAd("multi-theme", true, nil, "dev")
+	multiThemeAd.Targets = []domain.AdTarget{
+		{Theme: "dev", Topics: []string{"php"}},
+		{Theme: "dslab", Topics: []string{"route53"}},
+	}
+	dslabGeneralAd := testAd("dslab-general", true, nil, "dslab")
+	adStore := store.NewMemoryAdStore([]domain.Ad{
+		multiThemeAd,
+		dslabGeneralAd,
+	})
+	themeStore := store.NewMemoryQuestionStoreWithThemeMetadata(
+		[]domain.Question{testThemedQuestion("route53-easy-001", "dslab", "en-US", "route53", domain.DifficultyEasy)},
+		nil,
+		[]domain.Theme{{ID: "dslab", Name: "DSLab", Active: true}},
+	)
+	service := NewAdService(adStore, themeStore)
+
+	output, err := service.List(context.Background(), ListAdsInput{
+		Theme: "dslab",
+		Topic: "route53",
+		Limit: 1,
+	})
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+
+	if got := output.Ads[0].ID; got != "multi-theme" {
+		t.Fatalf("expected dslab route53 target to match, got %q", got)
 	}
 }
 
@@ -184,6 +221,14 @@ func testAd(id string, active bool, expiresIn *time.Time, themes ...string) doma
 		Image:       "https://example.com/" + id + ".webp",
 		ExpiresIn:   expiresIn,
 		Active:      active,
-		Themes:      themes,
+		Targets:     testTargets(themes...),
 	}
+}
+
+func testTargets(themes ...string) []domain.AdTarget {
+	targets := make([]domain.AdTarget, 0, len(themes))
+	for _, theme := range themes {
+		targets = append(targets, domain.AdTarget{Theme: theme})
+	}
+	return targets
 }

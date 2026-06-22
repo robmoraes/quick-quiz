@@ -50,6 +50,7 @@ services:
       APP_SECRET: ${MANAGER_APP_SECRET:-change-me-for-local-only}
       MANAGER_DATABASE_URL: ${MANAGER_DATABASE_URL:-sqlite:////content/.manager/manager.sqlite}
       MANAGER_CONTENT_ROOT: /content
+      QUICKQUIZ_API_BASE_URL: ${QUICKQUIZ_API_BASE_URL:-http://api:8080}
       FALLBACK_LOCALE: ${FALLBACK_LOCALE:-en-US}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-en-US,pt-BR}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

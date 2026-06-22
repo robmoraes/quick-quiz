@@ -83,27 +83,28 @@ function initializeAiHelpDrawers() {
 }
 
 function initializeAdTopicFields() {
-  document.querySelectorAll('[data-manager-ad-theme-select]').forEach((select) => {
-    const form = select.closest('form');
-    if (form === null) {
+  document.querySelectorAll('[data-manager-ad-theme-checkbox]').forEach((checkbox) => {
+    const target = checkbox.closest('[data-manager-ad-theme-target]');
+    if (target === null) {
       return;
     }
 
-    const panels = form.querySelectorAll('[data-manager-ad-topic-panel]');
-    const syncPanels = (clearHidden) => {
-      panels.forEach((panel) => {
-        const visible = panel.dataset.managerAdTopicPanel === select.value;
-        panel.hidden = !visible;
-        if (!visible && clearHidden) {
-          panel.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
-            checkbox.checked = false;
-          });
-        }
-      });
+    const panel = target.querySelector('[data-manager-ad-topic-panel]');
+    if (panel === null) {
+      return;
+    }
+
+    const syncPanel = (clearHidden) => {
+      panel.hidden = !checkbox.checked;
+      if (!checkbox.checked && clearHidden) {
+        panel.querySelectorAll('input[type="checkbox"]').forEach((topicCheckbox) => {
+          topicCheckbox.checked = false;
+        });
+      }
     };
 
-    syncPanels(false);
-    select.addEventListener('change', () => syncPanels(true));
+    syncPanel(false);
+    checkbox.addEventListener('change', () => syncPanel(true));
   });
 }
 

@@ -1,0 +1,94 @@
+{% extends 'layout/base.html.twig' %}
+
+{% block title %}Session Monitor - QuickQuiz Manager{% endblock %}
+
+{% block body %}
+  <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="h3 mb-1">Session monitor</h1>
+      <div class="manager-muted small">Quick Quiz API session lifecycle while runs remain in memory</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ path('session_monitor') }}" title="Refresh active sessions" aria-label="Refresh active sessions">
+      <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+    </a>
+  </div>
+
+  {% if monitorError %}
+    <section class="alert alert-danger">
+      {{ monitorError }}
+    </section>
+  {% endif %}
+
+  <section class="manager-session-summary mb-3">
+    <div>
+      <span class="manager-muted small">API</span>
+      <code>{{ activeSessions.apiBaseUrl }}</code>
+    </div>
+    <div>
+      <span class="manager-muted small">Tracked</span>
+      <strong>{{ activeSessions.total }}</strong>
+    </div>
+    <div>
+      <span class="manager-muted small">Generated at</span>
+      <span>{{ activeSessions.generatedAt|default('-') ?: '-' }}</span>
+    </div>
+  </section>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle manager-table">
+      <thead>
+      <tr>
+        <th>Session</th>
+        <th>Quiz</th>
+        <th>Progress</th>
+        <th>Current</th>
+        <th>Timing</th>
+      </tr>
+      </thead>
+      <tbody>
+      {% for session in activeSessions.sessions %}
+        <tr>
+          <td>
+            <div><code>{{ session.sessionId }}</code></div>
+            <div class="small manager-muted">Run: <code>{{ session.runId }}</code></div>
+            <span class="badge {% if session.finished %}text-bg-secondary{% else %}text-bg-info{% endif %} mt-1">{{ session.status }}</span>
+            {% if session.finishReason %}
+              <div class="small manager-muted mt-1">{{ session.finishReason }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div>
+              <span class="badge text-bg-secondary">{{ session.theme }}</span>
+              <span class="badge text-bg-dark">{{ session.locale }}</span>
+            </div>
+            <div class="small mt-1">Topic: <code>{{ session.topic }}</code></div>
+            <div class="small manager-muted">Difficulty: {{ session.difficultyLabel }} ({{ session.difficulty }})</div>
+          </td>
+          <td>
+            <strong>{{ session.answered }}</strong>/<strong>{{ session.total }}</strong>
+          </td>
+          <td>
+            {% if session.currentQuestionId %}
+              <code>{{ session.currentQuestionId }}</code>
+              {% if session.currentQuestionPosition %}
+                <div class="small manager-muted">Position {{ session.currentQuestionPosition }}</div>
+              {% endif %}
+            {% else %}
+              <span class="manager-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="small">Created: {{ session.createdAt }}</div>
+            <div class="small">Updated: {{ session.updatedAt }}</div>
+            <div class="small manager-muted">Idle: {{ session.idleSeconds }}s</div>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="5">No tracked sessions at this moment.</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

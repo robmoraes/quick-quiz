@@ -9,6 +9,17 @@ format.
 
 ## [Unreleased]
 
+### Added
+
+- Added a QuickQuiz API session monitor screen backed by the open active-session
+  endpoint.
+- Advertising forms now support multiple theme targets with optional per-theme
+  topic filters.
+
+### Changed
+
+- Moved the manager navigation into a left drawer/sidebar layout.
+
 ## [0.6.0] - 2026-06-17
 
 ### Added

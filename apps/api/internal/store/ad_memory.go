@@ -32,18 +32,19 @@ func (s *MemoryAdStore) ListByTheme(_ context.Context, theme string) ([]domain.A
 
 	ads := make([]domain.Ad, 0)
 	for _, ad := range s.ads {
-		if adHasTheme(ad, theme) {
+		if target, ok := adTargetForTheme(ad, theme); ok {
+			ad.Targets = []domain.AdTarget{target}
 			ads = append(ads, ad)
 		}
 	}
 	return ads, nil
 }
 
-func adHasTheme(ad domain.Ad, theme string) bool {
-	for _, candidate := range ad.Themes {
-		if candidate == theme {
-			return true
+func adTargetForTheme(ad domain.Ad, theme string) (domain.AdTarget, bool) {
+	for _, target := range ad.Targets {
+		if target.Theme == theme {
+			return target, true
 		}
 	}
-	return false
+	return domain.AdTarget{}, false
 }

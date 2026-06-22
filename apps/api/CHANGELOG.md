@@ -8,6 +8,16 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+### Added
+
+- Added an open active-session monitor endpoint that returns non-expired run
+  metadata, including finished runs retained until session TTL cleanup.
+
+### Changed
+
+- Ads can now target multiple themes, with optional topic filters per targeted
+  theme.
+
 ## [0.4.0] - 2026-06-20
 
 ### Added

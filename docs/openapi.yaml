@@ -155,6 +155,23 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/sessions/active:
+    get:
+      tags:
+        - Session
+      summary: Lists tracked in-memory sessions.
+      description: Returns non-expired run sessions visible to the API at request time, including finished runs until session TTL cleanup removes them. This endpoint is open for now and only returns operational metadata.
+      operationId: getActiveSessions
+      responses:
+        "200":
+          description: Active sessions are available.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActiveSessions"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/runs:
     post:
       tags:
@@ -397,7 +414,7 @@ components:
         type: string
         minLength: 1
       example: php
-      description: When provided, ads associated with this topic are prioritized and remaining slots are filled with other ads.
+      description: When provided, ads associated with this topic are prioritized and remaining slots are filled only with theme-wide ads.
     AdEmphasis:
       name: emphasis
       in: query
@@ -748,6 +765,94 @@ components:
           example: 10
         question:
           $ref: "#/components/schemas/PublicQuestion"
+
+    ActiveSessions:
+      type: object
+      required:
+        - generatedAt
+        - total
+        - sessions
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+          example: "2026-06-22T16:00:00Z"
+        total:
+          type: integer
+          example: 2
+        sessions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActiveSession"
+
+    ActiveSession:
+      type: object
+      required:
+        - runId
+        - sessionId
+        - theme
+        - locale
+        - topic
+        - difficulty
+        - status
+        - finished
+        - answered
+        - total
+        - createdAt
+        - updatedAt
+        - idleSeconds
+      properties:
+        runId:
+          type: string
+          example: run_014c27d8d07ed827411d70c1edfdcd96
+        sessionId:
+          type: string
+          example: 8dc52f2f-ecbc-448c-a10a-684297c56d8f
+        theme:
+          type: string
+          example: dslab
+        locale:
+          type: string
+          example: pt-BR
+        topic:
+          type: string
+          example: route53
+        difficulty:
+          $ref: "#/components/schemas/Difficulty"
+        status:
+          type: string
+          enum:
+            - active
+            - finished
+          example: finished
+        finished:
+          type: boolean
+          example: true
+        finishReason:
+          $ref: "#/components/schemas/FinishReason"
+        answered:
+          type: integer
+          example: 2
+        total:
+          type: integer
+          example: 5
+        currentQuestionId:
+          type: string
+          example: route53-easy-003
+        currentQuestionPosition:
+          type: integer
+          example: 3
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-06-22T15:50:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-06-22T15:59:00Z"
+        idleSeconds:
+          type: integer
+          example: 60
 
     PublicQuestion:
       type: object

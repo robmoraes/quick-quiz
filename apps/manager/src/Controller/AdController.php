@@ -97,7 +97,7 @@ final class AdController extends BaseController
             return $this->redirect('ads');
         } catch (RuntimeException $error) {
             return $this->render('ad/form.html.twig', [
-                'ad' => $request->request->all(),
+                'ad' => $ads->formAd($request->request->all()),
                 'themes' => $ads->listThemes(),
                 'topicsByTheme' => $ads->listTopicsByTheme(),
                 'isNew' => $isNew,

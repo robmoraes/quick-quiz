@@ -17,16 +17,44 @@ type adIndex struct {
 }
 
 type adIndexAd struct {
-	ID          string   `json:"id"`
-	ProviderID  string   `json:"provider_id"`
-	URI         string   `json:"uri"`
-	Description string   `json:"description"`
-	Image       string   `json:"image"`
-	CreatedAt   string   `json:"created_at"`
-	ExpiresIn   *string  `json:"expires_in"`
-	Active      bool     `json:"active"`
-	Emphasis    bool     `json:"emphasis"`
-	Themes      adTarget `json:"themes"`
+	ID          string    `json:"id"`
+	ProviderID  string    `json:"provider_id"`
+	URI         string    `json:"uri"`
+	Description string    `json:"description"`
+	Image       string    `json:"image"`
+	CreatedAt   string    `json:"created_at"`
+	ExpiresIn   *string   `json:"expires_in"`
+	Active      bool      `json:"active"`
+	Emphasis    bool      `json:"emphasis"`
+	Themes      adTargets `json:"themes"`
+}
+
+type adTargets []domain.AdTarget
+
+func (t *adTargets) UnmarshalJSON(bytes []byte) error {
+	var list []struct {
+		Theme  string   `json:"theme"`
+		Topics []string `json:"topics"`
+	}
+	if err := json.Unmarshal(bytes, &list); err == nil && strings.HasPrefix(strings.TrimSpace(string(bytes)), "[") {
+		targets := make([]domain.AdTarget, 0, len(list))
+		for _, item := range list {
+			targets = append(targets, domain.AdTarget{
+				Theme:  item.Theme,
+				Topics: item.Topics,
+			})
+		}
+		*t = targets
+		return nil
+	}
+
+	var single adTarget
+	if err := json.Unmarshal(bytes, &single); err == nil {
+		*t = adTargets(single.targets())
+		return nil
+	}
+
+	return errors.New("themes must be an object, string, string array, or target array")
 }
 
 type adTarget struct {
@@ -60,6 +88,17 @@ func (t *adTarget) UnmarshalJSON(bytes []byte) error {
 	}
 
 	return errors.New("themes must be an object, string, or string array")
+}
+
+func (t adTarget) targets() []domain.AdTarget {
+	theme := strings.TrimSpace(t.Theme)
+	if theme == "" {
+		return nil
+	}
+	return []domain.AdTarget{{
+		Theme:  theme,
+		Topics: normalizeStrings(t.Topics),
+	}}
 }
 
 func LoadAdsFromRoot(root string) ([]domain.Ad, error) {
@@ -113,13 +152,6 @@ func (a adIndexAd) toDomain() (domain.Ad, error) {
 		expiresIn = &utc
 	}
 
-	theme := strings.TrimSpace(a.Themes.Theme)
-	themes := []string{}
-	if theme != "" {
-		themes = []string{theme}
-	}
-	topics := normalizeStrings(a.Themes.Topics)
-
 	return domain.Ad{
 		ID:          id,
 		ProviderID:  strings.TrimSpace(a.ProviderID),
@@ -130,9 +162,25 @@ func (a adIndexAd) toDomain() (domain.Ad, error) {
 		ExpiresIn:   expiresIn,
 		Active:      a.Active,
 		Emphasis:    a.Emphasis,
-		Themes:      themes,
-		Topics:      topics,
+		Targets:     normalizeAdTargets(a.Themes),
 	}, nil
+}
+
+func normalizeAdTargets(targets []domain.AdTarget) []domain.AdTarget {
+	normalized := make([]domain.AdTarget, 0, len(targets))
+	seen := make(map[string]bool, len(targets))
+	for _, target := range targets {
+		theme := strings.TrimSpace(target.Theme)
+		if theme == "" || seen[theme] {
+			continue
+		}
+		seen[theme] = true
+		normalized = append(normalized, domain.AdTarget{
+			Theme:  theme,
+			Topics: normalizeStrings(target.Topics),
+		})
+	}
+	return normalized
 }
 
 func normalizeStrings(values []string) []string {

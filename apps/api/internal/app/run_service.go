@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"math/big"
+	"sort"
 	"time"
 
 	"quickquiz/api/internal/domain"
@@ -38,6 +39,7 @@ type RunRepository interface {
 	Create(ctx context.Context, run *domain.Run) error
 	Get(ctx context.Context, id string) (*domain.Run, error)
 	Save(ctx context.Context, run *domain.Run) error
+	ListTracked(ctx context.Context) ([]domain.Run, error)
 	DeleteBySession(ctx context.Context, sessionID, theme string) error
 	UsedQuestionIDs(ctx context.Context, sessionID, theme, topic string, difficulty domain.Difficulty) (map[string]bool, error)
 	TrackSolutionRequest(ctx context.Context, runID, questionID string, limit int) (bool, error)
@@ -285,6 +287,55 @@ func (s *RunService) RunState(ctx context.Context, theme, runID string) (domain.
 		state.Question = &question
 	}
 	return state, nil
+}
+
+func (s *RunService) ActiveSessions(ctx context.Context) (domain.ActiveSessions, error) {
+	runs, err := s.runs.ListTracked(ctx)
+	if err != nil {
+		return domain.ActiveSessions{}, err
+	}
+
+	sort.SliceStable(runs, func(i, j int) bool {
+		return runs[i].UpdatedAt.After(runs[j].UpdatedAt)
+	})
+
+	now := time.Now().UTC()
+	sessions := make([]domain.ActiveSession, 0, len(runs))
+	for _, run := range runs {
+		session := domain.ActiveSession{
+			RunID:       run.ID,
+			SessionID:   run.SessionID,
+			Theme:       run.Theme,
+			Locale:      run.Locale,
+			Topic:       run.Topic,
+			Difficulty:  run.Difficulty,
+			Status:      domain.RunStatusActive,
+			Finished:    run.Finished,
+			Answered:    len(run.Answers),
+			Total:       run.QuestionLimit,
+			CreatedAt:   run.CreatedAt,
+			UpdatedAt:   run.UpdatedAt,
+			IdleSeconds: int64(now.Sub(run.UpdatedAt).Seconds()),
+		}
+		if run.Finished {
+			session.Status = domain.RunStatusFinished
+			session.FinishReason = run.FinishReason
+		}
+		if session.IdleSeconds < 0 {
+			session.IdleSeconds = 0
+		}
+		if run.CurrentQuestion != nil {
+			session.CurrentQuestionID = run.CurrentQuestion.QuestionID
+			session.CurrentQuestionPosition = run.CurrentQuestion.Position
+		}
+		sessions = append(sessions, session)
+	}
+
+	return domain.ActiveSessions{
+		GeneratedAt: now,
+		Total:       len(sessions),
+		Sessions:    sessions,
+	}, nil
 }
 
 func (s *RunService) Answer(ctx context.Context, theme, runID, questionID, optionID string) (AnswerOutput, error) {

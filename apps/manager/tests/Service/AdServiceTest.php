@@ -58,11 +58,15 @@ final class AdServiceTest extends TestCase
         self::assertNotSame('ignored', $created['id']);
         self::assertSame('AD-1', $created['provider_id']);
         self::assertTrue($created['emphasis']);
-        self::assertSame(['theme' => 'dev', 'topics' => ['php', 'js']], $created['themes']);
+        self::assertSame([
+            ['theme' => 'dev', 'topics' => ['php', 'js']],
+        ], $created['themes']);
         self::assertSame('Example ad', $created['description']);
         self::assertSame('2026-06-15T23:00:00+00:00', $created['created_at']);
         self::assertSame(
-            ['theme' => 'dev', 'topics' => ['php', 'js']],
+            [
+                ['theme' => 'dev', 'topics' => ['php', 'js']],
+            ],
             json_decode((string) file_get_contents($this->root.'/ads/ads.json'), true)['ads'][0]['themes'],
         );
 
@@ -84,8 +88,36 @@ final class AdServiceTest extends TestCase
         self::assertSame('https://example.com/updated', $ad['uri']);
         self::assertSame('', $ad['provider_id']);
         self::assertFalse($ad['emphasis']);
-        self::assertSame(['theme' => 'qa', 'topics' => []], $ad['themes']);
+        self::assertSame([
+            ['theme' => 'qa', 'topics' => []],
+        ], $ad['themes']);
         self::assertFalse($ad['active']);
+    }
+
+    public function testSavesMultipleThemeTargets(): void
+    {
+        $this->writeThemes();
+        $service = new AdService($this->root);
+        $service->createBaseFile();
+
+        $service->saveAd(null, [
+            'uri' => 'https://example.com/ad',
+            'description' => 'Example ad',
+            'image' => 'https://example.com/ad.webp',
+            'active' => '1',
+            'themes' => [
+                'dev' => ['enabled' => '1', 'topics' => ['php']],
+                'qa' => ['enabled' => '1', 'topics' => []],
+            ],
+        ]);
+
+        $ad = $service->listAds()[0];
+        self::assertSame([
+            ['theme' => 'dev', 'topics' => ['php']],
+            ['theme' => 'qa', 'topics' => []],
+        ], $ad['themes']);
+        self::assertSame(['Example ad'], array_column($service->listAds('dev'), 'description'));
+        self::assertSame(['Example ad'], array_column($service->listAds('qa'), 'description'));
     }
 
     public function testDeletesAdByIndex(): void

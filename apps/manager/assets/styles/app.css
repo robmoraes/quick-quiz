@@ -39,27 +39,102 @@ body {
   max-width: 1180px;
 }
 
-.manager-navbar,
+.manager-topbar,
+.manager-sidebar,
 .manager-status-footer {
   background: rgba(24, 27, 31, 0.96);
   border-color: var(--manager-border) !important;
   backdrop-filter: blur(12px);
 }
 
+.manager-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1040;
+}
+
+.manager-topbar-shell {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  max-width: none;
+  min-height: 57px;
+}
+
+.manager-topbar-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: end;
+}
+
+.manager-topbar-actions form {
+  margin: 0;
+}
+
 .navbar-brand,
 .navbar-brand:hover,
-.navbar-brand:focus,
-.navbar .nav-link {
+.navbar-brand:focus {
   color: var(--manager-text);
 }
 
-.navbar .nav-link:hover,
-.navbar .nav-link:focus {
-  color: var(--manager-link-hover);
+.manager-sidebar {
+  border-color: var(--manager-border) !important;
+  color: var(--manager-text);
+  width: 260px;
 }
 
-.navbar-toggler {
-  border-color: var(--manager-border-strong);
+.manager-sidebar .offcanvas-header {
+  border-bottom: 1px solid var(--manager-border);
+}
+
+.manager-sidebar .offcanvas-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+}
+
+.manager-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.manager-sidebar-link {
+  align-items: center;
+  border-radius: 8px;
+  color: var(--manager-muted);
+  display: flex;
+  gap: 0.75rem;
+  min-height: 42px;
+  padding: 0.6rem 0.75rem;
+  text-decoration: none;
+}
+
+.manager-sidebar-link:hover,
+.manager-sidebar-link:focus {
+  background: var(--manager-surface-hover);
+  color: var(--manager-text);
+}
+
+.manager-sidebar-link.active {
+  background: rgba(59, 130, 246, 0.2);
+  color: #dbeafe;
+}
+
+.manager-sidebar-link i {
+  font-size: 1rem;
+  width: 1.1rem;
+}
+
+.manager-sidebar-section {
+  color: var(--manager-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  margin: 0.85rem 0 0.2rem;
+  padding: 0 0.75rem;
+  text-transform: uppercase;
 }
 
 .manager-muted,
@@ -96,6 +171,7 @@ body {
 .form-check-input:focus,
 .btn:focus-visible,
 .nav-link:focus-visible,
+.manager-sidebar-link:focus-visible,
 a:focus-visible {
   border-color: var(--manager-focus);
   box-shadow: 0 0 0 0.2rem rgba(250, 204, 21, 0.28);
@@ -272,6 +348,24 @@ a:focus-visible {
   width: 96px;
 }
 
+.manager-ad-theme-target {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--manager-border);
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+}
+
+.manager-ad-theme-check {
+  margin-bottom: 0;
+}
+
+.manager-ad-topic-panel {
+  border-top: 1px solid var(--manager-border);
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
 .manager-checkbox-grid {
   display: grid;
   gap: 0.5rem 1rem;
@@ -304,6 +398,28 @@ a:focus-visible {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.manager-session-summary {
+  align-items: center;
+  background: var(--manager-surface);
+  border: 1px solid var(--manager-border);
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(240px, 1fr) repeat(2, minmax(140px, auto));
+  padding: 1rem;
+}
+
+.manager-session-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.manager-session-summary code {
+  overflow-wrap: anywhere;
 }
 
 .manager-ai-prompt-textarea {
@@ -344,13 +460,61 @@ a:focus-visible {
 }
 
 @media (min-width: 992px) {
+  body.manager-has-sidebar {
+    padding-left: 260px;
+  }
+
+  .manager-sidebar.offcanvas-lg {
+    bottom: 42px;
+    left: 0;
+    position: fixed;
+    top: 57px;
+    transform: none !important;
+    visibility: visible !important;
+    z-index: 1020;
+  }
+
+  body.manager-has-sidebar .manager-main-with-sidebar {
+    max-width: 1180px;
+  }
+
+  body.manager-has-sidebar .manager-status-footer {
+    left: 260px;
+  }
+
   body.manager-ai-help-open main.app-shell {
-    margin-left: 1rem;
     margin-right: 376px;
     max-width: calc(100% - 392px);
     transition:
       margin-right 160ms ease,
       max-width 160ms ease;
+  }
+}
+
+@media (max-width: 991.98px) {
+  .manager-topbar-actions {
+    gap: 0.5rem;
+  }
+
+  .manager-topbar-actions .manager-muted {
+    display: none;
+  }
+
+  .manager-session-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .manager-topbar-actions .badge {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .manager-topbar-actions .btn span {
+    display: none;
   }
 }
 

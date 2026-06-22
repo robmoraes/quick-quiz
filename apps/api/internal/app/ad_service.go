@@ -121,8 +121,7 @@ func adExpired(ad domain.Ad, now time.Time) bool {
 func publicAd(ad domain.Ad) domain.Ad {
 	ad.Active = false
 	ad.Emphasis = false
-	ad.Themes = nil
-	ad.Topics = nil
+	ad.Targets = nil
 	ad.ExpiresIn = nil
 	ad.CreatedAt = ""
 	return ad
@@ -139,21 +138,24 @@ func selectAds(ads []domain.Ad, limit int, topic string) []domain.Ad {
 	}
 
 	matching := make([]domain.Ad, 0, len(ads))
-	fallback := make([]domain.Ad, 0, len(ads))
+	general := make([]domain.Ad, 0, len(ads))
 	for _, ad := range ads {
 		if adHasTopic(ad, topic) {
 			matching = append(matching, ad)
 			continue
 		}
-		fallback = append(fallback, ad)
+		if adTargetsAllTopics(ad) {
+			general = append(general, ad)
+			continue
+		}
 	}
 
 	shuffleAds(matching)
-	shuffleAds(fallback)
+	shuffleAds(general)
 	selected := make([]domain.Ad, 0, limit)
 	selected = appendLimited(selected, matching, limit)
 	if len(selected) < limit {
-		selected = appendLimited(selected, fallback, limit)
+		selected = appendLimited(selected, general, limit)
 	}
 
 	return publicAds(selected)
@@ -179,8 +181,19 @@ func publicAds(ads []domain.Ad) []domain.Ad {
 }
 
 func adHasTopic(ad domain.Ad, topic string) bool {
-	for _, candidate := range ad.Topics {
-		if candidate == topic {
+	for _, target := range ad.Targets {
+		for _, candidate := range target.Topics {
+			if candidate == topic {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func adTargetsAllTopics(ad domain.Ad) bool {
+	for _, target := range ad.Targets {
+		if len(target.Topics) == 0 {
 			return true
 		}
 	}
