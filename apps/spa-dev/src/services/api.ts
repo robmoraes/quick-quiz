@@ -151,6 +151,7 @@ export interface ApiError extends Error {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
+const ADS_API_BASE_URL = import.meta.env.VITE_ADS_API_BASE_URL ?? API_BASE_URL;
 
 export async function getCatalog(): Promise<Catalog> {
   return request<Catalog>('/api/catalog');
@@ -165,7 +166,7 @@ export async function getAds(limit = 2, emphasis = 0, topic = ''): Promise<Ads> 
   if (requestedTopic) {
     params.set('topic', requestedTopic);
   }
-  return request<Ads>(`/api/ads?${params.toString()}`);
+  return request<Ads>(`/api/ads?${params.toString()}`, {}, ADS_API_BASE_URL);
 }
 
 export async function getSessionTopics(): Promise<SessionTopics> {
@@ -252,8 +253,12 @@ function createSessionId() {
   return `session_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  baseUrl = API_BASE_URL,
+): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

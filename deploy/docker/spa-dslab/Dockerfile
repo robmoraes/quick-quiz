@@ -15,8 +15,11 @@ COPY apps/spa-dslab/public ./public
 COPY apps/spa-dslab/src ./src
 
 ARG VITE_API_BASE_URL
+ARG VITE_ADS_API_BASE_URL
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_ADS_API_BASE_URL=${VITE_ADS_API_BASE_URL}
 RUN test -n "${VITE_API_BASE_URL}" || (echo "VITE_API_BASE_URL build arg is required" >&2; exit 1)
+RUN test -n "${VITE_ADS_API_BASE_URL}" || (echo "VITE_ADS_API_BASE_URL build arg is required" >&2; exit 1)
 RUN npm run build
 
 FROM nginx:${NGINX_VERSION}-alpine

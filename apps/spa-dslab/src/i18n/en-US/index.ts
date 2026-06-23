@@ -141,10 +141,10 @@ export default {
     unknown: 'Unknown',
   },
   difficultyMessages: {
-    info: 'Easy quiz, junior programmer, few options, direct prompts.',
-    warn: 'Normal quiz, mid-level programmer, more options, focused reading.',
-    error: 'Hard quiz, senior programmer, many options, careful reading.',
-    fatal: 'Roguelike quiz, specialist programmer, many options, one shot only.',
+    info: 'Easy quiz, junior DevOps, few options, direct prompts.',
+    warn: 'Normal quiz, mid-level DevOps, more options, focused reading.',
+    error: 'Hard quiz, senior DevOps, many options, careful reading.',
+    fatal: 'Roguelike quiz, specialist DevOps, many options, one shot only.',
   },
   errors: {
     apiUnavailable: 'API unavailable',
