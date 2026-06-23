@@ -15,6 +15,13 @@ services:
       RUN_QUESTION_LIMIT: ${RUN_QUESTION_LIMIT:-10}
       SESSION_TTL: ${SESSION_TTL:-30m}
       SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
+      OPENAI_API_KEY: ${API_OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${API_OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${API_OPENAI_MODEL:-gpt-5.4-mini}
+      OPENAI_ORGANIZATION: ${API_OPENAI_ORG_ID:-}
+      OPENAI_PROJECT: ${API_OPENAI_PROJECT:-}
+      OPENAI_SOLUTION_PROMPT_FILE: ${API_OPENAI_SOLUTION_PROMPT_FILE:-/app/.local/{{theme}}/ai-prompts/question-solution-prompt.txt}
+      OPENAI_TIMEOUT: ${API_OPENAI_TIMEOUT:-30s}
     ports:
       - "${API_HTTP_PORT:-8080}:8080"
     read_only: true
@@ -33,6 +40,22 @@ services:
       - api
     ports:
       - "${SPA_HTTP_PORT:-8082}:8080"
+    read_only: true
+    restart: unless-stopped
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+
+  spa-dslab:
+    image: ${QUICKQUIZ_IMAGE_DSLAB:-quickquiz-dslab:local}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/spa-dslab/Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+    depends_on:
+      - api
+    ports:
+      - "${DSLAB_HTTP_PORT:-8083}:8080"
     read_only: true
     restart: unless-stopped
     tmpfs:
@@ -63,6 +86,12 @@ services:
       - ${QUICKQUIZ_CONTENT_ROOT:-../content-demo}:/content
     tmpfs:
       - /app/var:rw,noexec,nosuid,size=64m,mode=1777
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\", 9000) ? 0 : 1);'"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
 
   manager-web:
     image: ${QUICKQUIZ_IMAGE_MANAGER_WEB:-quickquiz-manager-web:local}
@@ -71,7 +100,9 @@ services:
       dockerfile: deploy/docker/manager/Dockerfile
       target: nginx
     depends_on:
-      - manager-fpm
+      manager-fpm:
+        condition: service_healthy
+        restart: true
     ports:
       - "${MANAGER_HTTP_PORT:-8081}:8080"
     read_only: true
