@@ -13,11 +13,15 @@ format.
 
 - Added a QuickQuiz API session monitor screen backed by the open active-session
   endpoint.
+- Added Ads API client integration through `QUICKQUIZ_ADS_API_BASE_URL` for ad
+  file provisioning and advertising CRUD.
 - Advertising forms now support multiple theme targets with optional per-theme
   topic filters.
 
 ### Changed
 
+- Advertising management now delegates ad persistence to the dedicated Ads API
+  instead of writing the ads file directly from the manager.
 - Moved the manager navigation into a left drawer/sidebar layout.
 
 ## [0.6.0] - 2026-06-17

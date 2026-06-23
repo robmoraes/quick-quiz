@@ -15,3 +15,5 @@ services:
       - ../api/.local:/content
     environment:
       MANAGER_CONTENT_ROOT: /content
+      QUICKQUIZ_API_BASE_URL: ${QUICKQUIZ_API_BASE_URL:-http://host.docker.internal:8080}
+      QUICKQUIZ_ADS_API_BASE_URL: ${QUICKQUIZ_ADS_API_BASE_URL:-http://host.docker.internal:8084}

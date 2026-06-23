@@ -21,6 +21,7 @@ final class AdController extends BaseController
 
         return $this->render('ad/index.html.twig', [
             'contentRoot' => $ads->contentRoot(),
+            'adsApiBaseUrl' => $ads->adsApiBaseUrl(),
             'adsFileExists' => $ads->exists(),
             'ads' => $ads->listAds($theme),
             'themes' => $ads->listThemes(),
