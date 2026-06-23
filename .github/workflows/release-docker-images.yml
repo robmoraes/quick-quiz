@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "api/**"
+      - "ads-api/**"
       - "spa-dev/**"
       - "spa-dslab/**"
       - "manager/**"
@@ -23,12 +24,15 @@ jobs:
     environment: production
     env:
       DOCKERHUB_API_IMAGE: ${{ vars.DOCKERHUB_API_IMAGE }}
+      DOCKERHUB_ADS_API_IMAGE: ${{ vars.DOCKERHUB_ADS_API_IMAGE }}
       DOCKERHUB_SPA_DEV_IMAGE: ${{ vars.DOCKERHUB_SPA_DEV_IMAGE }}
       DOCKERHUB_SPA_DSLAB_IMAGE: ${{ vars.DOCKERHUB_SPA_DSLAB_IMAGE }}
       DOCKERHUB_MANAGER_FPM_IMAGE: ${{ vars.DOCKERHUB_MANAGER_FPM_IMAGE }}
       DOCKERHUB_MANAGER_WEB_IMAGE: ${{ vars.DOCKERHUB_MANAGER_WEB_IMAGE }}
       SPA_DEV_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
+      SPA_DEV_ADS_API_BASE_URL: ${{ vars.SPA_DEV_ADS_API_BASE_URL }}
       SPA_DSLAB_API_BASE_URL: ${{ vars.SPA_DSLAB_API_BASE_URL }}
+      SPA_DSLAB_ADS_API_BASE_URL: ${{ vars.SPA_DSLAB_ADS_API_BASE_URL }}
 
     steps:
       - name: Classify release tag
@@ -55,6 +59,16 @@ jobs:
           elif [[ "${tag}" =~ ^api/ ]]; then
             app="api"
             message="API release tags must use api/vMAJOR.MINOR.PATCH."
+          elif [[ "${tag}" =~ ^ads-api/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            valid=true
+            implemented=true
+            app="ads-api"
+            version="${tag#ads-api/}"
+            image="${DOCKERHUB_ADS_API_IMAGE}"
+            message="Ads API release tag accepted."
+          elif [[ "${tag}" =~ ^ads-api/ ]]; then
+            app="ads-api"
+            message="Ads API release tags must use ads-api/vMAJOR.MINOR.PATCH."
           elif [[ "${tag}" =~ ^spa-dev/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             valid=true
             implemented=true
@@ -86,9 +100,9 @@ jobs:
             app="manager"
             message="Manager release tags must use manager/vMAJOR.MINOR.PATCH."
           elif [[ "${tag}" =~ ^v ]]; then
-            message="Repository-wide release tags are unsupported. Use api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
+            message="Repository-wide release tags are unsupported. Use api/vMAJOR.MINOR.PATCH, ads-api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
           else
-            message="Unsupported release tag. Use api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
+            message="Unsupported release tag. Use api/vMAJOR.MINOR.PATCH, ads-api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
           fi
 
           {
@@ -147,12 +161,19 @@ jobs:
             missing+=("DOCKERHUB_API_IMAGE")
           fi
 
+          if [[ "${{ steps.tag.outputs.app }}" == "ads-api" && -z "${DOCKERHUB_ADS_API_IMAGE}" ]]; then
+            missing+=("DOCKERHUB_ADS_API_IMAGE")
+          fi
+
           if [[ "${{ steps.tag.outputs.app }}" == "spa-dev" ]]; then
             if [[ -z "${DOCKERHUB_SPA_DEV_IMAGE}" ]]; then
               missing+=("DOCKERHUB_SPA_DEV_IMAGE")
             fi
             if [[ -z "${SPA_DEV_API_BASE_URL}" ]]; then
               missing+=("SPA_DEV_API_BASE_URL")
+            fi
+            if [[ -z "${SPA_DEV_ADS_API_BASE_URL}" ]]; then
+              missing+=("SPA_DEV_ADS_API_BASE_URL")
             fi
           fi
 
@@ -162,6 +183,9 @@ jobs:
             fi
             if [[ -z "${SPA_DSLAB_API_BASE_URL}" ]]; then
               missing+=("SPA_DSLAB_API_BASE_URL")
+            fi
+            if [[ -z "${SPA_DSLAB_ADS_API_BASE_URL}" ]]; then
+              missing+=("SPA_DSLAB_ADS_API_BASE_URL")
             fi
           fi
 
@@ -209,15 +233,15 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Set up Go
-        if: steps.tag.outputs.app == 'api'
+        if: steps.tag.outputs.app == 'api' || steps.tag.outputs.app == 'ads-api'
         uses: actions/setup-go@v5
         with:
-          go-version-file: apps/api/go.mod
-          cache-dependency-path: apps/api/go.mod
+          go-version-file: apps/${{ steps.tag.outputs.app }}/go.mod
+          cache-dependency-path: apps/${{ steps.tag.outputs.app }}/go.mod
 
-      - name: Test API
-        if: steps.tag.outputs.app == 'api'
-        working-directory: apps/api
+      - name: Test Go API
+        if: steps.tag.outputs.app == 'api' || steps.tag.outputs.app == 'ads-api'
+        working-directory: apps/${{ steps.tag.outputs.app }}
         run: go test ./...
 
       - name: Set up Node
@@ -241,6 +265,9 @@ jobs:
       - name: Build SPA
         if: steps.tag.outputs.app == 'spa-dev' || steps.tag.outputs.app == 'spa-dslab'
         working-directory: apps/${{ steps.tag.outputs.app }}
+        env:
+          VITE_API_BASE_URL: ${{ steps.tag.outputs.app == 'spa-dev' && vars.SPA_DEV_API_BASE_URL || vars.SPA_DSLAB_API_BASE_URL }}
+          VITE_ADS_API_BASE_URL: ${{ steps.tag.outputs.app == 'spa-dev' && vars.SPA_DEV_ADS_API_BASE_URL || vars.SPA_DSLAB_ADS_API_BASE_URL }}
         run: npm run build
 
       - name: Set up PHP
@@ -279,19 +306,27 @@ jobs:
           API_TAG: ${{ steps.tag.outputs.version }}
         run: make -C deploy api API_TAG="${API_TAG}" API_REPOSITORY="${DOCKERHUB_API_IMAGE}" OUTPUT=push
 
+      - name: Build and push Ads API image
+        if: steps.tag.outputs.app == 'ads-api'
+        env:
+          ADS_API_TAG: ${{ steps.tag.outputs.version }}
+        run: make -C deploy ads-api ADS_API_TAG="${ADS_API_TAG}" ADS_API_REPOSITORY="${DOCKERHUB_ADS_API_IMAGE}" OUTPUT=push
+
       - name: Build and push SPA Dev image
         if: steps.tag.outputs.app == 'spa-dev'
         env:
           SPA_DEV_TAG: ${{ steps.tag.outputs.version }}
           SPA_DEV_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
-        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" SPA_DEV_API_BASE_URL="${SPA_DEV_API_BASE_URL}" OUTPUT=push
+          SPA_DEV_ADS_API_BASE_URL: ${{ vars.SPA_DEV_ADS_API_BASE_URL }}
+        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" SPA_DEV_API_BASE_URL="${SPA_DEV_API_BASE_URL}" SPA_DEV_ADS_API_BASE_URL="${SPA_DEV_ADS_API_BASE_URL}" OUTPUT=push
 
       - name: Build and push SPA DSLab image
         if: steps.tag.outputs.app == 'spa-dslab'
         env:
           SPA_DSLAB_TAG: ${{ steps.tag.outputs.version }}
           SPA_DSLAB_API_BASE_URL: ${{ vars.SPA_DSLAB_API_BASE_URL }}
-        run: make -C deploy spa-dslab SPA_DSLAB_TAG="${SPA_DSLAB_TAG}" SPA_DSLAB_REPOSITORY="${DOCKERHUB_SPA_DSLAB_IMAGE}" SPA_DSLAB_API_BASE_URL="${SPA_DSLAB_API_BASE_URL}" OUTPUT=push
+          SPA_DSLAB_ADS_API_BASE_URL: ${{ vars.SPA_DSLAB_ADS_API_BASE_URL }}
+        run: make -C deploy spa-dslab SPA_DSLAB_TAG="${SPA_DSLAB_TAG}" SPA_DSLAB_REPOSITORY="${DOCKERHUB_SPA_DSLAB_IMAGE}" SPA_DSLAB_API_BASE_URL="${SPA_DSLAB_API_BASE_URL}" SPA_DSLAB_ADS_API_BASE_URL="${SPA_DSLAB_ADS_API_BASE_URL}" OUTPUT=push
 
       - name: Build and push manager FPM image
         if: steps.tag.outputs.app == 'manager'
@@ -318,6 +353,21 @@ jobs:
             echo ""
             echo "- \`${API_IMAGE}:${API_TAG}\`"
             echo "- \`${API_IMAGE}:latest\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Summarize Ads API image push
+        if: steps.tag.outputs.app == 'ads-api'
+        env:
+          ADS_API_TAG: ${{ steps.tag.outputs.version }}
+          ADS_API_IMAGE: ${{ steps.tag.outputs.image }}
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "## Published images"
+            echo ""
+            echo "- \`${ADS_API_IMAGE}:${ADS_API_TAG}\`"
+            echo "- \`${ADS_API_IMAGE}:latest\`"
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Summarize SPA Dev image push

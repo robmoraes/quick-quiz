@@ -64,10 +64,32 @@ services:
     - traefik.http.routers.quickquiz-api.tls.certresolver=letsencrypt
     - traefik.http.services.quickquiz-api.loadbalancer.server.port=8080
 
+  ads-api:
+    image: ${QUICKQUIZ_IMAGE_ADS_API:-robmoraes/quick-quiz-ads-api:latest}
+    environment:
+      HTTP_ADDR: :8080
+      ADS_SOURCE: /app/.local
+      SHUTDOWN_TIMEOUT: ${ADS_API_SHUTDOWN_TIMEOUT:-10s}
+    read_only: true
+    restart: unless-stopped
+    user: "${QUICKQUIZ_RUNTIME_UID:-1000}:${QUICKQUIZ_RUNTIME_GID:-1000}"
+    volumes:
+      - ${QUICKQUIZ_CONTENT_ROOT}:/app/.local
+    networks:
+      - web
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.quickquiz-ads-api.rule=Host(`${ADS_DOMAIN:-ads.quickquiz.com.br}`)
+      - traefik.http.routers.quickquiz-ads-api.entrypoints=websecure
+      - traefik.http.routers.quickquiz-ads-api.tls=true
+      - traefik.http.routers.quickquiz-ads-api.tls.certresolver=letsencrypt
+      - traefik.http.services.quickquiz-ads-api.loadbalancer.server.port=8080
+
   spa-dev:
     image: ${QUICKQUIZ_IMAGE_DEV}
     depends_on:
       - api
+      - ads-api
     read_only: true
     restart: unless-stopped
     tmpfs:
@@ -86,6 +108,7 @@ services:
     image: ${QUICKQUIZ_IMAGE_DSLAB:-robmoraes/quick-quiz-dslab:latest}
     depends_on:
       - api
+      - ads-api
     read_only: true
     restart: unless-stopped
     tmpfs:
@@ -109,6 +132,7 @@ services:
       MANAGER_DATABASE_URL: ${MANAGER_DATABASE_URL}
       MANAGER_CONTENT_ROOT: /content
       QUICKQUIZ_API_BASE_URL: ${QUICKQUIZ_API_BASE_URL:-http://api:8080}
+      QUICKQUIZ_ADS_API_BASE_URL: ${QUICKQUIZ_ADS_API_BASE_URL:-http://ads-api:8080}
       FALLBACK_LOCALE: ${FALLBACK_LOCALE:-en-US}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-en-US,pt-BR}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
