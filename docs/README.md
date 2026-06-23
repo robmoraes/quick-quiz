@@ -21,6 +21,7 @@ monorepo.
 ## Stable Contracts
 
 - [OpenAPI contract](openapi.yaml)
+- [Ads API OpenAPI contract](openapi-ads.yaml)
 - [Quiz pack contract](quiz-pack-contract.md)
 
 ## Documentation Policy
@@ -28,4 +29,3 @@ monorepo.
 Keep the root README short and move details here. Service-specific operational
 notes can stay near their code, but cross-service contracts, architecture, and
 public onboarding documentation should live under `docs/`.
-

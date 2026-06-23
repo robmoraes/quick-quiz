@@ -1,0 +1,211 @@
+openapi: 3.1.0
+info:
+  title: QuickQuiz Ads API
+  version: 0.1.0
+servers:
+  - url: https://ads.quickquiz.com.br
+paths:
+  /healthz:
+    get:
+      summary: Checks service health.
+      responses:
+        "200":
+          description: Service is healthy.
+  /api/ads:
+    get:
+      summary: Lists active ads for the requested theme.
+      parameters:
+        - $ref: "#/components/parameters/ThemeHeader"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+        - name: emphasis
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+        - name: topic
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Active ads.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ads"
+  /api/admin/ads/file:
+    get:
+      summary: Checks whether the ads file exists.
+      responses:
+        "200":
+          description: File status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [exists]
+                properties:
+                  exists:
+                    type: boolean
+    put:
+      summary: Creates the base ads file when missing.
+      responses:
+        "200":
+          description: File exists after the request.
+  /api/admin/ads:
+    get:
+      summary: Lists all managed ads, optionally filtered by theme.
+      parameters:
+        - name: theme
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Managed ads.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ads]
+                properties:
+                  ads:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminAd"
+    post:
+      summary: Creates a managed ad.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAd"
+      responses:
+        "201":
+          description: Created ad.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAd"
+  /api/admin/ads/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Gets one managed ad.
+      responses:
+        "200":
+          description: Managed ad.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAd"
+        "404":
+          description: Ad not found.
+    put:
+      summary: Updates one managed ad.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAd"
+      responses:
+        "200":
+          description: Updated ad.
+    delete:
+      summary: Deletes one managed ad.
+      responses:
+        "204":
+          description: Deleted.
+components:
+  parameters:
+    ThemeHeader:
+      name: X-QuickQuiz-Theme
+      in: header
+      required: true
+      schema:
+        type: string
+  schemas:
+    Ads:
+      type: object
+      required: [theme, ads]
+      properties:
+        theme:
+          type: string
+        ads:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicAd"
+        emphasis:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicAd"
+    PublicAd:
+      type: object
+      required: [id, uri, description, image]
+      properties:
+        id:
+          type: string
+        providerId:
+          type: string
+        uri:
+          type: string
+          format: uri
+        description:
+          type: string
+        image:
+          type: string
+          format: uri
+    AdminAd:
+      type: object
+      required: [uri, description, image, active, emphasis, themes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        provider_id:
+          type: string
+        uri:
+          type: string
+          format: uri
+        description:
+          type: string
+        image:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+        expires_in:
+          type:
+            - string
+            - "null"
+          format: date-time
+        active:
+          type: boolean
+        emphasis:
+          type: boolean
+        themes:
+          type: array
+          items:
+            type: object
+            required: [theme, topics]
+            properties:
+              theme:
+                type: string
+              topics:
+                type: array
+                items:
+                  type: string

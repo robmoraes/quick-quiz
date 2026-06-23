@@ -1,0 +1,14 @@
+**
+
+!apps/
+!apps/ads-api/
+!apps/ads-api/go.mod
+!apps/ads-api/cmd/
+!apps/ads-api/cmd/**
+!apps/ads-api/internal/
+!apps/ads-api/internal/**
+
+!deploy/
+!deploy/docker/
+!deploy/docker/ads-api/
+!deploy/docker/ads-api/**
