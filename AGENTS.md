@@ -83,11 +83,9 @@ GitHub issues must be created in English.
 
 ## Timeline Maintenance
 
-Keep `docs/timeline/YYYY-MM-DD.md` updated. Use one-line entries: `HH:MM-03: scope: what changed`.
-
-When Codex creates a spec, add a timeline entry with the creation timestamp.
-When Codex implements a spec, add a separate timeline entry with the
-implementation timestamp.
+Timeline updates are no longer required for normal development work. Leave the
+existing `docs/timeline/` history intact, but do not add new entries unless the
+user explicitly asks for one.
 
 ## Security & Configuration Tips
 
