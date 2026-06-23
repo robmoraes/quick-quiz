@@ -1,6 +1,6 @@
 # Service Map
 
-QuickQuiz Dev contains three services plus an externalized data structure.
+QuickQuiz Dev contains multiple services plus an externalized data structure.
 
 ## Manager
 
@@ -16,6 +16,7 @@ Responsibilities:
 - create and edit topic catalogs;
 - create and edit localized topic metadata;
 - create and edit question files;
+- create and edit advertising entries through the Ads API;
 - validate quiz pack structure before saving;
 - optionally use OpenAI-assisted question recommendation and localization.
 
@@ -39,12 +40,32 @@ Responsibilities:
 - enforce run and session rules;
 - return run/session results.
 
+The Quiz API does not serve advertising. Advertising delivery and management
+live in `apps/ads-api/`.
+
+## Ads API
+
+Path: `apps/ads-api/`
+
+The Ads API is a Go service dedicated to advertising delivery and management.
+It reads and writes `ads/ads.json` under the configured content root and uses
+theme/topic metadata from the same root to validate ad targets.
+
+Responsibilities:
+
+- expose active advertising for player SPAs;
+- filter ads by theme, topic, active flag, expiration, and emphasis;
+- expose open MVP administrative endpoints for the manager;
+- preserve the current advertising file format while canonicalizing writes.
+
 ## SPA
 
 Path: `apps/spa-dev/`
 
-The SPA is a Quasar/Vue application for Dev theme players. It is configured for
-one theme and talks to the API with the current theme, session ID, and locale.
+The SPAs are Quasar/Vue applications for theme-specific players. The current
+apps are `apps/spa-dev/` and `apps/spa-dslab/`. Each SPA is configured for one
+theme and talks to the Quiz API with the current theme, session ID, and locale.
+Advertising requests use the Ads API base URL.
 
 Responsibilities:
 
