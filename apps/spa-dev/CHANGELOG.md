@@ -9,6 +9,17 @@ format.
 
 ## [Unreleased]
 
+### Changed
+
+- Ad requests now use the dedicated Ads API base URL configured through
+  `VITE_ADS_API_BASE_URL`.
+- Topic selectors now hide exhausted topics instead of rendering disabled
+  options.
+
+### Removed
+
+- Removed the Google AdSense validation script from the document head.
+
 ## [0.6.0] - 2026-06-20
 
 ### Added

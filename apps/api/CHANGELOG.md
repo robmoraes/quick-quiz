@@ -13,10 +13,10 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 - Added an open active-session monitor endpoint that returns non-expired run
   metadata, including finished runs retained until session TTL cleanup.
 
-### Changed
+### Removed
 
-- Ads can now target multiple themes, with optional topic filters per targeted
-  theme.
+- Removed advertising delivery, storage, and domain rules from the quiz API.
+  Ads are now handled by the dedicated Ads API.
 
 ## [0.4.0] - 2026-06-20
 

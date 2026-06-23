@@ -3,6 +3,9 @@
 Player SPA for the `dev` theme. This app is theme-specific; future player SPAs
 should live beside it under `apps/`, such as `apps/spa-geography/`.
 
+Configure the Quiz API through `VITE_API_BASE_URL` and the Ads API through
+`VITE_ADS_API_BASE_URL`. Both values are compiled into the static bundle.
+
 Monorepo documentation:
 
 - [Documentation index](../../docs/README.md)
@@ -43,7 +46,7 @@ npm run format
 ### Build the app for production
 
 ```bash
-quasar build
+VITE_API_BASE_URL=http://localhost:8080 VITE_ADS_API_BASE_URL=http://localhost:8084 quasar build
 ```
 
 ### Customize the configuration

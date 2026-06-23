@@ -9,7 +9,6 @@ servers:
 tags:
   - name: Health
   - name: Catalog
-  - name: Advertising
   - name: Session
   - name: Runs
   - name: Solutions
@@ -51,30 +50,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Catalog"
-        "500":
-          $ref: "#/components/responses/InternalError"
-
-  /api/ads:
-    get:
-      tags:
-        - Advertising
-      summary: Lists active ads for the requested theme.
-      description: Returns a random sample of active, non-expired ads associated with the requested theme.
-      operationId: getAds
-      parameters:
-        - $ref: "#/components/parameters/Theme"
-        - $ref: "#/components/parameters/AdLimit"
-        - $ref: "#/components/parameters/AdTopic"
-        - $ref: "#/components/parameters/AdEmphasis"
-      responses:
-        "200":
-          description: Ads are available.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Ads"
-        "400":
-          $ref: "#/components/responses/InvalidInput"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -395,36 +370,6 @@ components:
       schema:
         type: string
       example: run_014c27d8d07ed827411d70c1edfdcd96
-    AdLimit:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 20
-        default: 1
-      example: 2
-      description: Maximum number of ads to return. The API returns at most 20 ads.
-    AdTopic:
-      name: topic
-      in: query
-      required: false
-      schema:
-        type: string
-        minLength: 1
-      example: php
-      description: When provided, ads associated with this topic are prioritized and remaining slots are filled only with theme-wide ads.
-    AdEmphasis:
-      name: emphasis
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 20
-      example: 2
-      description: Maximum number of emphasis ads to return separately from the regular ads list.
     QuestionID:
       name: questionId
       in: path
@@ -479,51 +424,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DifficultyInfo"
-
-    Ads:
-      type: object
-      required:
-        - theme
-        - ads
-      properties:
-        theme:
-          type: string
-          example: dev
-        ads:
-          type: array
-          items:
-            $ref: "#/components/schemas/Ad"
-        emphasis:
-          type: array
-          items:
-            $ref: "#/components/schemas/Ad"
-
-    Ad:
-      type: object
-      required:
-        - id
-        - uri
-        - description
-        - image
-      properties:
-        id:
-          type: string
-          format: uuid
-          example: bee135e0-dda7-4e12-87b8-1632126d546b
-        providerId:
-          type: string
-          example: RNP49P-JU9A
-        uri:
-          type: string
-          format: uri
-          example: https://meli.la/2KAu9si
-        description:
-          type: string
-          example: Monitor Gamer LG UltraGear 24"
-        image:
-          type: string
-          format: uri
-          example: https://http2.mlstatic.com/example.webp
 
     TopicOption:
       type: object

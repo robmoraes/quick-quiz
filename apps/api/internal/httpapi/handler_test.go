@@ -19,89 +19,6 @@ import (
 	"quickquiz/api/internal/store"
 )
 
-func TestAdsEndpointReturnsAdsForRequestedTheme(t *testing.T) {
-	router := testRouter()
-
-	request := httptest.NewRequest(http.MethodGet, "/api/ads?limit=3&emphasis=2", nil)
-	request.Header.Set("X-QuickQuiz-Theme", "dev")
-	response := httptest.NewRecorder()
-
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), `"theme":"dev"`) {
-		t.Fatalf("expected dev theme response, got %s", response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), `"providerId":"provider-ad-a"`) {
-		t.Fatalf("expected public ad payload, got %s", response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), `"emphasis"`) || !strings.Contains(response.Body.String(), `"providerId":"provider-ad-emphasis"`) {
-		t.Fatalf("expected emphasis ad payload, got %s", response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), `"emphasis":[`) {
-		t.Fatalf("expected emphasis list payload, got %s", response.Body.String())
-	}
-	if strings.Contains(response.Body.String(), "active") || strings.Contains(response.Body.String(), "themes") {
-		t.Fatalf("expected control fields to be hidden, got %s", response.Body.String())
-	}
-}
-
-func TestAdsEndpointRejectsInvalidLimit(t *testing.T) {
-	router := testRouter()
-
-	request := httptest.NewRequest(http.MethodGet, "/api/ads?limit=zero", nil)
-	request.Header.Set("X-QuickQuiz-Theme", "dev")
-	response := httptest.NewRecorder()
-
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400, got %d", response.Code)
-	}
-	if !strings.Contains(response.Body.String(), `"code":"invalid_input"`) {
-		t.Fatalf("expected invalid_input error, got %s", response.Body.String())
-	}
-}
-
-func TestAdsEndpointPrioritizesRequestedTopic(t *testing.T) {
-	router := testRouter()
-
-	request := httptest.NewRequest(http.MethodGet, "/api/ads?limit=1&topic=php", nil)
-	request.Header.Set("X-QuickQuiz-Theme", "dev")
-	response := httptest.NewRecorder()
-
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d: %s", response.Code, response.Body.String())
-	}
-	if !strings.Contains(response.Body.String(), `"providerId":"provider-ad-topic"`) {
-		t.Fatalf("expected topic ad payload, got %s", response.Body.String())
-	}
-	if strings.Contains(response.Body.String(), `"providerId":"provider-ad-a"`) {
-		t.Fatalf("expected topic ad to be prioritized over fallback, got %s", response.Body.String())
-	}
-}
-
-func TestAdsEndpointRejectsInvalidEmphasisLimit(t *testing.T) {
-	router := testRouter()
-
-	request := httptest.NewRequest(http.MethodGet, "/api/ads?limit=2&emphasis=true", nil)
-	request.Header.Set("X-QuickQuiz-Theme", "dev")
-	response := httptest.NewRecorder()
-
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400, got %d", response.Code)
-	}
-	if !strings.Contains(response.Body.String(), `"code":"invalid_input"`) {
-		t.Fatalf("expected invalid_input error, got %s", response.Body.String())
-	}
-}
-
 func TestQuestionSolutionEndpointReturnsGeneratedSolution(t *testing.T) {
 	router := testRouter()
 
@@ -287,7 +204,7 @@ func TestRunStateEndpointReturnsRunNotFound(t *testing.T) {
 
 func TestHandlerLogsUnexpectedApplicationErrors(t *testing.T) {
 	var logs bytes.Buffer
-	handler := NewHandler(nil, nil, nil, slog.New(slog.NewJSONHandler(&logs, nil)))
+	handler := NewHandler(nil, nil, slog.New(slog.NewJSONHandler(&logs, nil)))
 	request := httptest.NewRequest(http.MethodGet, "/api/test", nil)
 	response := httptest.NewRecorder()
 
@@ -326,36 +243,6 @@ func testRouter() http.Handler {
 	runStore := store.NewMemoryRunStore(time.Hour)
 	seedSolutionRun(runStore)
 	runService := app.NewRunService(questionStore, runStore, 10, i18n.NewManager("en-US", []string{"en-US"}))
-	adService := app.NewAdService(store.NewMemoryAdStore([]domain.Ad{
-		{
-			ID:          "ad-a",
-			ProviderID:  "provider-ad-a",
-			URI:         "https://example.com/ad-a",
-			Description: "Ad A",
-			Image:       "https://example.com/ad-a.webp",
-			Active:      true,
-			Targets:     []domain.AdTarget{{Theme: "dev"}},
-		},
-		{
-			ID:          "ad-emphasis",
-			ProviderID:  "provider-ad-emphasis",
-			URI:         "https://example.com/ad-emphasis",
-			Description: "Ad Emphasis",
-			Image:       "https://example.com/ad-emphasis.webp",
-			Active:      true,
-			Emphasis:    true,
-			Targets:     []domain.AdTarget{{Theme: "dev"}},
-		},
-		{
-			ID:          "ad-topic",
-			ProviderID:  "provider-ad-topic",
-			URI:         "https://example.com/ad-topic",
-			Description: "Ad Topic",
-			Image:       "https://example.com/ad-topic.webp",
-			Active:      true,
-			Targets:     []domain.AdTarget{{Theme: "dev", Topics: []string{"php"}}},
-		},
-	}), questionStore)
 	solutionService := app.NewSolutionService(
 		questionStore,
 		runStore,
@@ -364,7 +251,7 @@ func testRouter() http.Handler {
 		i18n.NewManager("en-US", []string{"en-US"}),
 	)
 
-	return NewRouter(runService, adService, solutionService, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return NewRouter(runService, solutionService, slog.New(slog.NewTextHandler(io.Discard, nil)))
 }
 
 type testSolutionGenerator struct{}

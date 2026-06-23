@@ -6,8 +6,9 @@ playlist.
 
 Channel: <https://www.youtube.com/@DistributedSystemsLab>
 
-The API theme is fixed to `dslab` in the SPA client. Configure the API base URL
-through `VITE_API_BASE_URL`; the value is compiled into the static bundle.
+The API theme is fixed to `dslab` in the SPA client. Configure the Quiz API
+through `VITE_API_BASE_URL` and the Ads API through `VITE_ADS_API_BASE_URL`.
+Both values are compiled into the static bundle.
 
 Monorepo documentation:
 
@@ -57,7 +58,8 @@ npm run build
 ```bash
 make -C ../../deploy spa-dslab \
   SPA_DSLAB_TAG=v0.1.0 \
-  SPA_DSLAB_API_BASE_URL=https://dslab.quickquiz.com.br \
+  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
+  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=oci
 ```
 

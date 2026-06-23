@@ -16,4 +16,17 @@ format.
 - Added Docker image packaging and GitHub Actions release workflow support for
   `spa-dslab/vMAJOR.MINOR.PATCH` tags.
 
+### Changed
+
+- Ad requests now use the dedicated Ads API base URL configured through
+  `VITE_ADS_API_BASE_URL`.
+- Topic selectors now hide exhausted topics instead of rendering disabled
+  options.
+- Updated severity result copy from developer/programmer wording to the DevOps
+  context used by DSLab.
+
+### Removed
+
+- Removed the Google AdSense validation script from the document head.
+
 [Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dslab%2Fv0.1.0...HEAD

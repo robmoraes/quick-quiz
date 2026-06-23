@@ -4,15 +4,22 @@ namespace App\Tests\Service;
 
 use App\Service\AdService;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class AdServiceTest extends TestCase
 {
     private string $root;
+    /** @var array{exists:bool,ads:list<array<string,mixed>>} */
+    private array $adsApiState;
+    private int $nextAdId;
 
     protected function setUp(): void
     {
         $this->root = sys_get_temp_dir().'/quickquiz-manager-ads-test-'.bin2hex(random_bytes(4));
         mkdir($this->root, 0775, true);
+        $this->adsApiState = ['exists' => false, 'ads' => []];
+        $this->nextAdId = 1;
     }
 
     protected function tearDown(): void
@@ -23,20 +30,20 @@ final class AdServiceTest extends TestCase
     public function testCreatesBaseAdvertisingFileWhenMissing(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
 
         self::assertFalse($service->exists());
 
         $service->createBaseFile();
 
         self::assertTrue($service->exists());
-        self::assertSame(['ads' => []], json_decode((string) file_get_contents($this->root.'/ads/ads.json'), true));
+        self::assertSame([], $service->listAds());
     }
 
     public function testSavesAndUpdatesAd(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
         $service->createBaseFile();
 
         $service->saveAd(null, [
@@ -67,7 +74,7 @@ final class AdServiceTest extends TestCase
             [
                 ['theme' => 'dev', 'topics' => ['php', 'js']],
             ],
-            json_decode((string) file_get_contents($this->root.'/ads/ads.json'), true)['ads'][0]['themes'],
+            $created['themes'],
         );
 
         $service->saveAd($created['id'], [
@@ -97,7 +104,7 @@ final class AdServiceTest extends TestCase
     public function testSavesMultipleThemeTargets(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
         $service->createBaseFile();
 
         $service->saveAd(null, [
@@ -123,7 +130,7 @@ final class AdServiceTest extends TestCase
     public function testDeletesAdByIndex(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
         $service->createBaseFile();
         $service->saveAd(null, [
             'uri' => 'https://example.com/ad',
@@ -141,7 +148,7 @@ final class AdServiceTest extends TestCase
     public function testListsThemesFromThemeIndex(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
 
         self::assertSame([
             ['id' => 'dev', 'name' => 'Development', 'description' => '', 'active' => true],
@@ -152,7 +159,7 @@ final class AdServiceTest extends TestCase
     public function testFiltersAdsByTheme(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
         $service->createBaseFile();
         $service->saveAd(null, [
             'uri' => 'https://example.com/dev',
@@ -178,7 +185,7 @@ final class AdServiceTest extends TestCase
     public function testRejectsUnknownTheme(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
         $service->createBaseFile();
 
         $this->expectExceptionMessage('Unknown theme "missing".');
@@ -195,7 +202,7 @@ final class AdServiceTest extends TestCase
     public function testListsTopicsByTheme(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
 
         self::assertSame([
             'dev' => [
@@ -211,7 +218,7 @@ final class AdServiceTest extends TestCase
     public function testRejectsUnknownTopicForTheme(): void
     {
         $this->writeThemes();
-        $service = new AdService($this->root);
+        $service = $this->service();
         $service->createBaseFile();
 
         $this->expectExceptionMessage('Unknown topic "missing" for theme "dev".');
@@ -247,6 +254,133 @@ final class AdServiceTest extends TestCase
                 ['key' => 'manual', 'name' => 'Manual tests', 'active' => true],
             ],
         ]));
+    }
+
+    private function service(): AdService
+    {
+        $client = new MockHttpClient(
+            fn (string $method, string $url, array $options = []): MockResponse => $this->adsApiResponse($method, $url, $options),
+            'http://ads-api.test',
+        );
+
+        return new AdService($client, $this->root, 'http://ads-api.test');
+    }
+
+    /** @param array<string,mixed> $options */
+    private function adsApiResponse(string $method, string $url, array $options): MockResponse
+    {
+        $parts = parse_url($url);
+        $path = (string) ($parts['path'] ?? '');
+        parse_str((string) ($parts['query'] ?? ''), $query);
+
+        if ($path === '/api/admin/ads/file' && $method === 'GET') {
+            return $this->jsonResponse(['exists' => $this->adsApiState['exists']]);
+        }
+
+        if ($path === '/api/admin/ads/file' && in_array($method, ['PUT', 'POST'], true)) {
+            $this->adsApiState['exists'] = true;
+            return $this->jsonResponse(['exists' => true]);
+        }
+
+        if ($path === '/api/admin/ads' && $method === 'GET') {
+            $theme = trim((string) ($query['theme'] ?? ''));
+            $ads = $theme === ''
+                ? $this->adsApiState['ads']
+                : array_values(array_filter(
+                    $this->adsApiState['ads'],
+                    static fn (array $ad): bool => self::adHasTheme($ad, $theme),
+                ));
+
+            return $this->jsonResponse(['ads' => $ads]);
+        }
+
+        if ($path === '/api/admin/ads' && $method === 'POST') {
+            $ad = $this->requestBody($options);
+            $ad['id'] = $this->nextUuid();
+            $this->adsApiState['ads'][] = $ad;
+
+            return $this->jsonResponse($ad, 201);
+        }
+
+        if (preg_match('#^/api/admin/ads/([^/]+)$#', $path, $matches) === 1) {
+            $id = rawurldecode($matches[1]);
+            $index = $this->adIndex($id);
+            if ($index === null) {
+                return $this->jsonResponse(['error' => ['message' => 'Ad not found']], 404);
+            }
+
+            if ($method === 'GET') {
+                return $this->jsonResponse($this->adsApiState['ads'][$index]);
+            }
+
+            if ($method === 'PUT') {
+                $ad = $this->requestBody($options);
+                $ad['id'] = $id;
+                $this->adsApiState['ads'][$index] = $ad;
+
+                return $this->jsonResponse($ad);
+            }
+
+            if ($method === 'DELETE') {
+                array_splice($this->adsApiState['ads'], $index, 1);
+
+                return new MockResponse('', ['http_code' => 204]);
+            }
+        }
+
+        return $this->jsonResponse(['error' => ['message' => 'Not found']], 404);
+    }
+
+    /** @param array<string,mixed> $payload */
+    private function jsonResponse(array $payload, int $status = 200): MockResponse
+    {
+        return new MockResponse((string) json_encode($payload), [
+            'http_code' => $status,
+            'response_headers' => ['content-type' => 'application/json'],
+        ]);
+    }
+
+    /** @param array<string,mixed> $options @return array<string,mixed> */
+    private function requestBody(array $options): array
+    {
+        $body = (string) ($options['body'] ?? '{}');
+        $data = json_decode($body, true);
+        self::assertIsArray($data);
+
+        return $data;
+    }
+
+    private function nextUuid(): string
+    {
+        return sprintf('00000000-0000-4000-8000-%012d', $this->nextAdId++);
+    }
+
+    private function adIndex(string $id): ?int
+    {
+        foreach ($this->adsApiState['ads'] as $index => $ad) {
+            if ((string) ($ad['id'] ?? '') === $id) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<string,mixed> $ad */
+    private static function adHasTheme(array $ad, string $theme): bool
+    {
+        $targets = $ad['themes'] ?? [];
+        if (!is_array($targets)) {
+            return false;
+        }
+
+        foreach ($targets as $target) {
+            if (is_array($target) && (string) ($target['theme'] ?? '') === $theme) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function removeTree(string $path): void

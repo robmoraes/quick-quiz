@@ -54,10 +54,10 @@ export function useQuizCatalog() {
   const sortedTopics = computed(() => sortTopics(topicSource.value, locale.value));
 
   const allTopicOptions = computed<TopicSelectOption[]>(() =>
-    sortedTopics.value.map((topic) => ({
+    sortedTopics.value.filter(topicIsAvailable).map((topic) => ({
       label: topic.label,
       value: topic.id,
-      disable: loadingSessionTopics.value || !topicIsAvailable(topic),
+      disable: loadingSessionTopics.value,
     })),
   );
 

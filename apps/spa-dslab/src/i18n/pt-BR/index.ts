@@ -141,10 +141,10 @@ export default {
     unknown: 'Desconhecido',
   },
   difficultyMessages: {
-    info: 'Quiz fácil, programador Júnior, poucas opções, enunciados diretos.',
-    warn: 'Quiz normal, programador Pleno, mais opções, leitura atenta.',
-    error: 'Quiz difícil, programador Sênior, muitas opções, leitura cuidadosa.',
-    fatal: 'Quiz roguelike, programador Especialista, muitas opções, só uma bala.',
+    info: 'Quiz fácil, DevOps Júnior, poucas opções, enunciados diretos.',
+    warn: 'Quiz normal, DevOps Pleno, mais opções, leitura atenta.',
+    error: 'Quiz difícil, DevOps Sênior, muitas opções, leitura cuidadosa.',
+    fatal: 'Quiz roguelike, DevOps Especialista, muitas opções, só uma bala.',
   },
   errors: {
     apiUnavailable: 'API indisponivel',

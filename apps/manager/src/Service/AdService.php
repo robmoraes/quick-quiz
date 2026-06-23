@@ -5,17 +5,24 @@ namespace App\Service;
 use DateTimeImmutable;
 use DateTimeZone;
 use RuntimeException;
+use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class AdService
 {
     public function __construct(
+        private readonly HttpClientInterface $httpClient,
         private readonly string $contentRoot,
+        private readonly string $adsApiBaseUrl,
     ) {
     }
 
     public function exists(): bool
     {
-        return is_file($this->adsPath());
+        $data = $this->requestJson('GET', '/api/admin/ads/file');
+
+        return filter_var($data['exists'] ?? false, FILTER_VALIDATE_BOOL);
     }
 
     public function contentRoot(): string
@@ -23,13 +30,14 @@ final class AdService
         return $this->contentRoot;
     }
 
+    public function adsApiBaseUrl(): string
+    {
+        return $this->normalizedAdsApiBaseUrl();
+    }
+
     public function createBaseFile(): void
     {
-        if ($this->exists()) {
-            return;
-        }
-
-        $this->writeJson($this->adsPath(), ['ads' => []]);
+        $this->requestJson('PUT', '/api/admin/ads/file');
     }
 
     /** @return list<array{id:string,name:string,description:string,active:bool}> */
@@ -75,7 +83,11 @@ final class AdService
             return [];
         }
 
-        $ads = $this->readAdsFile()['ads'];
+        $query = trim($theme) === '' ? '' : '?theme='.rawurlencode(trim($theme));
+        $ads = $this->requestJson('GET', '/api/admin/ads'.$query)['ads'] ?? [];
+        if (!is_array($ads)) {
+            throw new RuntimeException('Ads API returned an invalid ads list.');
+        }
 
         $normalized = array_values(array_filter(array_map(
             function (mixed $ad): ?array {
@@ -89,11 +101,7 @@ final class AdService
         )));
 
         $theme = trim($theme);
-        if ($theme === '') {
-            return $normalized;
-        }
-
-        return array_values(array_filter(
+        return $theme === '' ? $normalized : array_values(array_filter(
             $normalized,
             static fn (array $ad): bool => self::adHasThemeTarget($ad, $theme),
         ));
@@ -136,80 +144,29 @@ final class AdService
     /** @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>}|null */
     public function ad(string $id): ?array
     {
-        foreach ($this->listAds() as $ad) {
-            if ($ad['id'] === $id) {
-                return $ad;
-            }
+        $result = $this->requestJsonOrNull('GET', '/api/admin/ads/'.rawurlencode($id));
+        if ($result === null) {
+            return null;
         }
 
-        return null;
+        return $this->normalizeAd($result);
     }
 
     /** @param array<string,mixed> $input */
     public function saveAd(?string $id, array $input): void
     {
-        $file = $this->readAdsFile();
-        $ads = $file['ads'];
-
         if ($id === null) {
-            $payload = $this->validatedAd($input, $this->newUuidV4());
-            $ads[] = $payload;
+            $payload = $this->validatedAd($input, null);
+            $this->requestJson('POST', '/api/admin/ads', ['json' => $payload]);
         } else {
-            $found = false;
-            foreach ($ads as &$ad) {
-                if (!is_array($ad) || (string) ($ad['id'] ?? '') !== $id) {
-                    continue;
-                }
-                $ad = $this->validatedAd($input, $id);
-                $found = true;
-                break;
-            }
-            unset($ad);
-
-            if (!$found) {
-                throw new RuntimeException('Ad not found.');
-            }
+            $payload = $this->validatedAd($input, $id);
+            $this->requestJson('PUT', '/api/admin/ads/'.rawurlencode($id), ['json' => $payload]);
         }
-
-        $file['ads'] = array_values($ads);
-        $this->writeJson($this->adsPath(), $file);
     }
 
     public function deleteAd(string $id): void
     {
-        $file = $this->readAdsFile();
-        $originalCount = count($file['ads']);
-        $file['ads'] = array_values(array_filter(
-            $file['ads'],
-            static fn (array $ad): bool => (string) ($ad['id'] ?? '') !== $id,
-        ));
-
-        if (count($file['ads']) === $originalCount) {
-            throw new RuntimeException('Ad not found.');
-        }
-
-        $this->writeJson($this->adsPath(), $file);
-    }
-
-    /** @return array{ads:list<array<string,mixed>>} */
-    private function readAdsFile(): array
-    {
-        if (!$this->exists()) {
-            return ['ads' => []];
-        }
-
-        $data = $this->readJson($this->adsPath());
-        $ads = $data['ads'] ?? [];
-        if (!is_array($ads)) {
-            throw new RuntimeException('Advertising file must contain an ads array.');
-        }
-        foreach ($ads as $ad) {
-            if (!is_array($ad)) {
-                throw new RuntimeException('Advertising file contains an invalid ad entry.');
-            }
-        }
-
-        return ['ads' => array_values($ads)];
+        $this->requestJson('DELETE', '/api/admin/ads/'.rawurlencode($id));
     }
 
     /** @param array<string,mixed> $ad @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>} */
@@ -233,13 +190,17 @@ final class AdService
     }
 
     /** @param array<string,mixed> $input @return array{id:string,provider_id:string,uri:string,description:string,image:string,created_at:string,expires_in:string|null,active:bool,emphasis:bool,themes:list<array{theme:string,topics:list<string>}>>} */
-    private function validatedAd(array $input, string $id): array
+    private function validatedAd(array $input, ?string $id): array
     {
         $ad = $this->normalizeAd($input);
-        $ad['id'] = $id;
 
-        if (!$this->isUuid($ad['id'])) {
-            throw new RuntimeException('Ad ID must be a valid UUID.');
+        if ($id !== null) {
+            $ad['id'] = $id;
+            if (!$this->isUuid($ad['id'])) {
+                throw new RuntimeException('Ad ID must be a valid UUID.');
+            }
+        } else {
+            $ad['id'] = '';
         }
         if ($ad['uri'] === '' || filter_var($ad['uri'], FILTER_VALIDATE_URL) === false) {
             throw new RuntimeException('Ad URL must be a valid URL.');
@@ -446,15 +407,6 @@ final class AdService
         return $normalized;
     }
 
-    private function newUuidV4(): string
-    {
-        $bytes = random_bytes(16);
-        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
-        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
-
-        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
-    }
-
     private function isUuid(string $value): bool
     {
         return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $value) === 1;
@@ -479,9 +431,79 @@ final class AdService
         }
     }
 
-    private function adsPath(): string
+    /** @param array<string,mixed> $options @return array<string,mixed> */
+    private function requestJson(string $method, string $path, array $options = []): array
     {
-        return $this->join($this->contentRoot, 'ads', 'ads.json');
+        $status = null;
+        $data = $this->request($method, $path, $options, $status);
+
+        if ($status < 200 || $status >= 300) {
+            $message = is_array($data['error'] ?? null)
+                ? trim((string) ($data['error']['message'] ?? ''))
+                : '';
+            throw new RuntimeException($message === '' ? sprintf('Ads API returned HTTP %d.', $status) : $message);
+        }
+
+        return $data;
+    }
+
+    /** @return array<string,mixed>|null */
+    private function requestJsonOrNull(string $method, string $path): ?array
+    {
+        $status = null;
+        $data = $this->request($method, $path, [], $status);
+        if ($status === 404) {
+            return null;
+        }
+        if ($status < 200 || $status >= 300) {
+            $message = is_array($data['error'] ?? null)
+                ? trim((string) ($data['error']['message'] ?? ''))
+                : '';
+            throw new RuntimeException($message === '' ? sprintf('Ads API returned HTTP %d.', $status) : $message);
+        }
+
+        return $data;
+    }
+
+    /** @param array<string,mixed> $options @param int|null $status @return array<string,mixed> */
+    private function request(string $method, string $path, array $options, ?int &$status): array
+    {
+        $requestOptions = ['timeout' => 5];
+        if (isset($options['json'])) {
+            $json = json_encode($options['json'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if (!is_string($json)) {
+                throw new RuntimeException('Could not encode JSON request.');
+            }
+            $requestOptions['headers'] = ['Content-Type' => 'application/json'];
+            $requestOptions['body'] = $json;
+        }
+
+        $url = $this->normalizedAdsApiBaseUrl().$path;
+
+        try {
+            $response = $this->httpClient->request($method, $url, $requestOptions);
+            $status = $response->getStatusCode();
+            if ($status === 204) {
+                return [];
+            }
+            $data = $response->toArray(false);
+        } catch (TransportExceptionInterface $error) {
+            throw new RuntimeException(sprintf('Could not reach Quick Quiz Ads API at %s.', $url), 0, $error);
+        } catch (ExceptionInterface $error) {
+            throw new RuntimeException(sprintf('Quick Quiz Ads API returned an invalid response from %s.', $url), 0, $error);
+        }
+
+        if (!is_array($data)) {
+            throw new RuntimeException(sprintf('Quick Quiz Ads API returned an invalid response from %s.', $url));
+        }
+
+        return $data;
+    }
+
+    private function normalizedAdsApiBaseUrl(): string
+    {
+        $baseUrl = rtrim(trim($this->adsApiBaseUrl), '/');
+        return $baseUrl === '' ? 'http://127.0.0.1:8084' : $baseUrl;
     }
 
     /** @return array<string,mixed> */
@@ -496,29 +518,6 @@ final class AdService
             throw new RuntimeException(sprintf('Invalid JSON object in %s.', $path));
         }
         return $data;
-    }
-
-    /** @param array<string,mixed> $data */
-    private function writeJson(string $path, array $data): void
-    {
-        $dir = dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new RuntimeException(sprintf('Could not create directory %s.', $dir));
-        }
-
-        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        if (!is_string($json)) {
-            throw new RuntimeException('Could not encode JSON.');
-        }
-
-        $tmp = $path.'.tmp';
-        if (file_put_contents($tmp, $json.PHP_EOL, LOCK_EX) === false) {
-            throw new RuntimeException(sprintf('Could not write %s.', $tmp));
-        }
-        if (!rename($tmp, $path)) {
-            @unlink($tmp);
-            throw new RuntimeException(sprintf('Could not replace %s.', $path));
-        }
     }
 
     private function join(string ...$parts): string

@@ -40,6 +40,7 @@ temp/
 # Local API content and build output
 apps/api/.local/
 apps/api/bin/
+deploy/content-demo/.manager/
 
 # docs de dominio local
 docs/.local

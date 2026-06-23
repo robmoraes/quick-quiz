@@ -2,7 +2,9 @@ parameters:
   openai.empty: ''
   manager.default_version: '0.5.0'
   manager.default_api_base_url: 'http://127.0.0.1:8080'
+  manager.default_ads_api_base_url: 'http://127.0.0.1:8084'
   manager.api_base_url: '%env(default:manager.default_api_base_url:QUICKQUIZ_API_BASE_URL)%'
+  manager.ads_api_base_url: '%env(default:manager.default_ads_api_base_url:QUICKQUIZ_ADS_API_BASE_URL)%'
   manager.database_url: '%env(MANAGER_DATABASE_URL)%'
   manager.content_root: '%env(MANAGER_CONTENT_ROOT)%'
   manager.fallback_locale: '%env(FALLBACK_LOCALE)%'
@@ -42,6 +44,7 @@ services:
   App\Service\AdService:
     arguments:
       $contentRoot: '%manager.content_root%'
+      $adsApiBaseUrl: '%manager.ads_api_base_url%'
 
   App\Service\ApiSessionMonitor:
     arguments:

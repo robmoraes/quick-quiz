@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"quickquiz/api/internal/app"
@@ -15,16 +14,15 @@ import (
 
 type Handler struct {
 	runs      *app.RunService
-	ads       *app.AdService
 	solutions *app.SolutionService
 	logger    *slog.Logger
 }
 
-func NewHandler(runs *app.RunService, ads *app.AdService, solutions *app.SolutionService, logger *slog.Logger) *Handler {
+func NewHandler(runs *app.RunService, solutions *app.SolutionService, logger *slog.Logger) *Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Handler{runs: runs, ads: ads, solutions: solutions, logger: logger}
+	return &Handler{runs: runs, solutions: solutions, logger: logger}
 }
 
 func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
@@ -68,32 +66,6 @@ func (h *Handler) SessionDifficulties(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, difficulties)
-}
-
-func (h *Handler) Ads(w http.ResponseWriter, r *http.Request) {
-	limit, err := limitFromRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_input", "Invalid input")
-		return
-	}
-	emphasisLimit, err := emphasisLimitFromRequest(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid_input", "Invalid input")
-		return
-	}
-
-	ads, err := h.ads.List(r.Context(), app.ListAdsInput{
-		Theme:         themeFromRequest(r),
-		Topic:         strings.TrimSpace(r.URL.Query().Get("topic")),
-		Limit:         limit,
-		EmphasisLimit: emphasisLimit,
-	})
-	if err != nil {
-		h.writeAppError(w, r, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, ads)
 }
 
 func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
@@ -264,32 +236,6 @@ func sessionID(r *http.Request) string {
 
 func themeFromRequest(r *http.Request) string {
 	return strings.TrimSpace(r.Header.Get("X-QuickQuiz-Theme"))
-}
-
-func limitFromRequest(r *http.Request) (int, error) {
-	raw := strings.TrimSpace(r.URL.Query().Get("limit"))
-	if raw == "" {
-		return 0, nil
-	}
-
-	limit, err := strconv.Atoi(raw)
-	if err != nil || limit <= 0 {
-		return 0, app.ErrInvalidInput
-	}
-	return limit, nil
-}
-
-func emphasisLimitFromRequest(r *http.Request) (int, error) {
-	raw := strings.TrimSpace(r.URL.Query().Get("emphasis"))
-	if raw == "" {
-		return 0, nil
-	}
-
-	limit, err := strconv.Atoi(raw)
-	if err != nil || limit <= 0 {
-		return 0, app.ErrInvalidInput
-	}
-	return limit, nil
 }
 
 func localeFromRequest(r *http.Request, explicit string) string {
