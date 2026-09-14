@@ -135,6 +135,9 @@ The EC2 bootstrap prepares this base layout:
 /opt/quickquiz/traefik/letsencrypt/acme.json
 ```
 
+For temporary SSH recovery and permanent-key installation, see the
+[EC2 SSH access recovery runbook](../docs/runbooks/ec2-ssh-access-recovery.md).
+
 Recommended runtime layout:
 
 ```text
