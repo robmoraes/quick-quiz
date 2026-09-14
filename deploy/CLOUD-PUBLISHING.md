@@ -267,7 +267,8 @@ The manager creates the SQLite database and `.manager` directory when the admin 
 
 ## Operational Notes
 
-- Keep `MANAGER_APP_SECRET` stable between manager restarts so sessions remain valid.
+- Keep `MANAGER_APP_SECRET` stable between manager restarts so session cookies remain valid.
+- Redis is ephemeral in this single-node profile; restarting it invalidates active quiz runs and Manager login sessions.
 - Keep `ACME_EMAIL` set to a real mailbox for Let's Encrypt notifications.
 - Back up `QUICKQUIZ_CONTENT_ROOT`, especially quiz JSON files and `.manager/manager.sqlite`.
 - The Terraform state and `.env` files can contain sensitive or environment-specific values and should not be committed.

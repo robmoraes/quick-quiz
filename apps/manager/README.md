@@ -13,7 +13,8 @@ Monorepo documentation:
 ## Development
 
 The manager development environment uses Docker and Docker Compose. PHP,
-Composer, Symfony commands, and tests run inside containers.
+Composer, Symfony commands, tests, and Redis run inside containers. Redis stores
+Manager login sessions and is not installed on the host.
 
 ```sh
 cd apps/manager
@@ -28,6 +29,10 @@ Open:
 ```text
 http://localhost:8081
 ```
+
+Session storage is configured with `MANAGER_SESSION_REDIS_DSN`,
+`MANAGER_SESSION_TTL`, and `MANAGER_SESSION_PREFIX`. The Compose defaults use
+Redis database 1 so Manager sessions remain separate from Quiz API run data.
 
 ## Commands
 

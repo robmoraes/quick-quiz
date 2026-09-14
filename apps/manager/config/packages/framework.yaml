@@ -7,6 +7,6 @@ framework:
   session:
     cookie_secure: auto
     cookie_samesite: lax
-    handler_id: null
+    handler_id: Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler
   router:
     utf8: true

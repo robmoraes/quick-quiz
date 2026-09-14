@@ -3,8 +3,14 @@ parameters:
   manager.default_version: '0.5.0'
   manager.default_api_base_url: 'http://127.0.0.1:8080'
   manager.default_ads_api_base_url: 'http://127.0.0.1:8084'
+  manager.default_session_redis_dsn: 'redis://127.0.0.1:6379/1'
+  manager.default_session_ttl: 3600
+  manager.default_session_prefix: 'quickquiz:manager:session:'
   manager.api_base_url: '%env(default:manager.default_api_base_url:QUICKQUIZ_API_BASE_URL)%'
   manager.ads_api_base_url: '%env(default:manager.default_ads_api_base_url:QUICKQUIZ_ADS_API_BASE_URL)%'
+  manager.session_redis_dsn: '%env(default:manager.default_session_redis_dsn:MANAGER_SESSION_REDIS_DSN)%'
+  manager.session_ttl: '%env(int:default:manager.default_session_ttl:MANAGER_SESSION_TTL)%'
+  manager.session_prefix: '%env(default:manager.default_session_prefix:MANAGER_SESSION_PREFIX)%'
   manager.database_url: '%env(MANAGER_DATABASE_URL)%'
   manager.content_root: '%env(MANAGER_CONTENT_ROOT)%'
   manager.fallback_locale: '%env(FALLBACK_LOCALE)%'
@@ -24,6 +30,18 @@ services:
 
   App\:
     resource: '../src/'
+
+  manager.session_redis:
+    class: Predis\Client
+    arguments:
+      - '%manager.session_redis_dsn%'
+
+  Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler:
+    arguments:
+      $redis: '@manager.session_redis'
+      $options:
+        prefix: '%manager.session_prefix%'
+        ttl: '%manager.session_ttl%'
 
   App\Repository\AdminRepository:
     arguments:

@@ -34,7 +34,7 @@ URLs locais:
 - SPA Dev: `http://localhost:8082`
 - Manager: `http://localhost:8081`
 
-O Compose local inicia o Redis junto com a stack e configura a API para usá-lo pela rede interna do Docker. O Redis não é instalado no host, não expõe porta no host e não possui volume persistente; reiniciá-lo invalida as sessões de quiz ativas. A imagem oficial oferece suporte a `linux/amd64` e `linux/arm64`.
+O Compose local inicia o Redis junto com a stack e configura a API e as sessões do Manager para usá-lo pela rede interna do Docker. O Redis não é instalado no host, não expõe porta no host e não possui volume persistente; reiniciá-lo invalida os runs de quiz ativos e as sessões de login do Manager. A imagem oficial oferece suporte a `linux/amd64` e `linux/arm64`.
 As soluções geradas permanecem na memória da API neste perfil local e podem ser regeneradas; assim, a API não grava estado de runtime no próprio sistema de arquivos.
 
 Por padrão, o Compose monta `deploy/content-demo` como conteúdo local de demonstração. A API monta esse conteúdo como somente leitura em `/app/.local`; o manager monta a mesma pasta em `/content` com escrita para testes locais. Para usar outra pasta de conteúdo, ajuste `QUICKQUIZ_CONTENT_ROOT` em `deploy/compose.local/.env`.

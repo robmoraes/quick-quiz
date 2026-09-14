@@ -48,7 +48,15 @@ services:
       FALLBACK_LOCALE: ${FALLBACK_LOCALE:-en-US}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-en-US,pt-BR}
       RUN_QUESTION_LIMIT: ${RUN_QUESTION_LIMIT:-10}
+      RUN_STORAGE_PROVIDER: ${RUN_STORAGE_PROVIDER:-redis}
+      SOLUTION_STORAGE_PROVIDER: ${SOLUTION_STORAGE_PROVIDER:-memory}
       SESSION_TTL: ${SESSION_TTL:-30m}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_USERNAME: ${REDIS_USERNAME:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_TLS: ${REDIS_TLS:-false}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-quickquiz:runs:}
       SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
       OPENAI_API_KEY: ${API_OPENAI_API_KEY:?set API_OPENAI_API_KEY}
       OPENAI_BASE_URL: ${API_OPENAI_BASE_URL:-https://api.openai.com/v1}
@@ -57,6 +65,10 @@ services:
       OPENAI_PROJECT: ${API_OPENAI_PROJECT:-}
       OPENAI_SOLUTION_PROMPT_FILE: ${API_OPENAI_SOLUTION_PROMPT_FILE:?set API_OPENAI_SOLUTION_PROMPT_FILE}
       OPENAI_TIMEOUT: ${API_OPENAI_TIMEOUT:-30s}
+    depends_on:
+      redis:
+        condition: service_healthy
+        restart: true
     read_only: true
     restart: unless-stopped
     user: "${QUICKQUIZ_RUNTIME_UID:-1000}:${QUICKQUIZ_RUNTIME_GID:-1000}"
@@ -71,6 +83,32 @@ services:
     - traefik.http.routers.quickquiz-api.tls=true
     - traefik.http.routers.quickquiz-api.tls.certresolver=letsencrypt
     - traefik.http.services.quickquiz-api.loadbalancer.server.port=8080
+
+  redis:
+    image: ${QUICKQUIZ_IMAGE_REDIS:-redis:7.4-alpine}
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-256mb}
+      - --maxmemory-policy
+      - noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    mem_limit: ${REDIS_MEMORY_LIMIT:-384m}
+    read_only: true
+    restart: unless-stopped
+    tmpfs:
+      - /data:rw,noexec,nosuid,size=32m
+    networks:
+      - web
 
   ads-api:
     image: ${QUICKQUIZ_IMAGE_ADS_API:-robmoraes/quick-quiz-ads-api:latest}
@@ -148,6 +186,9 @@ services:
       APP_SECRET: ${MANAGER_APP_SECRET}
       MANAGER_DATABASE_URL: ${MANAGER_DATABASE_URL}
       MANAGER_CONTENT_ROOT: /content
+      MANAGER_SESSION_REDIS_DSN: ${MANAGER_SESSION_REDIS_DSN:-redis://redis:6379/1}
+      MANAGER_SESSION_TTL: ${MANAGER_SESSION_TTL:-3600}
+      MANAGER_SESSION_PREFIX: ${MANAGER_SESSION_PREFIX:-quickquiz:manager:session:}
       QUICKQUIZ_API_BASE_URL: ${QUICKQUIZ_API_BASE_URL:-http://api:8080}
       QUICKQUIZ_ADS_API_BASE_URL: ${QUICKQUIZ_ADS_API_BASE_URL:-http://ads-api:8080}
       FALLBACK_LOCALE: ${FALLBACK_LOCALE:-en-US}
@@ -156,6 +197,10 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-}
       OPENAI_PROJECT: ${OPENAI_PROJECT:-}
       OPENAI_ORG_ID: ${OPENAI_ORG_ID:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+        restart: true
     restart: unless-stopped
     user: "${QUICKQUIZ_RUNTIME_UID:-1000}:${QUICKQUIZ_RUNTIME_GID:-1000}"
     volumes:

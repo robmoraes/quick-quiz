@@ -1,6 +1,8 @@
 # Manager Documentation
 
 The manager service lives in `apps/manager/` and is implemented with Symfony.
+Its login sessions are stored in Redis; the local Compose provides Redis without
+installing it on the host.
 
 ## Responsibilities
 
@@ -27,6 +29,10 @@ Open:
 ```text
 http://localhost:8081
 ```
+
+The session connection, TTL, and key namespace are controlled by
+`MANAGER_SESSION_REDIS_DSN`, `MANAGER_SESSION_TTL`, and
+`MANAGER_SESSION_PREFIX`. Local Compose uses Redis database 1.
 
 Run tests:
 

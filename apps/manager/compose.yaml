@@ -8,6 +8,10 @@ services:
     command: php -S 0.0.0.0:8081 -t public public/dev-router.php
     env_file:
       - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+        restart: true
     ports:
       - "8081:8081"
     volumes:
@@ -15,5 +19,33 @@ services:
       - ../api/.local:/content
     environment:
       MANAGER_CONTENT_ROOT: /content
+      MANAGER_SESSION_REDIS_DSN: ${MANAGER_SESSION_REDIS_DSN:-redis://redis:6379/1}
+      MANAGER_SESSION_TTL: ${MANAGER_SESSION_TTL:-3600}
+      MANAGER_SESSION_PREFIX: ${MANAGER_SESSION_PREFIX:-quickquiz:manager:session:}
       QUICKQUIZ_API_BASE_URL: ${QUICKQUIZ_API_BASE_URL:-http://host.docker.internal:8080}
       QUICKQUIZ_ADS_API_BASE_URL: ${QUICKQUIZ_ADS_API_BASE_URL:-http://host.docker.internal:8084}
+
+
+  redis:
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    mem_limit: 384m
+    read_only: true
+    restart: unless-stopped
+    tmpfs:
+      - /data:rw,noexec,nosuid,size=32m
