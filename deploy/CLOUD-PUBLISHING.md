@@ -148,10 +148,12 @@ Recommended runtime layout:
 /opt/quickquiz/traefik/letsencrypt/acme.json
 ```
 
-The cloud Compose file mounts `QUICKQUIZ_CONTENT_ROOT` into:
+With the default local content provider, the cloud Compose file mounts `QUICKQUIZ_CONTENT_ROOT` into:
 
 - `/app/.local` read-only for the API.
-- `/content` read-write for the manager.
+- `/content` read-write for the Manager.
+
+The alternative S3-compatible backend does not depend on these mounts. The Quiz API, Ads API, and Manager must use the same bucket and prefix.
 
 The Manager stores administrators and AI prompts in the `manager-db` PostgreSQL
 service. `MANAGER_DATABASE_URL` configures the connection, while the database
@@ -197,11 +199,27 @@ QUICKQUIZ_IMAGE_MANAGER_FPM=robmoraes/quick-quiz-manager-fpm:v0.1.0-beta
 QUICKQUIZ_IMAGE_MANAGER_WEB=robmoraes/quick-quiz-manager-web:v0.1.0-beta
 ```
 
-Set the content root:
+For the current local content layout, set:
 
 ```env
+QUESTION_STORAGE_PROVIDER=local
+ADS_STORAGE_PROVIDER=local
+MANAGER_CONTENT_STORAGE_PROVIDER=local
 QUICKQUIZ_CONTENT_ROOT=/opt/quickquiz
 ```
+
+When the S3 migration is deployed, use one shared content location:
+
+```env
+QUESTION_STORAGE_PROVIDER=s3
+ADS_STORAGE_PROVIDER=s3
+MANAGER_CONTENT_STORAGE_PROVIDER=s3
+AWS_REGION=us-east-1
+S3_BUCKET=<content-bucket>
+S3_PREFIX=questions
+```
+
+Use an EC2 instance role for AWS credentials. `S3_ENDPOINT_URL` and `S3_FORCE_PATH_STYLE` are available for other S3-compatible services.
 
 Start or update the stack:
 
@@ -262,6 +280,6 @@ The Manager creates its PostgreSQL tables when the admin repository is first use
 - Keep `MANAGER_APP_SECRET` stable between manager restarts so session cookies remain valid.
 - Redis is ephemeral in this single-node profile; restarting it invalidates active quiz runs and Manager login sessions.
 - Keep `ACME_EMAIL` set to a real mailbox for Let's Encrypt notifications.
-- Back up `QUICKQUIZ_CONTENT_ROOT` and the Manager PostgreSQL database with `pg_dump`.
+- Back up the configured content backend and the Manager PostgreSQL database with `pg_dump`.
 - The Terraform state and `.env` files can contain sensitive or environment-specific values and should not be committed.
-- If API startup fails, check that `${QUICKQUIZ_CONTENT_ROOT}/themes.json` and the active theme package exist and are valid.
+- If API startup fails, check that `themes.json` and the active theme package exist and are valid in the configured local or S3 content backend.

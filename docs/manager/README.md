@@ -43,22 +43,18 @@ cd apps/manager
 docker compose run --rm manager composer test
 ```
 
-## Content Root
+## Content Storage
 
-By default, local development points the manager at the API local content
-folder:
+`MANAGER_CONTENT_STORAGE_PROVIDER` selects `local` or `s3`. Local development uses the API content folder:
 
 ```text
+MANAGER_CONTENT_STORAGE_PROVIDER=local
 MANAGER_CONTENT_ROOT=../api/.local
 ```
 
-In Docker Compose, this is mounted as:
+Docker Compose mounts that folder at `/content`. With `s3`, configure `AWS_REGION`, `S3_BUCKET`, `S3_PREFIX`, `S3_ENDPOINT_URL`, and `S3_FORCE_PATH_STYLE`; authentication follows the standard AWS SDK credential chain.
 
-```text
-MANAGER_CONTENT_ROOT=/content
-```
-
-The manager and API must agree on the same quiz pack contract. If the manager
+The Manager, Quiz API, and Ads API must use the same content backend, bucket, and prefix, and must agree on the same quiz pack contract. If the manager
 writes invalid paths, missing locale packages, wrong publication flags, or
 extra metadata into question files, the API may reject the content or serve an
 incorrect catalog.

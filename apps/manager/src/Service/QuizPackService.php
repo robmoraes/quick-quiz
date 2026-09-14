@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use App\Storage\ContentStorage;
+use App\Storage\LocalContentStorage;
 use DateTimeImmutable;
 use DateTimeZone;
 use RuntimeException;
@@ -19,6 +21,7 @@ final class QuizPackService
 
     /** @var list<string> */
     private array $supportedLocales;
+    private readonly ContentStorage $contentStorage;
 
     public function __construct(
         private readonly string $contentRoot,
@@ -27,13 +30,15 @@ final class QuizPackService
         private readonly ?ThemeContext $themeContext = null,
         private readonly ?string $fixedTheme = null,
         private readonly int $runQuestionLimit = 10,
+        ?ContentStorage $contentStorage = null,
     ) {
+        $this->contentStorage = $contentStorage ?? new LocalContentStorage($this->contentRoot);
         $this->supportedLocales = $this->parseSupportedLocales($supportedLocales, $fallbackLocale);
     }
 
     public function contentRoot(): string
     {
-        return $this->contentRoot;
+        return $this->contentStorage->description();
     }
 
     public function selectedTheme(): string
@@ -145,7 +150,7 @@ final class QuizPackService
     public function readCentralCatalog(): array
     {
         $path = $this->join($this->themeRoot(), 'index.json');
-        if (!is_file($path)) {
+        if (!$this->contentStorage->exists($path)) {
             return ['topics' => []];
         }
 
@@ -163,7 +168,7 @@ final class QuizPackService
     {
         $this->assertSupportedLocale($locale);
         $path = $this->join($this->themeRoot(), $locale, 'index.json');
-        if (!is_file($path)) {
+        if (!$this->contentStorage->exists($path)) {
             return ['topics' => []];
         }
 
@@ -278,24 +283,17 @@ final class QuizPackService
         $this->assertSupportedLocale($locale);
         $this->assertDifficulty($difficulty);
         $topic = $this->normalizeKey($topic);
-        $dir = $this->join($this->themeRoot(), $locale, $topic, (string) $difficulty);
-        if (!is_dir($dir)) {
-            return [];
-        }
-
+        $prefix = $this->join($this->themeRoot(), $locale, $topic, (string) $difficulty);
         $questions = [];
-        foreach (scandir($dir) ?: [] as $entry) {
-            if ($entry === '.' || $entry === '..' || !str_ends_with($entry, '.json')) {
+        foreach ($this->contentStorage->list($prefix) as $key) {
+            $entry = str_starts_with($key, $prefix.'/') ? substr($key, strlen($prefix) + 1) : '';
+            if ($entry === '' || str_contains($entry, '/') || !str_ends_with($entry, '.json')) {
                 continue;
             }
-            $path = $this->join($dir, $entry);
-            if (!is_file($path)) {
-                continue;
-            }
-            $question = $this->readJson($path);
+            $question = $this->readJson($key);
             $questions[] = [
                 'id' => basename($entry, '.json'),
-                'path' => $path,
+                'path' => $this->contentStorage->location($key),
                 'prompt' => (string) ($question['prompt'] ?? ''),
                 'correctCount' => count($question['correctOptions'] ?? []),
                 'wrongCount' => count($question['wrongOptions'] ?? []),
@@ -426,7 +424,7 @@ final class QuizPackService
     public function readQuestion(string $locale, string $topic, int $difficulty, string $questionId): array
     {
         $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
-        if (!is_file($path)) {
+        if (!$this->contentStorage->exists($path)) {
             return ['prompt' => '', 'correctOptions' => [], 'wrongOptions' => []];
         }
 
@@ -689,11 +687,11 @@ final class QuizPackService
         $missingLocales = [];
         foreach ($this->supportedLocales as $locale) {
             $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
-            if (!is_file($path)) {
+            if (!$this->contentStorage->exists($path)) {
                 $missingLocales[] = $locale;
                 continue;
             }
-            if (!unlink($path)) {
+            if (!$this->contentStorage->delete($path)) {
                 throw new RuntimeException(sprintf('Could not delete question file for locale %s.', $locale));
             }
             $deletedLocales[] = $locale;
@@ -936,26 +934,29 @@ final class QuizPackService
     {
         $errors = [];
         foreach ($this->activeTopicKeys() as $topic) {
-            $topicDir = $this->join($this->themeRoot(), $locale, $topic);
-            if (!is_dir($topicDir)) {
-                continue;
+            $topicPrefix = $this->join($this->themeRoot(), $locale, $topic);
+            $difficultyDirectories = [];
+            foreach ($this->contentStorage->list($topicPrefix) as $key) {
+                $relative = str_starts_with($key, $topicPrefix.'/') ? substr($key, strlen($topicPrefix) + 1) : '';
+                if (!str_contains($relative, '/')) {
+                    continue;
+                }
+                $difficultyDirectories[explode('/', $relative, 2)[0]] = true;
             }
-            foreach (scandir($topicDir) ?: [] as $difficultyDir) {
-                if ($difficultyDir === '.' || $difficultyDir === '..') {
+
+            foreach (array_keys($difficultyDirectories) as $difficultyDirectory) {
+                $difficultyDirectory = (string) $difficultyDirectory;
+                if (!ctype_digit($difficultyDirectory) || !isset(self::DIFFICULTIES[(int) $difficultyDirectory])) {
+                    $errors[] = sprintf(
+                        'Invalid difficulty directory: %s',
+                        $this->contentStorage->location($this->join($topicPrefix, $difficultyDirectory)),
+                    );
                     continue;
                 }
-                $difficultyPath = $this->join($topicDir, $difficultyDir);
-                if (!is_dir($difficultyPath)) {
-                    continue;
-                }
-                if (!ctype_digit($difficultyDir) || !isset(self::DIFFICULTIES[(int) $difficultyDir])) {
-                    $errors[] = sprintf('Invalid difficulty directory: %s', $difficultyPath);
-                    continue;
-                }
-                foreach ($this->listQuestions($locale, $topic, (int) $difficultyDir) as $question) {
-                    $payload = $this->readQuestion($locale, $topic, (int) $difficultyDir, $question['id']);
-                    foreach ($this->validateQuestionPayload($payload, (int) $difficultyDir) as $error) {
-                        $errors[] = sprintf('%s/%s/%s/%s/%s.json: %s', $this->selectedTheme(), $locale, $topic, $difficultyDir, $question['id'], $error);
+                foreach ($this->listQuestions($locale, $topic, (int) $difficultyDirectory) as $question) {
+                    $payload = $this->readQuestion($locale, $topic, (int) $difficultyDirectory, $question['id']);
+                    foreach ($this->validateQuestionPayload($payload, (int) $difficultyDirectory) as $error) {
+                        $errors[] = sprintf('%s/%s/%s/%s/%s.json: %s', $this->selectedTheme(), $locale, $topic, $difficultyDirectory, $question['id'], $error);
                     }
                 }
             }
@@ -1070,8 +1071,8 @@ final class QuizPackService
         }
 
         $fallbackPath = $this->questionPath($this->fallbackLocale, $topic, $difficulty, $questionId);
-        if (!$allowMissingFallback || !is_file($fallbackPath)) {
-            if (!is_file($fallbackPath)) {
+        if (!$allowMissingFallback || !$this->contentStorage->exists($fallbackPath)) {
+            if (!$this->contentStorage->exists($fallbackPath)) {
                 throw new RuntimeException('Translated locales must replicate canonical fallback question packages.');
             }
         }
@@ -1081,7 +1082,7 @@ final class QuizPackService
     {
         foreach ($this->supportedLocales as $locale) {
             $path = $this->questionPath($locale, $topic, $difficulty, $questionId);
-            if (is_file($path)) {
+            if ($this->contentStorage->exists($path)) {
                 throw new RuntimeException(sprintf('Question path already exists in locale %s.', $locale));
             }
         }
@@ -1094,7 +1095,7 @@ final class QuizPackService
         $this->assertSafeIdentifier($questionId, 'question ID');
 
         foreach ($this->supportedLocales as $locale) {
-            if (!is_file($this->questionPath($locale, $topic, $difficulty, $questionId))) {
+            if (!$this->contentStorage->exists($this->questionPath($locale, $topic, $difficulty, $questionId))) {
                 throw new RuntimeException(sprintf('Question package %s/%d/%s is missing in locale %s.', $topic, $difficulty, $questionId, $locale));
             }
         }
@@ -1148,19 +1149,19 @@ final class QuizPackService
     {
         $theme = $this->selectedTheme();
         $this->assertSafeIdentifier($theme, 'theme ID');
-        return $this->join($this->contentRoot, $theme);
+        return $theme;
     }
 
     private function themeIndexPath(): string
     {
-        return $this->join($this->contentRoot, 'themes.json');
+        return 'themes.json';
     }
 
     /** @return array{themes:list<array{id:string,name:string,description:string,weight:int,createdAt:string,active:bool}>} */
     private function readThemeIndex(): array
     {
         $path = $this->themeIndexPath();
-        if (!is_file($path)) {
+        if (!$this->contentStorage->exists($path)) {
             return ['themes' => []];
         }
 
@@ -1217,82 +1218,58 @@ final class QuizPackService
     }
 
     /** @return array<string,mixed> */
-    private function readJson(string $path): array
+    private function readJson(string $key): array
     {
-        $contents = file_get_contents($path);
-        if ($contents === false) {
-            throw new RuntimeException(sprintf('Could not read %s.', $path));
-        }
-        $data = json_decode($contents, true);
+        $data = json_decode($this->contentStorage->read($key), true);
         if (!is_array($data)) {
-            throw new RuntimeException(sprintf('Invalid JSON object in %s.', $path));
+            throw new RuntimeException(sprintf('Invalid JSON object in %s.', $this->contentStorage->location($key)));
         }
+
         return $data;
     }
 
     /** @param array<string,mixed> $data */
-    private function writeJson(string $path, array $data): void
+    private function writeJson(string $key, array $data): void
     {
-        $dir = dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new RuntimeException(sprintf('Could not create directory %s.', $dir));
-        }
-
         $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if (!is_string($json)) {
             throw new RuntimeException('Could not encode JSON.');
         }
 
-        $tmp = $path.'.tmp';
-        if (file_put_contents($tmp, $json.PHP_EOL, LOCK_EX) === false) {
-            throw new RuntimeException(sprintf('Could not write %s.', $tmp));
-        }
-        if (!rename($tmp, $path)) {
-            @unlink($tmp);
-            throw new RuntimeException(sprintf('Could not replace %s.', $path));
-        }
+        $this->contentStorage->write($key, $json.PHP_EOL);
     }
 
     /** @param array<string,array<string,mixed>> $payloads */
     private function writeJsonSet(array $payloads): void
     {
-        $tmpPaths = [];
-        $writtenPaths = [];
-
-        try {
-            foreach ($payloads as $path => $data) {
-                $dir = dirname($path);
-                if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-                    throw new RuntimeException(sprintf('Could not create directory %s.', $dir));
-                }
-
-                $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                if (!is_string($json)) {
-                    throw new RuntimeException('Could not encode JSON.');
-                }
-
-                $tmp = $path.'.tmp';
-                if (file_put_contents($tmp, $json.PHP_EOL, LOCK_EX) === false) {
-                    throw new RuntimeException(sprintf('Could not write %s.', $tmp));
-                }
-                $tmpPaths[$path] = $tmp;
+        $encoded = [];
+        foreach ($payloads as $key => $data) {
+            $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            if (!is_string($json)) {
+                throw new RuntimeException('Could not encode JSON.');
             }
+            $encoded[$key] = $json.PHP_EOL;
+        }
 
-            foreach ($tmpPaths as $path => $tmp) {
-                if (!rename($tmp, $path)) {
-                    throw new RuntimeException(sprintf('Could not replace %s.', $path));
-                }
-                $writtenPaths[] = $path;
+        $previous = [];
+        $written = [];
+        try {
+            foreach ($encoded as $key => $contents) {
+                $previous[$key] = $this->contentStorage->exists($key)
+                    ? $this->contentStorage->read($key)
+                    : null;
+                $this->contentStorage->write($key, $contents);
+                $written[] = $key;
             }
         } catch (RuntimeException $error) {
-            foreach ($tmpPaths as $tmp) {
-                if (is_file($tmp)) {
-                    @unlink($tmp);
-                }
-            }
-            foreach ($writtenPaths as $path) {
-                if (is_file($path)) {
-                    @unlink($path);
+            foreach (array_reverse($written) as $key) {
+                try {
+                    if (is_string($previous[$key])) {
+                        $this->contentStorage->write($key, $previous[$key]);
+                    } else {
+                        $this->contentStorage->delete($key);
+                    }
+                } catch (RuntimeException) {
                 }
             }
             throw $error;
@@ -1301,8 +1278,8 @@ final class QuizPackService
 
     private function join(string ...$parts): string
     {
-        return implode(DIRECTORY_SEPARATOR, array_map(
-            fn (string $part): string => rtrim($part, DIRECTORY_SEPARATOR),
+        return implode('/', array_map(
+            static fn (string $part): string => trim($part, '/'),
             $parts,
         ));
     }

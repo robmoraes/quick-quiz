@@ -1,6 +1,6 @@
 # QuickQuiz Manager
 
-Symfony webapp for editing and validating QuickQuiz Dev quiz pack JSON files.
+Symfony webapp for editing and validating QuickQuiz Dev quiz pack JSON files in local or S3-compatible storage.
 
 The quiz pack contract is documented at `../../docs/quiz-pack-contract.md`.
 
@@ -45,11 +45,14 @@ docker compose run --rm manager composer test
 
 ## Content
 
-By default the Compose file mounts `../api/.local` to `/content` and sets:
+The storage backend is selected with `MANAGER_CONTENT_STORAGE_PROVIDER`. Local Compose defaults to `local`, mounts `../api/.local` at `/content`, and sets:
 
 ```text
+MANAGER_CONTENT_STORAGE_PROVIDER=local
 MANAGER_CONTENT_ROOT=/content
 ```
+
+For S3-compatible storage, set the provider to `s3` and configure `AWS_REGION`, `S3_BUCKET`, `S3_PREFIX`, `S3_ENDPOINT_URL`, and `S3_FORCE_PATH_STYLE`. AWS credentials come from the standard SDK credential chain, including environment credentials or an instance/task role.
 
 Question files are saved as JSON with only:
 
@@ -70,8 +73,4 @@ Themes are managed through:
 After login, select a theme before managing catalog topics or questions. Inactive
 themes remain editable in the manager but are not served by the player API.
 
-The `question_solution` AI prompt is stored in the manager database and
-exported to `/content/<theme>/ai-prompts/question-solution-prompt.txt` when it is
-saved, restored, or imported from JSON. Configure the API with
-`OPENAI_SOLUTION_PROMPT_FILE=<QUESTION_SOURCE>/{{theme}}/ai-prompts/question-solution-prompt.txt`
-so it reads the exported prompt.
+The `question_solution` AI prompt is stored in the Manager database and exported through the configured content backend as `<theme>/ai-prompts/question-solution-prompt.txt` when it is saved, restored, or imported from JSON. The Manager, Quiz API, and Ads API must use the same bucket and prefix when S3 is enabled.

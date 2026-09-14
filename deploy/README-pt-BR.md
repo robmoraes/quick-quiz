@@ -38,7 +38,7 @@ URLs locais:
 O Compose local inicia o Redis junto com a stack e configura a API e as sessões do Manager para usá-lo pela rede interna do Docker. O Redis não é instalado no host, não expõe porta no host e não possui volume persistente; reiniciá-lo invalida os runs de quiz ativos e as sessões de login do Manager. A imagem oficial oferece suporte a `linux/amd64` e `linux/arm64`.
 As soluções geradas permanecem na memória da API neste perfil local e podem ser regeneradas; assim, a API não grava estado de runtime no próprio sistema de arquivos.
 
-Por padrão, o Compose monta `deploy/content-demo` como conteúdo local de demonstração. A API monta esse conteúdo como somente leitura em `/app/.local`; o manager monta a mesma pasta em `/content` com escrita para testes locais. Para usar outra pasta de conteúdo, ajuste `QUICKQUIZ_CONTENT_ROOT` em `deploy/compose.local/.env`.
+Por padrão, o Compose monta `deploy/content-demo` como conteúdo local de demonstração. A API monta esse conteúdo como somente leitura em `/app/.local`; o Manager monta a mesma pasta em `/content` com escrita para testes locais. Para usar outra pasta de conteúdo, ajuste `QUICKQUIZ_CONTENT_ROOT` em `deploy/compose.local/.env`. Para testar armazenamento S3 compatível compartilhado, defina `QUESTION_STORAGE_PROVIDER=s3`, `ADS_STORAGE_PROVIDER=s3` e `MANAGER_CONTENT_STORAGE_PROVIDER=s3`, depois configure os mesmos valores de `AWS_REGION`, `S3_BUCKET`, `S3_PREFIX`, `S3_ENDPOINT_URL` e `S3_FORCE_PATH_STYLE`.
 
 O Manager guarda administradores e prompts de IA no PostgreSQL. O banco local
 fica disponível somente na rede interna do Docker e persiste no volume

@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use App\Storage\ContentStorage;
+use App\Storage\LocalContentStorage;
 use DateTimeImmutable;
 use DateTimeZone;
 use RuntimeException;
@@ -11,11 +13,15 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class AdService
 {
+    private readonly ContentStorage $contentStorage;
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly string $contentRoot,
         private readonly string $adsApiBaseUrl,
+        ?ContentStorage $contentStorage = null,
     ) {
+        $this->contentStorage = $contentStorage ?? new LocalContentStorage($this->contentRoot);
     }
 
     public function exists(): bool
@@ -27,7 +33,7 @@ final class AdService
 
     public function contentRoot(): string
     {
-        return $this->contentRoot;
+        return $this->contentStorage->description();
     }
 
     public function adsApiBaseUrl(): string
@@ -43,8 +49,8 @@ final class AdService
     /** @return list<array{id:string,name:string,description:string,active:bool}> */
     public function listThemes(): array
     {
-        $path = $this->join($this->contentRoot, 'themes.json');
-        if (!is_file($path)) {
+        $path = 'themes.json';
+        if (!$this->contentStorage->exists($path)) {
             return [];
         }
 
@@ -375,8 +381,8 @@ final class AdService
     /** @return list<array{key:string,name:string,active:bool}> */
     private function listTopicsForTheme(string $theme): array
     {
-        $path = $this->join($this->contentRoot, $theme, 'index.json');
-        if (!is_file($path)) {
+        $path = $this->join($theme, 'index.json');
+        if (!$this->contentStorage->exists($path)) {
             return [];
         }
 
@@ -507,23 +513,20 @@ final class AdService
     }
 
     /** @return array<string,mixed> */
-    private function readJson(string $path): array
+    private function readJson(string $key): array
     {
-        $contents = file_get_contents($path);
-        if ($contents === false) {
-            throw new RuntimeException(sprintf('Could not read %s.', $path));
-        }
-        $data = json_decode($contents, true);
+        $data = json_decode($this->contentStorage->read($key), true);
         if (!is_array($data)) {
-            throw new RuntimeException(sprintf('Invalid JSON object in %s.', $path));
+            throw new RuntimeException(sprintf('Invalid JSON object in %s.', $this->contentStorage->location($key)));
         }
+
         return $data;
     }
 
     private function join(string ...$parts): string
     {
-        return implode(DIRECTORY_SEPARATOR, array_map(
-            fn (string $part): string => rtrim($part, DIRECTORY_SEPARATOR),
+        return implode('/', array_map(
+            static fn (string $part): string => trim($part, '/'),
             $parts,
         ));
     }

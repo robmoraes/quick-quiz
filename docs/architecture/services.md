@@ -21,9 +21,7 @@ Responsibilities:
 - optionally use OpenAI-assisted question recommendation and localization.
 
 The manager is not the player API. It may have admin authentication for editing
-content, but that does not imply player accounts. Login sessions are stored in
-Redis. Admin accounts and AI prompts are stored in PostgreSQL, and published
-content is still written under `MANAGER_CONTENT_ROOT`.
+content, but that does not imply player accounts. Login sessions are stored in Redis. Admin accounts and AI prompts are stored in PostgreSQL. Published content is read and written through a configurable local or S3-compatible storage backend.
 
 ## API
 

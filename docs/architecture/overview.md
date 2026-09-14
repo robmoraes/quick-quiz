@@ -35,7 +35,7 @@ Content editor
   |
   | Symfony Manager
   v
-Same quiz pack content root
+Same local or S3-compatible storage
 ```
 
 ## Core Boundaries
@@ -46,8 +46,7 @@ answers, shows results, and sends locale/theme/session headers.
 The API is the game authority. It validates run state, selects questions,
 checks answers, enforces session exhaustion, and hides unpublished content.
 
-The manager is the content editing tool. It writes quiz pack JSON files and
-must preserve the canonical file contract.
+The manager is the content editing tool. It writes quiz pack JSON objects through local or S3-compatible storage and must preserve the canonical file contract.
 
 The quiz pack is the content source of truth. It is not application code and
 should not contain secrets or runtime-only metadata.

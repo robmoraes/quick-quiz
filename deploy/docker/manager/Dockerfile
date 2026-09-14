@@ -5,9 +5,9 @@ ARG NGINX_VERSION=1.27
 
 FROM --platform=$BUILDPLATFORM php:${PHP_VERSION}-cli-alpine AS vendor
 
-RUN apk add --no-cache git libpq sqlite-libs unzip \
-    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpq-dev sqlite-dev \
-    && docker-php-ext-install pdo_pgsql pdo_sqlite \
+RUN apk add --no-cache git libpq libxml2 sqlite-libs unzip \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpq-dev libxml2-dev sqlite-dev \
+    && docker-php-ext-install pdo_pgsql pdo_sqlite simplexml \
     && apk del .build-deps
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
@@ -46,9 +46,9 @@ RUN composer dump-autoload --classmap-authoritative --no-dev \
 
 FROM php:${PHP_VERSION}-fpm-alpine AS fpm
 
-RUN apk add --no-cache libpq sqlite-libs \
-    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpq-dev sqlite-dev \
-    && docker-php-ext-install opcache pdo_pgsql pdo_sqlite \
+RUN apk add --no-cache libpq libxml2 sqlite-libs \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpq-dev libxml2-dev sqlite-dev \
+    && docker-php-ext-install opcache pdo_pgsql pdo_sqlite simplexml \
     && apk del .build-deps
 
 WORKDIR /app
