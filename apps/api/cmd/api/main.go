@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -24,16 +27,29 @@ func main() {
 	cfg := config.Load()
 	localeManager := i18n.NewManager(cfg.FallbackLocale, cfg.SupportedLocales)
 
-	questionDataset, err := store.LoadQuestionDatasetFromRootWithFallback(cfg.QuestionSource, localeManager.Fallback(), localeManager.Supported())
+	questionDataset, err := loadQuestionDataset(context.Background(), cfg, localeManager.Fallback(), localeManager.Supported())
 	if err != nil {
-		logger.Error("failed to load questions", "source", cfg.QuestionSource, "error", err)
+		logger.Error("failed to load questions", "provider", cfg.QuestionStorageProvider, "error", err)
 		os.Exit(1)
 	}
 
 	questionStore := store.NewMemoryQuestionStoreWithThemeMetadata(questionDataset.Questions, questionDataset.Topics, questionDataset.Themes)
-	runStore := store.NewMemoryRunStore(cfg.SessionTTL)
+	runStore, closeRunStore, err := loadRunStore(context.Background(), cfg)
+	if err != nil {
+		logger.Error("failed to initialize run storage", "provider", cfg.RunStorageProvider, "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if err := closeRunStore(); err != nil {
+			logger.Error("failed to close run storage", "error", err)
+		}
+	}()
 	runService := app.NewRunService(questionStore, runStore, cfg.RunQuestionLimit, localeManager)
-	solutionStore := store.NewFileSolutionStore(cfg.QuestionSource)
+	solutionStore, err := loadSolutionStore(cfg)
+	if err != nil {
+		logger.Error("failed to initialize solution storage", "provider", cfg.SolutionStorageProvider, "error", err)
+		os.Exit(1)
+	}
 	solutionGenerator := app.NewOpenAISolutionGenerator(app.OpenAISolutionGeneratorConfig{
 		APIKey:       cfg.OpenAI.APIKey,
 		BaseURL:      cfg.OpenAI.BaseURL,
@@ -74,5 +90,63 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("http server shutdown failed", "error", err)
 		os.Exit(1)
+	}
+}
+
+func loadSolutionStore(cfg config.Config) (app.SolutionRepository, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.SolutionStorageProvider)) {
+	case "", "local":
+		return store.NewFileSolutionStore(cfg.QuestionSource), nil
+	case "memory":
+		return store.NewMemorySolutionStore(nil), nil
+	default:
+		return nil, fmt.Errorf("unsupported SOLUTION_STORAGE_PROVIDER %q: use local or memory", cfg.SolutionStorageProvider)
+	}
+}
+
+func loadRunStore(ctx context.Context, cfg config.Config) (app.RunRepository, func() error, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.RunStorageProvider)) {
+	case "", "memory":
+		return store.NewMemoryRunStore(cfg.SessionTTL), func() error { return nil }, nil
+	case "redis":
+		var tlsConfig *tls.Config
+		if cfg.Redis.TLS {
+			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+
+		connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		runStore, err := store.NewRedisRunStore(connectCtx, store.RedisRunStoreConfig{
+			Addr:      cfg.Redis.Addr,
+			Username:  cfg.Redis.Username,
+			Password:  cfg.Redis.Password,
+			DB:        cfg.Redis.DB,
+			TLSConfig: tlsConfig,
+			KeyPrefix: cfg.Redis.KeyPrefix,
+			TTL:       cfg.SessionTTL,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		return runStore, runStore.Close, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported RUN_STORAGE_PROVIDER %q: use memory or redis", cfg.RunStorageProvider)
+	}
+}
+
+func loadQuestionDataset(ctx context.Context, cfg config.Config, fallbackLocale string, supportedLocales []string) (store.QuestionDataset, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.QuestionStorageProvider)) {
+	case "", "local":
+		return store.LoadQuestionDatasetFromRootWithFallback(cfg.QuestionSource, fallbackLocale, supportedLocales)
+	case "s3":
+		return store.LoadQuestionDatasetFromS3WithFallback(ctx, store.S3QuestionSourceConfig{
+			Region:         cfg.S3.Region,
+			Bucket:         cfg.S3.Bucket,
+			Prefix:         cfg.S3.Prefix,
+			EndpointURL:    cfg.S3.EndpointURL,
+			ForcePathStyle: cfg.S3.ForcePathStyle,
+		}, fallbackLocale, supportedLocales)
+	default:
+		return store.QuestionDataset{}, fmt.Errorf("unsupported QUESTION_STORAGE_PROVIDER %q: use local or s3", cfg.QuestionStorageProvider)
 	}
 }

@@ -6,8 +6,40 @@ services:
       dockerfile: deploy/docker/Dockerfile
     env_file:
       - ${QUICKQUIZ_ENV_FILE:-./api.env.example}
+    environment:
+      RUN_STORAGE_PROVIDER: redis
+      SOLUTION_STORAGE_PROVIDER: memory
+      REDIS_ADDR: redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+        restart: true
     ports:
       - "8080:8080"
     volumes:
       - ../../.local:/app/.local:ro
     restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    mem_limit: 384m
+    read_only: true
+    restart: unless-stopped
+    tmpfs:
+      - /data:rw,noexec,nosuid,size=32m

@@ -9,14 +9,36 @@ import (
 )
 
 type Config struct {
-	HTTPAddr         string
-	RunQuestionLimit int
-	QuestionSource   string
-	FallbackLocale   string
-	SupportedLocales []string
-	SessionTTL       time.Duration
-	ShutdownTimeout  time.Duration
-	OpenAI           OpenAIConfig
+	HTTPAddr                string
+	RunQuestionLimit        int
+	RunStorageProvider      string
+	SolutionStorageProvider string
+	QuestionStorageProvider string
+	QuestionSource          string
+	FallbackLocale          string
+	SupportedLocales        []string
+	SessionTTL              time.Duration
+	ShutdownTimeout         time.Duration
+	Redis                   RedisConfig
+	S3                      S3Config
+	OpenAI                  OpenAIConfig
+}
+
+type RedisConfig struct {
+	Addr      string
+	Username  string
+	Password  string
+	DB        int
+	TLS       bool
+	KeyPrefix string
+}
+
+type S3Config struct {
+	Region         string
+	Bucket         string
+	Prefix         string
+	EndpointURL    string
+	ForcePathStyle bool
 }
 
 type OpenAIConfig struct {
@@ -33,13 +55,31 @@ func Load() Config {
 	loadDotEnv(getEnv("ENV_FILE", ".env"))
 
 	return Config{
-		HTTPAddr:         getEnv("HTTP_ADDR", ":8080"),
-		RunQuestionLimit: getEnvInt("RUN_QUESTION_LIMIT", 10),
-		QuestionSource:   getEnv("QUESTION_SOURCE", ".local"),
-		FallbackLocale:   getEnv("FALLBACK_LOCALE", "en-US"),
-		SupportedLocales: getEnvList("SUPPORTED_LOCALES", []string{"en-US", "pt-BR"}),
-		SessionTTL:       getEnvDuration("SESSION_TTL", 30*time.Minute),
-		ShutdownTimeout:  getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
+		HTTPAddr:                getEnv("HTTP_ADDR", ":8080"),
+		RunQuestionLimit:        getEnvInt("RUN_QUESTION_LIMIT", 10),
+		RunStorageProvider:      strings.ToLower(strings.TrimSpace(getEnv("RUN_STORAGE_PROVIDER", "memory"))),
+		SolutionStorageProvider: strings.ToLower(strings.TrimSpace(getEnv("SOLUTION_STORAGE_PROVIDER", "local"))),
+		QuestionStorageProvider: strings.ToLower(strings.TrimSpace(getEnv("QUESTION_STORAGE_PROVIDER", "local"))),
+		QuestionSource:          getEnv("QUESTION_SOURCE", ".local"),
+		FallbackLocale:          getEnv("FALLBACK_LOCALE", "en-US"),
+		SupportedLocales:        getEnvList("SUPPORTED_LOCALES", []string{"en-US", "pt-BR"}),
+		SessionTTL:              getEnvDuration("SESSION_TTL", 30*time.Minute),
+		ShutdownTimeout:         getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
+		Redis: RedisConfig{
+			Addr:      getEnv("REDIS_ADDR", "127.0.0.1:6379"),
+			Username:  getEnv("REDIS_USERNAME", ""),
+			Password:  getEnv("REDIS_PASSWORD", ""),
+			DB:        getEnvInt("REDIS_DB", 0),
+			TLS:       getEnvBool("REDIS_TLS", false),
+			KeyPrefix: getEnv("REDIS_KEY_PREFIX", "quickquiz:runs:"),
+		},
+		S3: S3Config{
+			Region:         getEnv("AWS_REGION", "us-east-1"),
+			Bucket:         getEnv("S3_BUCKET", ""),
+			Prefix:         getEnv("S3_PREFIX", "questions"),
+			EndpointURL:    getEnv("S3_ENDPOINT_URL", ""),
+			ForcePathStyle: getEnvBool("S3_FORCE_PATH_STYLE", false),
+		},
 		OpenAI: OpenAIConfig{
 			APIKey:             getEnv("OPENAI_API_KEY", ""),
 			BaseURL:            getEnv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
@@ -132,5 +172,18 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 
+	return parsed
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fallback
+	}
 	return parsed
 }
