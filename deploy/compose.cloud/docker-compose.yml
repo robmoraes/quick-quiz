@@ -239,11 +239,13 @@ services:
         condition: service_healthy
         restart: true
     restart: unless-stopped
+    read_only: true
     user: "${QUICKQUIZ_RUNTIME_UID:-1000}:${QUICKQUIZ_RUNTIME_GID:-1000}"
     volumes:
       - ${QUICKQUIZ_CONTENT_ROOT}:/content
     tmpfs:
       - /app/var:rw,noexec,nosuid,size=64m,mode=1777
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
     networks:
       - web
     healthcheck:
