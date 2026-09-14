@@ -7,6 +7,7 @@ Docker packaging for running and testing QuickQuiz Dev locally with a production
 ## Services
 
 - `api`: statically compiled Go API in a multi-stage image, running without root.
+- `redis`: ephemeral run/session storage, limited to 256 MiB of data and 384 MiB of container memory.
 - `ads-api`: statically compiled Go Ads API for advertising delivery and management.
 - `spa-dev`: static Quasar/Vue build served by Nginx without root.
 - `spa-dslab`: static DSLab-themed Quasar/Vue build served by Nginx without root.
@@ -18,13 +19,13 @@ Docker packaging for running and testing QuickQuiz Dev locally with a production
 Copy the sample environment file when you want to override ports, secrets, image tags, or the content path:
 
 ```sh
-cp deploy/compose/.env.example deploy/compose/.env
+cp deploy/compose.local/.env-example deploy/compose.local/.env
 ```
 
 Start the stack:
 
 ```sh
-docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.yml up -d --build
+docker compose --env-file deploy/compose.local/.env -f deploy/compose.local/docker-compose.yml up -d --build
 ```
 
 Local URLs:
@@ -33,7 +34,10 @@ Local URLs:
 - SPA Dev: `http://localhost:8082`
 - Manager: `http://localhost:8081`
 
-By default, Compose mounts `deploy/content-demo` as the local demo content. The API mounts it read-only at `/app/.local`; the manager mounts the same directory at `/content` with write access for local tests. To use another content directory, set `QUICKQUIZ_CONTENT_ROOT` in `deploy/compose/.env`.
+The local Compose starts Redis with the stack and configures the API to use it through the internal Docker network. Redis is not installed on the host, exposes no host port, and has no persistent volume; restarting it invalidates active quiz sessions. The official image supports both `linux/amd64` and `linux/arm64`.
+Generated solutions remain in API memory in this local profile and can be regenerated, so the API writes no runtime state to its filesystem.
+
+By default, Compose mounts `deploy/content-demo` as the local demo content. The API mounts it read-only at `/app/.local`; the manager mounts the same directory at `/content` with write access for local tests. To use another content directory, set `QUICKQUIZ_CONTENT_ROOT` in `deploy/compose.local/.env`.
 
 The manager SQLite database is stored under the mounted content directory by default:
 
@@ -46,7 +50,7 @@ The manager creates `.manager/manager.sqlite` when the admin repository is first
 Create a local manager admin:
 
 ```sh
-docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.yml exec manager-fpm \
+docker compose --env-file deploy/compose.local/.env -f deploy/compose.local/docker-compose.yml exec manager-fpm \
   php bin/console manager:admin:create admin@example.com 'change-this-password'
 ```
 
