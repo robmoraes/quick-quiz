@@ -9,6 +9,9 @@ services:
     env_file:
       - .env
     depends_on:
+      manager-db:
+        condition: service_healthy
+        restart: true
       redis:
         condition: service_healthy
         restart: true
@@ -25,6 +28,28 @@ services:
       QUICKQUIZ_API_BASE_URL: ${QUICKQUIZ_API_BASE_URL:-http://host.docker.internal:8080}
       QUICKQUIZ_ADS_API_BASE_URL: ${QUICKQUIZ_ADS_API_BASE_URL:-http://host.docker.internal:8084}
 
+  manager-db:
+    image: postgres:17-alpine
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=30
+    environment:
+      POSTGRES_DB: ${MANAGER_DB_NAME:-quickquiz_manager}
+      POSTGRES_USER: ${MANAGER_DB_USER:-quickquiz}
+      POSTGRES_PASSWORD: ${MANAGER_DB_PASSWORD:-quickquiz-local}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    mem_limit: 256m
+    restart: unless-stopped
+    volumes:
+      - manager-db-data:/var/lib/postgresql/data
 
   redis:
     image: redis:7.4-alpine
@@ -49,3 +74,6 @@ services:
     restart: unless-stopped
     tmpfs:
       - /data:rw,noexec,nosuid,size=32m
+
+volumes:
+  manager-db-data:

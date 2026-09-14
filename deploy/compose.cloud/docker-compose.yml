@@ -178,6 +178,31 @@ services:
       - traefik.http.routers.quickquiz-dslab.tls.certresolver=letsencrypt
       - traefik.http.services.quickquiz-dslab.loadbalancer.server.port=8080
 
+  manager-db:
+    image: ${QUICKQUIZ_IMAGE_POSTGRES:-postgres:17-alpine}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=30
+    environment:
+      POSTGRES_DB: ${MANAGER_DB_NAME:-quickquiz_manager}
+      POSTGRES_USER: ${MANAGER_DB_USER:-quickquiz}
+      POSTGRES_PASSWORD: ${MANAGER_DB_PASSWORD:-quickquiz-local}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    mem_limit: ${MANAGER_DB_MEMORY_LIMIT:-256m}
+    restart: unless-stopped
+    volumes:
+      - manager-db-data:/var/lib/postgresql/data
+    networks:
+      - web
+
   manager-fpm:
     image: ${QUICKQUIZ_IMAGE_MANAGER_FPM}
     environment:
@@ -198,6 +223,9 @@ services:
       OPENAI_PROJECT: ${OPENAI_PROJECT:-}
       OPENAI_ORG_ID: ${OPENAI_ORG_ID:-}
     depends_on:
+      manager-db:
+        condition: service_healthy
+        restart: true
       redis:
         condition: service_healthy
         restart: true
@@ -235,3 +263,6 @@ services:
       - traefik.http.routers.quickquiz-manager.tls=true
       - traefik.http.routers.quickquiz-manager.tls.certresolver=letsencrypt
       - traefik.http.services.quickquiz-manager.loadbalancer.server.port=8080
+
+volumes:
+  manager-db-data:

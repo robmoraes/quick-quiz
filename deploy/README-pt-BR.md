@@ -8,10 +8,11 @@ Empacotamento Docker para executar e testar o QuickQuiz Dev localmente com uma e
 
 - `api`: API Go compilada estaticamente em imagem multi-stage, rodando sem root.
 - `redis`: armazenamento efêmero de runs/sessões, limitado a 256 MiB de dados e 384 MiB de memória do container.
+- `manager-db`: PostgreSQL para administradores e prompts de IA do Manager.
 - `ads-api`: API Go de publicidade para entrega e gerenciamento de anúncios.
 - `spa-dev`: build estático Quasar/Vue servido por Nginx sem root.
 - `spa-dslab`: build estático Quasar/Vue com tema DSLab servido por Nginx sem root.
-- `manager-fpm`: app Symfony manager com dependências Composer de produção, PHP-FPM, OPcache e SQLite.
+- `manager-fpm`: app Symfony manager com dependências Composer de produção, PHP-FPM, OPcache e PDO PostgreSQL.
 - `manager-web`: Nginx leve para servir o manager via FastCGI.
 
 ## Execução Local
@@ -39,13 +40,10 @@ As soluções geradas permanecem na memória da API neste perfil local e podem s
 
 Por padrão, o Compose monta `deploy/content-demo` como conteúdo local de demonstração. A API monta esse conteúdo como somente leitura em `/app/.local`; o manager monta a mesma pasta em `/content` com escrita para testes locais. Para usar outra pasta de conteúdo, ajuste `QUICKQUIZ_CONTENT_ROOT` em `deploy/compose.local/.env`.
 
-O banco SQLite do manager fica, por padrão, dentro da pasta de conteúdo montada:
-
-```text
-<QUICKQUIZ_CONTENT_ROOT>/.manager/manager.sqlite
-```
-
-O manager cria `.manager/manager.sqlite` quando o repositório de admin é usado pela primeira vez, por exemplo em uma tentativa de login ou ao criar um usuário admin.
+O Manager guarda administradores e prompts de IA no PostgreSQL. O banco local
+fica disponível somente na rede interna do Docker e persiste no volume
+`manager-db-data`. Configure-o com `MANAGER_DATABASE_URL` e as variáveis
+`MANAGER_DB_*`.
 
 Crie um admin local do manager:
 

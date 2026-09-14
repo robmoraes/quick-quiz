@@ -22,8 +22,8 @@ Responsibilities:
 
 The manager is not the player API. It may have admin authentication for editing
 content, but that does not imply player accounts. Login sessions are stored in
-Redis. Admin accounts and AI prompts remain in SQLite, and published content is
-still written under `MANAGER_CONTENT_ROOT`.
+Redis. Admin accounts and AI prompts are stored in PostgreSQL, and published
+content is still written under `MANAGER_CONTENT_ROOT`.
 
 ## API
 

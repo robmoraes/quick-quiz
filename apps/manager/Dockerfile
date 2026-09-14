@@ -1,9 +1,9 @@
 ARG MANAGER_DOCKER_PHP_VERSION=8.3
 FROM php:${MANAGER_DOCKER_PHP_VERSION}-cli-alpine
 
-RUN apk add --no-cache bash git unzip sqlite-libs \
-  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS sqlite-dev \
-  && docker-php-ext-install pdo_sqlite \
+RUN apk add --no-cache bash git libpq sqlite-libs unzip \
+  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpq-dev sqlite-dev \
+  && docker-php-ext-install pdo_pgsql pdo_sqlite \
   && apk del .build-deps
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

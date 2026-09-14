@@ -145,7 +145,6 @@ Recommended runtime layout:
 /opt/quickquiz/compose/.env
 /opt/quickquiz/themes.json
 /opt/quickquiz/dev/...
-/opt/quickquiz/.manager/manager.sqlite
 /opt/quickquiz/traefik/letsencrypt/acme.json
 ```
 
@@ -154,17 +153,10 @@ The cloud Compose file mounts `QUICKQUIZ_CONTENT_ROOT` into:
 - `/app/.local` read-only for the API.
 - `/content` read-write for the manager.
 
-The manager SQLite path defaults to:
-
-```text
-sqlite:////content/.manager/manager.sqlite
-```
-
-That means the database is persisted under:
-
-```text
-${QUICKQUIZ_CONTENT_ROOT}/.manager/manager.sqlite
-```
+The Manager stores administrators and AI prompts in the `manager-db` PostgreSQL
+service. `MANAGER_DATABASE_URL` configures the connection, while the database
+files persist in the `manager-db-data` Docker volume. Set a unique
+`MANAGER_DB_PASSWORD` and keep its matching URL outside Git.
 
 ## Cloud Compose
 
@@ -263,13 +255,13 @@ docker compose --env-file .env exec manager-fpm \
   php bin/console manager:admin:create admin@example.com 'change-this-password'
 ```
 
-The manager creates the SQLite database and `.manager` directory when the admin repository is first used.
+The Manager creates its PostgreSQL tables when the admin repository is first used.
 
 ## Operational Notes
 
 - Keep `MANAGER_APP_SECRET` stable between manager restarts so session cookies remain valid.
 - Redis is ephemeral in this single-node profile; restarting it invalidates active quiz runs and Manager login sessions.
 - Keep `ACME_EMAIL` set to a real mailbox for Let's Encrypt notifications.
-- Back up `QUICKQUIZ_CONTENT_ROOT`, especially quiz JSON files and `.manager/manager.sqlite`.
+- Back up `QUICKQUIZ_CONTENT_ROOT` and the Manager PostgreSQL database with `pg_dump`.
 - The Terraform state and `.env` files can contain sensitive or environment-specific values and should not be committed.
 - If API startup fails, check that `${QUICKQUIZ_CONTENT_ROOT}/themes.json` and the active theme package exist and are valid.

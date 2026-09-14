@@ -10,19 +10,14 @@ final class AiPromptRepository
 {
     private ?PDO $pdo = null;
 
-    public function __construct(private string $databaseUrl)
+    public function __construct(private readonly string $databaseUrl)
     {
-        $this->databaseUrl = str_replace('%kernel.project_dir%', dirname(__DIR__, 2), $databaseUrl);
     }
 
     public function initialize(): void
     {
         $pdo = $this->pdo();
-        $exists = (bool) $pdo
-            ->query("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'ai_prompts'")
-            ->fetchColumn();
-
-        if ($exists && !$this->hasThemeColumn()) {
+        if ($this->tableExists() && !$this->hasThemeColumn()) {
             $pdo->exec('ALTER TABLE ai_prompts RENAME TO ai_prompts_legacy_'.date('YmdHis'));
         }
 
@@ -169,16 +164,50 @@ final class AiPromptRepository
         ];
     }
 
-    private function hasThemeColumn(): bool
+    private function tableExists(): bool
     {
-        $columns = $this->pdo()->query('PRAGMA table_info(ai_prompts)')->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($columns as $column) {
-            if (is_array($column) && ($column['name'] ?? null) === 'theme') {
-                return true;
-            }
+        $pdo = $this->pdo();
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            return (bool) $pdo
+                ->query("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'ai_prompts'")
+                ->fetchColumn();
         }
 
-        return false;
+        $statement = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.tables
+             WHERE table_schema = current_schema() AND table_name = :table_name',
+        );
+        $statement->execute(['table_name' => 'ai_prompts']);
+
+        return (bool) $statement->fetchColumn();
+    }
+
+    private function hasThemeColumn(): bool
+    {
+        $pdo = $this->pdo();
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $columns = $pdo->query('PRAGMA table_info(ai_prompts)')->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($columns as $column) {
+                if (is_array($column) && ($column['name'] ?? null) === 'theme') {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        $statement = $pdo->prepare(
+            'SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = current_schema()
+               AND table_name = :table_name
+               AND column_name = :column_name',
+        );
+        $statement->execute([
+            'table_name' => 'ai_prompts',
+            'column_name' => 'theme',
+        ]);
+
+        return (bool) $statement->fetchColumn();
     }
 
     private function normalizeTheme(string $theme): string
@@ -193,28 +222,10 @@ final class AiPromptRepository
 
     private function pdo(): PDO
     {
-        if ($this->pdo instanceof PDO) {
-            return $this->pdo;
+        if (!$this->pdo instanceof PDO) {
+            $this->pdo = DatabaseConnectionFactory::connect($this->databaseUrl);
         }
 
-        $path = $this->sqlitePath();
-        $dir = dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new RuntimeException(sprintf('Could not create database directory %s.', $dir));
-        }
-
-        $this->pdo = new PDO('sqlite:'.$path);
-        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         return $this->pdo;
-    }
-
-    private function sqlitePath(): string
-    {
-        $prefix = 'sqlite:///';
-        if (!str_starts_with($this->databaseUrl, $prefix)) {
-            throw new RuntimeException('Only sqlite database URLs are supported by the manager.');
-        }
-
-        return substr($this->databaseUrl, strlen($prefix));
     }
 }

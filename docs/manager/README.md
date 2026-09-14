@@ -32,7 +32,9 @@ http://localhost:8081
 
 The session connection, TTL, and key namespace are controlled by
 `MANAGER_SESSION_REDIS_DSN`, `MANAGER_SESSION_TTL`, and
-`MANAGER_SESSION_PREFIX`. Local Compose uses Redis database 1.
+`MANAGER_SESSION_PREFIX`. Local Compose uses Redis database 1. Admin accounts
+and AI prompts use PostgreSQL through `MANAGER_DATABASE_URL`; its data remains
+in the `manager-db-data` Docker volume.
 
 Run tests:
 

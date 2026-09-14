@@ -33,6 +33,8 @@ http://localhost:8081
 Session storage is configured with `MANAGER_SESSION_REDIS_DSN`,
 `MANAGER_SESSION_TTL`, and `MANAGER_SESSION_PREFIX`. The Compose defaults use
 Redis database 1 so Manager sessions remain separate from Quiz API run data.
+Admin accounts and AI prompts use PostgreSQL through `MANAGER_DATABASE_URL`.
+The Compose service stores database files in the `manager-db-data` volume.
 
 ## Commands
 
@@ -68,7 +70,7 @@ Themes are managed through:
 After login, select a theme before managing catalog topics or questions. Inactive
 themes remain editable in the manager but are not served by the player API.
 
-The `question_solution` AI prompt is stored in the manager SQLite database and
+The `question_solution` AI prompt is stored in the manager database and
 exported to `/content/<theme>/ai-prompts/question-solution-prompt.txt` when it is
 saved, restored, or imported from JSON. Configure the API with
 `OPENAI_SOLUTION_PROMPT_FILE=<QUESTION_SOURCE>/{{theme}}/ai-prompts/question-solution-prompt.txt`

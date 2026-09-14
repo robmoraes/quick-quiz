@@ -9,22 +9,25 @@ final class AdminRepository
 {
     private ?PDO $pdo = null;
 
-    public function __construct(private string $databaseUrl)
+    public function __construct(private readonly string $databaseUrl)
     {
-        $this->databaseUrl = str_replace('%kernel.project_dir%', dirname(__DIR__, 2), $databaseUrl);
     }
 
     public function initialize(): void
     {
         $pdo = $this->pdo();
-        $pdo->exec(
+        $idDefinition = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+            ? 'BIGSERIAL PRIMARY KEY'
+            : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+        $pdo->exec(sprintf(
             'CREATE TABLE IF NOT EXISTS admins (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id %s,
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 created_at TEXT NOT NULL
             )',
-        );
+            $idDefinition,
+        ));
     }
 
     public function createAdmin(string $email, string $password): void
@@ -74,28 +77,10 @@ final class AdminRepository
 
     private function pdo(): PDO
     {
-        if ($this->pdo instanceof PDO) {
-            return $this->pdo;
+        if (!$this->pdo instanceof PDO) {
+            $this->pdo = DatabaseConnectionFactory::connect($this->databaseUrl);
         }
 
-        $path = $this->sqlitePath();
-        $dir = dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new RuntimeException(sprintf('Could not create database directory %s.', $dir));
-        }
-
-        $this->pdo = new PDO('sqlite:'.$path);
-        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         return $this->pdo;
-    }
-
-    private function sqlitePath(): string
-    {
-        $prefix = 'sqlite:///';
-        if (!str_starts_with($this->databaseUrl, $prefix)) {
-            throw new RuntimeException('Only sqlite database URLs are supported by the manager.');
-        }
-
-        return substr($this->databaseUrl, strlen($prefix));
     }
 }

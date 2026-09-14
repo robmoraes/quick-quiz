@@ -135,6 +135,29 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=32m
 
+  manager-db:
+    image: ${QUICKQUIZ_IMAGE_POSTGRES:-postgres:17-alpine}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - max_connections=30
+    environment:
+      POSTGRES_DB: ${MANAGER_DB_NAME:-quickquiz_manager}
+      POSTGRES_USER: ${MANAGER_DB_USER:-quickquiz}
+      POSTGRES_PASSWORD: ${MANAGER_DB_PASSWORD:-quickquiz-local}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    mem_limit: ${MANAGER_DB_MEMORY_LIMIT:-256m}
+    restart: unless-stopped
+    volumes:
+      - manager-db-data:/var/lib/postgresql/data
+
   manager-fpm:
     image: ${QUICKQUIZ_IMAGE_MANAGER_FPM:-quickquiz-manager-fpm:local}
     build:
@@ -145,7 +168,7 @@ services:
       APP_ENV: prod
       APP_DEBUG: "0"
       APP_SECRET: ${MANAGER_APP_SECRET:-change-me-for-local-only}
-      MANAGER_DATABASE_URL: ${MANAGER_DATABASE_URL:-sqlite:////content/.manager/manager.sqlite}
+      MANAGER_DATABASE_URL: ${MANAGER_DATABASE_URL:-postgresql://quickquiz:quickquiz-local@manager-db:5432/quickquiz_manager}
       MANAGER_CONTENT_ROOT: /content
       MANAGER_SESSION_REDIS_DSN: ${MANAGER_SESSION_REDIS_DSN:-redis://redis:6379/1}
       MANAGER_SESSION_TTL: ${MANAGER_SESSION_TTL:-3600}
@@ -159,6 +182,9 @@ services:
       OPENAI_PROJECT: ${OPENAI_PROJECT:-}
       OPENAI_ORG_ID: ${OPENAI_ORG_ID:-}
     depends_on:
+      manager-db:
+        condition: service_healthy
+        restart: true
       redis:
         condition: service_healthy
         restart: true
@@ -191,3 +217,6 @@ services:
     restart: unless-stopped
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=32m
+
+volumes:
+  manager-db-data:
