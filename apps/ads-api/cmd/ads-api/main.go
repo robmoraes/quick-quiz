@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,8 +23,11 @@ func main() {
 	}))
 
 	cfg := config.Load()
-	adStore := store.NewFileAdStore(cfg.AdsSource)
-	catalogStore := store.NewFileCatalogStore(cfg.AdsSource)
+	adStore, catalogStore, err := loadStores(context.Background(), cfg)
+	if err != nil {
+		logger.Error("failed to initialize content storage", "provider", cfg.AdsStorageProvider, "error", err)
+		os.Exit(1)
+	}
 	publicService := app.NewPublicAdService(adStore, catalogStore)
 	adminService := app.NewAdminAdService(adStore, catalogStore)
 
@@ -55,5 +60,28 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("http server shutdown failed", "error", err)
 		os.Exit(1)
+	}
+}
+
+func loadStores(ctx context.Context, cfg config.Config) (app.AdRepository, app.CatalogRepository, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.AdsStorageProvider)) {
+	case "", "local":
+		return store.NewFileAdStore(cfg.AdsSource), store.NewFileCatalogStore(cfg.AdsSource), nil
+	case "s3":
+		connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		adStore, catalogStore, err := store.NewS3Stores(connectCtx, store.S3ContentStoreConfig{
+			Region:         cfg.S3.Region,
+			Bucket:         cfg.S3.Bucket,
+			Prefix:         cfg.S3.Prefix,
+			EndpointURL:    cfg.S3.EndpointURL,
+			ForcePathStyle: cfg.S3.ForcePathStyle,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		return adStore, catalogStore, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported ADS_STORAGE_PROVIDER %q: use local or s3", cfg.AdsStorageProvider)
 	}
 }
