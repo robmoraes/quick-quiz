@@ -23,9 +23,10 @@ resource "aws_eip" "quickquiz" {
 
 resource "aws_instance" "quickquiz" {
   ami           = var.ami_id
-  instance_type = "t3.micro"
+  instance_type = var.instance_type
 
-  key_name = aws_key_pair.quickquiz.key_name
+  key_name             = aws_key_pair.quickquiz.key_name
+  iam_instance_profile = aws_iam_instance_profile.quickquiz.name
 
   vpc_security_group_ids = [
     aws_security_group.quickquiz.id
@@ -41,6 +42,102 @@ resource "aws_instance" "quickquiz" {
     Owner       = "CarlosRMoraes"
     CostCenter  = "QuickQuiz"
   }
+}
+
+resource "aws_s3_bucket" "quickquiz_content" {
+  bucket = var.content_bucket_name
+
+  tags = {
+    Name        = "quickquiz-beta-content"
+    Project     = "QuickQuiz"
+    Owner       = "CarlosRMoraes"
+    CostCenter  = "QuickQuiz"
+    Environment = "Beta"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "quickquiz_content" {
+  bucket = aws_s3_bucket.quickquiz_content.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "quickquiz_content" {
+  bucket = aws_s3_bucket.quickquiz_content.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_versioning" "quickquiz_content" {
+  bucket = aws_s3_bucket.quickquiz_content.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_iam_role" "quickquiz" {
+  name = "quickquiz-beta-ec2"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+      Action = "sts:AssumeRole"
+    }]
+  })
+
+  tags = {
+    Project     = "QuickQuiz"
+    Owner       = "CarlosRMoraes"
+    CostCenter  = "QuickQuiz"
+    Environment = "Beta"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "aws_iam_role_policy" "quickquiz_content" {
+  name = "quickquiz-beta-content-s3"
+  role = aws_iam_role.quickquiz.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "ListContentPrefix"
+        Effect   = "Allow"
+        Action   = "s3:ListBucket"
+        Resource = aws_s3_bucket.quickquiz_content.arn
+        Condition = {
+          StringLike = {
+            "s3:prefix" = ["questions", "questions/*"]
+          }
+        }
+      },
+      {
+        Sid      = "ManageContentObjects"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = "${aws_s3_bucket.quickquiz_content.arn}/questions/*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_instance_profile" "quickquiz" {
+  name = "quickquiz-beta-ec2"
+  role = aws_iam_role.quickquiz.name
 }
 
 resource "aws_eip_association" "quickquiz" {
@@ -67,7 +164,6 @@ resource "aws_security_group" "quickquiz" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
 
   ingress {
     description = "SSH from current IP"
