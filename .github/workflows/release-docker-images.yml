@@ -29,6 +29,7 @@ jobs:
       DOCKERHUB_SPA_DSLAB_IMAGE: ${{ vars.DOCKERHUB_SPA_DSLAB_IMAGE }}
       DOCKERHUB_MANAGER_FPM_IMAGE: ${{ vars.DOCKERHUB_MANAGER_FPM_IMAGE }}
       DOCKERHUB_MANAGER_WEB_IMAGE: ${{ vars.DOCKERHUB_MANAGER_WEB_IMAGE }}
+      DOCKER_PLATFORMS: linux/amd64,linux/arm64
 
     steps:
       - name: Classify release tag
@@ -266,6 +267,12 @@ jobs:
         working-directory: apps/manager
         run: composer test
 
+      - name: Set up QEMU
+        if: steps.tag.outputs.implemented == 'true'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Set up Docker Buildx
         if: steps.tag.outputs.implemented == 'true'
         uses: docker/setup-buildx-action@v3
@@ -281,37 +288,37 @@ jobs:
         if: steps.tag.outputs.app == 'api'
         env:
           API_TAG: ${{ steps.tag.outputs.version }}
-        run: make -C deploy api API_TAG="${API_TAG}" API_REPOSITORY="${DOCKERHUB_API_IMAGE}" OUTPUT=push
+        run: make -C deploy api API_TAG="${API_TAG}" API_REPOSITORY="${DOCKERHUB_API_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
 
       - name: Build and push Ads API image
         if: steps.tag.outputs.app == 'ads-api'
         env:
           ADS_API_TAG: ${{ steps.tag.outputs.version }}
-        run: make -C deploy ads-api ADS_API_TAG="${ADS_API_TAG}" ADS_API_REPOSITORY="${DOCKERHUB_ADS_API_IMAGE}" OUTPUT=push
+        run: make -C deploy ads-api ADS_API_TAG="${ADS_API_TAG}" ADS_API_REPOSITORY="${DOCKERHUB_ADS_API_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
 
       - name: Build and push SPA Dev image
         if: steps.tag.outputs.app == 'spa-dev'
         env:
           SPA_DEV_TAG: ${{ steps.tag.outputs.version }}
-        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" OUTPUT=push
+        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
 
       - name: Build and push SPA DSLab image
         if: steps.tag.outputs.app == 'spa-dslab'
         env:
           SPA_DSLAB_TAG: ${{ steps.tag.outputs.version }}
-        run: make -C deploy spa-dslab SPA_DSLAB_TAG="${SPA_DSLAB_TAG}" SPA_DSLAB_REPOSITORY="${DOCKERHUB_SPA_DSLAB_IMAGE}" OUTPUT=push
+        run: make -C deploy spa-dslab SPA_DSLAB_TAG="${SPA_DSLAB_TAG}" SPA_DSLAB_REPOSITORY="${DOCKERHUB_SPA_DSLAB_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
 
       - name: Build and push manager FPM image
         if: steps.tag.outputs.app == 'manager'
         env:
           MANAGER_FPM_TAG: ${{ steps.tag.outputs.version }}
-        run: make -C deploy manager-fpm MANAGER_FPM_TAG="${MANAGER_FPM_TAG}" MANAGER_FPM_REPOSITORY="${DOCKERHUB_MANAGER_FPM_IMAGE}" OUTPUT=push
+        run: make -C deploy manager-fpm MANAGER_FPM_TAG="${MANAGER_FPM_TAG}" MANAGER_FPM_REPOSITORY="${DOCKERHUB_MANAGER_FPM_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
 
       - name: Build and push manager web image
         if: steps.tag.outputs.app == 'manager'
         env:
           MANAGER_WEB_TAG: ${{ steps.tag.outputs.version }}
-        run: make -C deploy manager-web MANAGER_WEB_TAG="${MANAGER_WEB_TAG}" MANAGER_WEB_REPOSITORY="${DOCKERHUB_MANAGER_WEB_IMAGE}" OUTPUT=push
+        run: make -C deploy manager-web MANAGER_WEB_TAG="${MANAGER_WEB_TAG}" MANAGER_WEB_REPOSITORY="${DOCKERHUB_MANAGER_WEB_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
 
       - name: Summarize API image push
         if: steps.tag.outputs.app == 'api'
@@ -324,6 +331,7 @@ jobs:
             echo ""
             echo "## Published images"
             echo ""
+            echo "- Platforms: \`${DOCKER_PLATFORMS}\`"
             echo "- \`${API_IMAGE}:${API_TAG}\`"
             echo "- \`${API_IMAGE}:latest\`"
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -339,6 +347,7 @@ jobs:
             echo ""
             echo "## Published images"
             echo ""
+            echo "- Platforms: \`${DOCKER_PLATFORMS}\`"
             echo "- \`${ADS_API_IMAGE}:${ADS_API_TAG}\`"
             echo "- \`${ADS_API_IMAGE}:latest\`"
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -354,6 +363,7 @@ jobs:
             echo ""
             echo "## Published images"
             echo ""
+            echo "- Platforms: \`${DOCKER_PLATFORMS}\`"
             echo "- \`${SPA_DEV_IMAGE}:${SPA_DEV_TAG}\`"
             echo "- \`${SPA_DEV_IMAGE}:latest\`"
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -369,6 +379,7 @@ jobs:
             echo ""
             echo "## Published images"
             echo ""
+            echo "- Platforms: \`${DOCKER_PLATFORMS}\`"
             echo "- \`${SPA_DSLAB_IMAGE}:${SPA_DSLAB_TAG}\`"
             echo "- \`${SPA_DSLAB_IMAGE}:latest\`"
           } >> "${GITHUB_STEP_SUMMARY}"
@@ -383,6 +394,7 @@ jobs:
             echo ""
             echo "## Published images"
             echo ""
+            echo "- Platforms: \`${DOCKER_PLATFORMS}\`"
             echo "- \`${DOCKERHUB_MANAGER_FPM_IMAGE}:${MANAGER_TAG}\`"
             echo "- \`${DOCKERHUB_MANAGER_FPM_IMAGE}:latest\`"
             echo "- \`${DOCKERHUB_MANAGER_WEB_IMAGE}:${MANAGER_TAG}\`"

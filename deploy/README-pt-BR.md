@@ -103,7 +103,21 @@ MANAGER_WEB_REPOSITORY=example/manager-web
 
 ## Builds de Imagens
 
-O Makefile usa `docker buildx` e constrói imagens `linux/amd64` por padrão.
+O Makefile usa `docker buildx` e constrói imagens `linux/amd64` e `linux/arm64` por padrão.
+
+Builds multiplataforma exigem um builder `docker-container` com suporte para
+executar ARM. O workflow de release configura QEMU e Buildx automaticamente.
+Para um build manual no Linux, instale a emulação ARM e crie uma vez um builder
+dedicado:
+
+```sh
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+docker buildx create --name quickquiz-multiarch --driver docker-container --bootstrap
+export BUILDER=quickquiz-multiarch
+```
+
+O Docker Desktop já fornece emulação; normalmente basta criar o builder e
+exportar `BUILDER`.
 
 Para o fluxo opcional de publicação em nuvem usando AWS EC2, Docker Compose, Traefik e os domínios do projeto, consulte [Cloud Publishing](./CLOUD-PUBLISHING.md).
 
@@ -124,6 +138,17 @@ make -C deploy build-images \
 ```
 
 Quando `OUTPUT=push` é usado, o Makefile também marca e publica a mesma imagem como `latest` em cada repositório. Por exemplo, `TAG=v0.1.0-beta` publica `robmoraes/quick-quiz-api:v0.1.0-beta` e `robmoraes/quick-quiz-api:latest`.
+
+`OUTPUT=push` publica um único manifesto multiplataforma para as duas
+arquiteturas. Os artefatos OCI também contêm ambas. Como o Docker não carrega
+um manifesto multiplataforma no armazenamento local, use uma única plataforma
+com `OUTPUT=load`:
+
+```sh
+make -C deploy build-images PLATFORM=linux/amd64 OUTPUT=load
+```
+
+Use `PLATFORM=linux/arm64` para exportar ou carregar somente ARM.
 
 As imagens das SPAs são independentes do ambiente. Na inicialização do
 contêiner, o Compose mapeia os valores `SPA_*_API_BASE_URL` para
@@ -158,6 +183,7 @@ Carregue imagens no Docker local:
 
 ```sh
 make -C deploy build-images \
+  PLATFORM=linux/amd64 \
   OUTPUT=load
 ```
 

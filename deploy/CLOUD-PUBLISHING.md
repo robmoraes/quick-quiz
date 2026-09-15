@@ -75,9 +75,9 @@ make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
 
-The build currently targets `linux/amd64`.
+The build publishes a multi-platform manifest for `linux/amd64` and `linux/arm64`.
 
-During the beta phase, image publishing is manual and intentionally stays outside GitHub Actions. The operator builds and pushes images from a local machine using the deploy Makefile.
+Supported release tags publish the same multi-platform images through GitHub Actions. The commands above remain available for an explicit manual release from a configured workstation.
 
 ## Infrastructure
 

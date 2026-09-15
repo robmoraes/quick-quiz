@@ -8,7 +8,8 @@ SPA_DEV_TAG ?= $(TAG)
 SPA_DSLAB_TAG ?= $(TAG)
 MANAGER_FPM_TAG ?= $(TAG)
 MANAGER_WEB_TAG ?= $(TAG)
-PLATFORM ?= linux/amd64
+PLATFORM ?= linux/amd64,linux/arm64
+BUILDER ?=
 OUTPUT ?= oci
 
 API_REPOSITORY ?= robmoraes/quick-quiz-api
@@ -29,7 +30,7 @@ MANAGER_DOCKERFILE := $(ROOT_DIR)/deploy/docker/manager/Dockerfile
 build-images: api ads-api spa-dev spa-dslab manager-fpm manager-web
 
 api: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(API_REPOSITORY),$(API_TAG)) \
 		--file "$(API_DOCKERFILE)" \
@@ -37,7 +38,7 @@ api: validate-output dist-dir
 		"$(ROOT_DIR)"
 
 ads-api: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(ADS_API_REPOSITORY),$(ADS_API_TAG)) \
 		--file "$(ADS_API_DOCKERFILE)" \
@@ -45,7 +46,7 @@ ads-api: validate-output dist-dir
 		"$(ROOT_DIR)"
 
 spa-dev: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(SPA_DEV_REPOSITORY),$(SPA_DEV_TAG)) \
 		--file "$(SPA_DEV_DOCKERFILE)" \
@@ -53,7 +54,7 @@ spa-dev: validate-output dist-dir
 		"$(ROOT_DIR)"
 
 spa-dslab: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(SPA_DSLAB_REPOSITORY),$(SPA_DSLAB_TAG)) \
 		--file "$(SPA_DSLAB_DOCKERFILE)" \
@@ -61,7 +62,7 @@ spa-dslab: validate-output dist-dir
 		"$(ROOT_DIR)"
 
 manager-fpm: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(MANAGER_FPM_REPOSITORY),$(MANAGER_FPM_TAG)) \
 		--file "$(MANAGER_DOCKERFILE)" \
@@ -70,7 +71,7 @@ manager-fpm: validate-output dist-dir
 		"$(ROOT_DIR)"
 
 manager-web: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(MANAGER_WEB_REPOSITORY),$(MANAGER_WEB_TAG)) \
 		--file "$(MANAGER_DOCKERFILE)" \
@@ -82,6 +83,11 @@ validate-output:
 	@if [ "$(OUTPUT)" != "oci" ] && [ "$(OUTPUT)" != "push" ] && [ "$(OUTPUT)" != "load" ]; then \
 		echo "Unsupported OUTPUT=$(OUTPUT). Use oci, push, or load." >&2; \
 		exit 1; \
+	fi
+	@if [ "$(OUTPUT)" = "load" ]; then \
+		case "$(PLATFORM)" in \
+			*,*) echo "OUTPUT=load supports one platform. Set PLATFORM=linux/amd64 or PLATFORM=linux/arm64." >&2; exit 1 ;; \
+		esac; \
 	fi
 
 dist-dir:
