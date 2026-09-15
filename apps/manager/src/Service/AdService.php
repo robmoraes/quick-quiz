@@ -20,6 +20,7 @@ final class AdService
         private readonly string $contentRoot,
         private readonly string $adsApiBaseUrl,
         ?ContentStorage $contentStorage = null,
+        private readonly int $requestTimeout = 5,
     ) {
         $this->contentStorage = $contentStorage ?? new LocalContentStorage($this->contentRoot);
     }
@@ -474,7 +475,7 @@ final class AdService
     /** @param array<string,mixed> $options @param int|null $status @return array<string,mixed> */
     private function request(string $method, string $path, array $options, ?int &$status): array
     {
-        $requestOptions = ['timeout' => 5];
+        $requestOptions = ['timeout' => max(1, $this->requestTimeout)];
         if (isset($options['json'])) {
             $json = json_encode($options['json'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             if (!is_string($json)) {

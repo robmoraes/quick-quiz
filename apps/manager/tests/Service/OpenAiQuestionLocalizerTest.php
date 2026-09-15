@@ -133,6 +133,39 @@ final class OpenAiQuestionLocalizerTest extends TestCase
         self::assertSame('Custom prompt-only localization.', $requests[0]['input'][0]['content'][0]['text']);
     }
 
+    public function testUsesConfiguredEndpointAndTimeout(): void
+    {
+        $request = [];
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$request): MockResponse {
+            $request = [$method, $url, $options['timeout'] ?? null];
+
+            return new MockResponse(json_encode(['output_text' => json_encode([
+                'detectedLanguage' => 'en-US',
+                'localizations' => [[
+                    'locale' => 'en-US',
+                    'prompt' => 'Question',
+                    'correctOptions' => ['A'],
+                    'wrongOptions' => ['B'],
+                ]],
+            ])]));
+        });
+        $localizer = new OpenAiQuestionLocalizer(
+            httpClient: $client,
+            apiKey: 'test-key',
+            model: 'gpt-test',
+            baseUrl: 'http://openai.test/custom/',
+            requestTimeout: 11,
+        );
+
+        $localizer->localize([
+            'prompt' => 'Question',
+            'correctOptions' => ['A'],
+            'wrongOptions' => ['B'],
+        ], ['en-US']);
+
+        self::assertSame(['POST', 'http://openai.test/custom/responses', 11.0], $request);
+    }
+
     private function promptProvider(AiPromptRepository $repository): AiPromptProvider
     {
         $request = Request::create('/');

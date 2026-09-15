@@ -55,6 +55,10 @@ WORKDIR /app
 
 COPY deploy/docker/manager/php.ini /usr/local/etc/php/conf.d/zz-quickquiz.ini
 COPY deploy/docker/manager/php-fpm.conf /usr/local/etc/php-fpm.d/zz-quickquiz.conf
+COPY deploy/docker/manager/fpm-entrypoint.sh /usr/local/bin/manager-fpm-entrypoint
+
+RUN echo 'include=/tmp/quickquiz-fpm-runtime.conf' >> /usr/local/etc/php-fpm.conf \
+    && chmod +x /usr/local/bin/manager-fpm-entrypoint
 COPY --from=vendor /app /app
 
 RUN mkdir -p /app/var /content \
@@ -63,16 +67,18 @@ RUN mkdir -p /app/var /content \
 
 ENV APP_ENV=prod
 ENV APP_DEBUG=0
-ENV APP_SECRET=change-me
-ENV MANAGER_DATABASE_URL=sqlite:////app/var/manager.sqlite
-ENV MANAGER_CONTENT_ROOT=/content
-ENV FALLBACK_LOCALE=en-US
-ENV SUPPORTED_LOCALES=en-US,pt-BR
+ENV MANAGER_PHP_MEMORY_LIMIT=128M
+ENV MANAGER_PHP_POST_MAX_SIZE=2M
+ENV MANAGER_PHP_UPLOAD_MAX_FILESIZE=2M
+ENV MANAGER_PHP_OPCACHE_MEMORY=96
+ENV MANAGER_FPM_MAX_CHILDREN=8
+ENV MANAGER_FPM_START_SERVERS=2
+ENV MANAGER_FPM_MIN_SPARE_SERVERS=1
+ENV MANAGER_FPM_MAX_SPARE_SERVERS=3
 
 EXPOSE 9000
-VOLUME ["/app/var", "/content"]
 
-CMD ["php-fpm", "-F"]
+CMD ["manager-fpm-entrypoint"]
 
 FROM nginx:${NGINX_VERSION}-alpine AS nginx
 

@@ -36,6 +36,12 @@ Redis database 1 so Manager sessions remain separate from Quiz API run data.
 Admin accounts and AI prompts use PostgreSQL through `MANAGER_DATABASE_URL`.
 The Compose service stores database files in the `manager-db-data` volume.
 
+Operational settings are read from the container environment. Database, Redis,
+content storage, internal service URLs, HTTP timeouts, trusted proxies, OpenAI,
+locale, version, and PHP-FPM capacity can be changed by recreating the container;
+they do not require rebuilding the image. The PHP and Nginx versions remain
+build-time image dependencies. See `.env-example` for the complete variable set.
+
 ## Commands
 
 ```sh

@@ -13,8 +13,8 @@ final class ApiSessionMonitorTest extends TestCase
     public function testFetchesAndNormalizesActiveSessions(): void
     {
         $requests = [];
-        $client = new MockHttpClient(function (string $method, string $url) use (&$requests): MockResponse {
-            $requests[] = [$method, $url];
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$requests): MockResponse {
+            $requests[] = [$method, $url, $options['timeout'] ?? null];
 
             return new MockResponse(json_encode([
                 'generatedAt' => '2026-06-22T16:00:00Z',
@@ -40,11 +40,11 @@ final class ApiSessionMonitorTest extends TestCase
             ]));
         });
 
-        $monitor = new ApiSessionMonitor($client, 'http://api.local/');
+        $monitor = new ApiSessionMonitor($client, 'http://api.local/', 9);
 
         $result = $monitor->activeSessions();
 
-        self::assertSame([['GET', 'http://api.local/api/sessions/active']], $requests);
+        self::assertSame([['GET', 'http://api.local/api/sessions/active', 9.0]], $requests);
         self::assertSame('http://api.local', $result['apiBaseUrl']);
         self::assertSame(1, $result['total']);
         self::assertSame('Easy', $result['sessions'][0]['difficultyLabel']);

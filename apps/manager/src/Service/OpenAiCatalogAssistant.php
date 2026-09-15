@@ -16,6 +16,8 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
         private readonly string $organization = '',
         private readonly ?AiPromptProvider $aiPrompts = null,
         private readonly ?OpenAiModelProvider $modelProvider = null,
+        private readonly string $baseUrl = 'https://api.openai.com/v1',
+        private readonly int $requestTimeout = 45,
     ) {
     }
 
@@ -142,9 +144,9 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
         }
 
         try {
-            $response = $this->httpClient->request('POST', 'https://api.openai.com/v1/responses', [
+            $response = $this->httpClient->request('POST', $this->openAiEndpoint('responses'), [
                 'headers' => $headers,
-                'timeout' => 45,
+                'timeout' => max(1, $this->requestTimeout),
                 'json' => $body,
             ]);
             $statusCode = $response->getStatusCode();
@@ -159,6 +161,16 @@ final class OpenAiCatalogAssistant implements CatalogAssistant
         }
 
         return $data;
+    }
+
+    private function openAiEndpoint(string $path): string
+    {
+        $baseUrl = rtrim(trim($this->baseUrl), '/');
+        if ($baseUrl === '') {
+            $baseUrl = 'https://api.openai.com/v1';
+        }
+
+        return $baseUrl.'/'.ltrim($path, '/');
     }
 
     /** @param array<string,mixed> $response @return array{name:string, description:string} */

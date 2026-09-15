@@ -2,7 +2,9 @@ parameters:
   openai.empty: ''
   manager.default_version: '0.5.0'
   manager.default_api_base_url: 'http://127.0.0.1:8080'
+  manager.default_api_timeout: 3
   manager.default_ads_api_base_url: 'http://127.0.0.1:8084'
+  manager.default_ads_api_timeout: 5
   manager.default_content_storage_provider: 'local'
   manager.default_aws_region: 'us-east-1'
   manager.default_s3_prefix: 'questions'
@@ -10,8 +12,14 @@ parameters:
   manager.default_session_redis_dsn: 'redis://127.0.0.1:6379/1'
   manager.default_session_ttl: 3600
   manager.default_session_prefix: 'quickquiz:manager:session:'
+  manager.default_trusted_proxies: '127.0.0.1,REMOTE_ADDR'
+  openai.default_base_url: 'https://api.openai.com/v1'
+  openai.default_timeout: 45
+  openai.default_models_timeout: 15
   manager.api_base_url: '%env(default:manager.default_api_base_url:QUICKQUIZ_API_BASE_URL)%'
+  manager.api_timeout: '%env(int:default:manager.default_api_timeout:QUICKQUIZ_API_TIMEOUT)%'
   manager.ads_api_base_url: '%env(default:manager.default_ads_api_base_url:QUICKQUIZ_ADS_API_BASE_URL)%'
+  manager.ads_api_timeout: '%env(int:default:manager.default_ads_api_timeout:QUICKQUIZ_ADS_API_TIMEOUT)%'
   manager.content_storage_provider: '%env(default:manager.default_content_storage_provider:MANAGER_CONTENT_STORAGE_PROVIDER)%'
   manager.aws_region: '%env(default:manager.default_aws_region:AWS_REGION)%'
   manager.s3_bucket: '%env(default:openai.empty:S3_BUCKET)%'
@@ -21,6 +29,7 @@ parameters:
   manager.session_redis_dsn: '%env(default:manager.default_session_redis_dsn:MANAGER_SESSION_REDIS_DSN)%'
   manager.session_ttl: '%env(int:default:manager.default_session_ttl:MANAGER_SESSION_TTL)%'
   manager.session_prefix: '%env(default:manager.default_session_prefix:MANAGER_SESSION_PREFIX)%'
+  manager.trusted_proxies: '%env(csv:default:manager.default_trusted_proxies:TRUSTED_PROXIES)%'
   manager.database_url: '%env(MANAGER_DATABASE_URL)%'
   manager.content_root: '%env(MANAGER_CONTENT_ROOT)%'
   manager.fallback_locale: '%env(FALLBACK_LOCALE)%'
@@ -29,6 +38,9 @@ parameters:
   manager.run_question_limit: '%env(int:default:manager.default_run_question_limit:RUN_QUESTION_LIMIT)%'
   manager.default_run_question_limit: 10
   openai.api_key: '%env(default:openai.empty:OPENAI_API_KEY)%'
+  openai.base_url: '%env(default:openai.default_base_url:OPENAI_BASE_URL)%'
+  openai.timeout: '%env(int:default:openai.default_timeout:OPENAI_TIMEOUT)%'
+  openai.models_timeout: '%env(int:default:openai.default_models_timeout:OPENAI_MODELS_TIMEOUT)%'
   openai.model: '%env(default:openai.empty:OPENAI_MODEL)%'
   openai.project: '%env(default:openai.empty:OPENAI_PROJECT)%'
   openai.org_id: '%env(default:openai.empty:OPENAI_ORG_ID)%'
@@ -85,11 +97,13 @@ services:
     arguments:
       $contentRoot: '%manager.content_root%'
       $adsApiBaseUrl: '%manager.ads_api_base_url%'
+      $requestTimeout: '%manager.ads_api_timeout%'
       $contentStorage: '@App\Storage\ContentStorage'
 
   App\Service\ApiSessionMonitor:
     arguments:
       $apiBaseUrl: '%manager.api_base_url%'
+      $requestTimeout: '%manager.api_timeout%'
 
   App\Service\AiPromptExportService:
     arguments:
@@ -102,6 +116,8 @@ services:
       $defaultModel: '%openai.model%'
       $project: '%openai.project%'
       $organization: '%openai.org_id%'
+      $baseUrl: '%openai.base_url%'
+      $requestTimeout: '%openai.models_timeout%'
 
   App\Service\OpenAiQuestionLocalizer:
     arguments:
@@ -111,6 +127,8 @@ services:
       $organization: '%openai.org_id%'
       $aiPrompts: '@App\Service\AiPromptProvider'
       $modelProvider: '@App\Service\OpenAiModelProvider'
+      $baseUrl: '%openai.base_url%'
+      $requestTimeout: '%openai.timeout%'
 
   App\Service\QuestionLocalizer: '@App\Service\OpenAiQuestionLocalizer'
 
@@ -122,6 +140,8 @@ services:
       $organization: '%openai.org_id%'
       $aiPrompts: '@App\Service\AiPromptProvider'
       $modelProvider: '@App\Service\OpenAiModelProvider'
+      $baseUrl: '%openai.base_url%'
+      $requestTimeout: '%openai.timeout%'
 
   App\Service\CatalogAssistant: '@App\Service\OpenAiCatalogAssistant'
 
@@ -143,5 +163,7 @@ services:
       $organization: '%openai.org_id%'
       $aiPrompts: '@App\Service\AiPromptProvider'
       $modelProvider: '@App\Service\OpenAiModelProvider'
+      $baseUrl: '%openai.base_url%'
+      $requestTimeout: '%openai.timeout%'
 
   App\Service\QuestionRecommender: '@App\Service\OpenAiQuestionRecommender'

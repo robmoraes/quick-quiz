@@ -19,6 +19,8 @@ final class OpenAiModelProvider
         private readonly string $defaultModel = '',
         private readonly string $project = '',
         private readonly string $organization = '',
+        private readonly string $baseUrl = 'https://api.openai.com/v1',
+        private readonly int $requestTimeout = 15,
     ) {
     }
 
@@ -95,9 +97,9 @@ final class OpenAiModelProvider
         }
 
         try {
-            $response = $this->httpClient->request('GET', 'https://api.openai.com/v1/models', [
+            $response = $this->httpClient->request('GET', $this->openAiEndpoint('models'), [
                 'headers' => $headers,
-                'timeout' => 15,
+                'timeout' => max(1, $this->requestTimeout),
             ]);
             $statusCode = $response->getStatusCode();
             $data = $response->toArray(false);
@@ -122,6 +124,16 @@ final class OpenAiModelProvider
         }
 
         return $this->sanitizeModels($models);
+    }
+
+    private function openAiEndpoint(string $path): string
+    {
+        $baseUrl = rtrim(trim($this->baseUrl), '/');
+        if ($baseUrl === '') {
+            $baseUrl = 'https://api.openai.com/v1';
+        }
+
+        return $baseUrl.'/'.ltrim($path, '/');
     }
 
     /** @param list<mixed> $models @return list<string> */
