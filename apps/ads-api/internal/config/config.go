@@ -2,6 +2,7 @@ package config
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -31,8 +32,11 @@ type S3Config struct {
 	ForcePathStyle bool
 }
 
-func Load() Config {
+func Load() (Config, error) {
 	loadDotEnv(getEnv("ENV_FILE", ".env"))
+	if err := loadFileEnvironment(); err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		HTTPAddr:              getEnv("HTTP_ADDR", ":8080"),
@@ -53,7 +57,37 @@ func Load() Config {
 			EndpointURL:    getEnv("S3_ENDPOINT_URL", ""),
 			ForcePathStyle: getEnvBool("S3_FORCE_PATH_STYLE", false),
 		},
+	}, nil
+}
+
+func loadFileEnvironment() error {
+	for _, item := range os.Environ() {
+		name, filePath, ok := strings.Cut(item, "=")
+		if !ok || !strings.HasSuffix(name, "__FILE") || strings.TrimSpace(filePath) == "" {
+			continue
+		}
+
+		target := strings.TrimSuffix(name, "__FILE")
+		if target == "" {
+			return fmt.Errorf("invalid file-backed environment variable %q", name)
+		}
+
+		filePath = strings.TrimSpace(filePath)
+		contents, err := os.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("read %s from %q: %w", name, filePath, err)
+		}
+
+		value := strings.TrimRight(string(contents), "\r\n")
+		if value == "" {
+			return fmt.Errorf("read %s from %q: secret file is empty", name, filePath)
+		}
+		if err := os.Setenv(target, value); err != nil {
+			return fmt.Errorf("apply %s: %w", name, err)
+		}
 	}
+
+	return nil
 }
 
 func loadDotEnv(path string) {

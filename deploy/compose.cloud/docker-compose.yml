@@ -46,8 +46,11 @@ services:
       QUESTION_SOURCE: /app/.local
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_ACCESS_KEY_ID__FILE: ${AWS_ACCESS_KEY_ID__FILE:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY__FILE: ${AWS_SECRET_ACCESS_KEY__FILE:-}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_SESSION_TOKEN__FILE: ${AWS_SESSION_TOKEN__FILE:-}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_PREFIX: ${S3_PREFIX:-questions}
       S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
@@ -63,12 +66,14 @@ services:
       REDIS_CONNECT_TIMEOUT: ${API_REDIS_CONNECT_TIMEOUT:-5s}
       REDIS_USERNAME: ${REDIS_USERNAME:-}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD__FILE: ${REDIS_PASSWORD__FILE:-}
       REDIS_DB: ${REDIS_DB:-0}
       REDIS_TLS: ${REDIS_TLS:-false}
       REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-quickquiz:runs:}
       REDIS_SOLUTION_KEY_PREFIX: ${REDIS_SOLUTION_KEY_PREFIX:-quickquiz:solutions:}
       SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
-      OPENAI_API_KEY: ${API_OPENAI_API_KEY:?set API_OPENAI_API_KEY}
+      OPENAI_API_KEY: ${API_OPENAI_API_KEY:-}
+      OPENAI_API_KEY__FILE: ${API_OPENAI_API_KEY__FILE:-}
       OPENAI_BASE_URL: ${API_OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_MODEL: ${API_OPENAI_MODEL:?set API_OPENAI_MODEL}
       OPENAI_ORGANIZATION: ${API_OPENAI_ORG_ID:-}
@@ -96,22 +101,45 @@ services:
 
   redis:
     image: ${QUICKQUIZ_IMAGE_REDIS:-redis:7.4-alpine}
+    entrypoint: ["/bin/sh", "-ec"]
     command:
-      - redis-server
-      - --save
-      - ""
-      - --appendonly
-      - "no"
-      - --maxmemory
-      - ${REDIS_MAXMEMORY:-256mb}
-      - --maxmemory-policy
-      - noeviction
-      - --requirepass
-      - "${REDIS_PASSWORD:-}"
+      - |
+        password="$${REDIS_PASSWORD:-}"
+        if [ -n "$${REDIS_PASSWORD__FILE:-}" ]; then
+          if [ ! -r "$$REDIS_PASSWORD__FILE" ]; then
+            echo "cannot read REDIS_PASSWORD__FILE: $$REDIS_PASSWORD__FILE" >&2
+            exit 1
+          fi
+          password="$$(cat "$$REDIS_PASSWORD__FILE")"
+          if [ -z "$$password" ]; then
+            echo "REDIS_PASSWORD__FILE is empty" >&2
+            exit 1
+          fi
+        fi
+        exec redis-server \
+          --save "" \
+          --appendonly no \
+          --maxmemory "$$REDIS_MAXMEMORY" \
+          --maxmemory-policy noeviction \
+          --requirepass "$$password"
     environment:
+      REDIS_MAXMEMORY: ${REDIS_MAXMEMORY:-256mb}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD__FILE: ${REDIS_PASSWORD__FILE:-}
     healthcheck:
-      test: ["CMD-SHELL", 'if [ -n "$$REDIS_PASSWORD" ]; then REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli ping; else redis-cli ping; fi']
+      test:
+        - CMD-SHELL
+        - |
+          password="$${REDIS_PASSWORD:-}"
+          if [ -n "$${REDIS_PASSWORD__FILE:-}" ]; then
+            [ -r "$$REDIS_PASSWORD__FILE" ] || exit 1
+            password="$$(cat "$$REDIS_PASSWORD__FILE")"
+          fi
+          if [ -n "$$password" ]; then
+            REDISCLI_AUTH="$$password" redis-cli ping
+          else
+            redis-cli ping
+          fi
       interval: 5s
       timeout: 3s
       retries: 10
@@ -139,8 +167,11 @@ services:
       ADS_SOURCE: /app/.local
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_ACCESS_KEY_ID__FILE: ${AWS_ACCESS_KEY_ID__FILE:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY__FILE: ${AWS_SECRET_ACCESS_KEY__FILE:-}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_SESSION_TOKEN__FILE: ${AWS_SESSION_TOKEN__FILE:-}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_PREFIX: ${S3_PREFIX:-questions}
       S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
@@ -207,16 +238,32 @@ services:
 
   manager-db:
     image: ${QUICKQUIZ_IMAGE_POSTGRES:-postgres:17-alpine}
+    entrypoint: ["/bin/sh", "-ec"]
     command:
-      - postgres
-      - -c
-      - shared_buffers=${MANAGER_DB_SHARED_BUFFERS:-64MB}
-      - -c
-      - max_connections=${MANAGER_DB_MAX_CONNECTIONS:-30}
+      - |
+        password="$${MANAGER_DB_PASSWORD:-}"
+        if [ -n "$${MANAGER_DB_PASSWORD__FILE:-}" ]; then
+          if [ ! -r "$$MANAGER_DB_PASSWORD__FILE" ]; then
+            echo "cannot read MANAGER_DB_PASSWORD__FILE: $$MANAGER_DB_PASSWORD__FILE" >&2
+            exit 1
+          fi
+          password="$$(cat "$$MANAGER_DB_PASSWORD__FILE")"
+        fi
+        if [ -z "$$password" ]; then
+          echo "MANAGER_DB_PASSWORD or MANAGER_DB_PASSWORD__FILE is required" >&2
+          exit 1
+        fi
+        export POSTGRES_PASSWORD="$$password"
+        exec /usr/local/bin/docker-entrypoint.sh postgres \
+          -c "shared_buffers=$$MANAGER_DB_SHARED_BUFFERS" \
+          -c "max_connections=$$MANAGER_DB_MAX_CONNECTIONS"
     environment:
       POSTGRES_DB: ${MANAGER_DB_NAME:-quickquiz_manager}
       POSTGRES_USER: ${MANAGER_DB_USER:-quickquiz}
-      POSTGRES_PASSWORD: ${MANAGER_DB_PASSWORD:-quickquiz-local}
+      MANAGER_DB_PASSWORD: ${MANAGER_DB_PASSWORD:-}
+      MANAGER_DB_PASSWORD__FILE: ${MANAGER_DB_PASSWORD__FILE:-}
+      MANAGER_DB_SHARED_BUFFERS: ${MANAGER_DB_SHARED_BUFFERS:-64MB}
+      MANAGER_DB_MAX_CONNECTIONS: ${MANAGER_DB_MAX_CONNECTIONS:-30}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -236,19 +283,25 @@ services:
       APP_ENV: prod
       APP_DEBUG: "0"
       APP_SECRET: ${MANAGER_APP_SECRET}
+      APP_SECRET__FILE: ${MANAGER_APP_SECRET__FILE:-}
       MANAGER_VERSION: ${MANAGER_VERSION:-0.5.0}
       MANAGER_DATABASE_URL: ${MANAGER_DATABASE_URL}
+      MANAGER_DATABASE_URL__FILE: ${MANAGER_DATABASE_URL__FILE:-}
       MANAGER_CONTENT_ROOT: /content
       MANAGER_CONTENT_STORAGE_PROVIDER: ${MANAGER_CONTENT_STORAGE_PROVIDER:-local}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_ACCESS_KEY_ID__FILE: ${AWS_ACCESS_KEY_ID__FILE:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY__FILE: ${AWS_SECRET_ACCESS_KEY__FILE:-}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_SESSION_TOKEN__FILE: ${AWS_SESSION_TOKEN__FILE:-}
       S3_BUCKET: ${S3_BUCKET:-}
       S3_PREFIX: ${S3_PREFIX:-questions}
       S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
       S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
       MANAGER_SESSION_REDIS_DSN: ${MANAGER_SESSION_REDIS_DSN:-redis://redis:6379/1}
+      MANAGER_SESSION_REDIS_DSN__FILE: ${MANAGER_SESSION_REDIS_DSN__FILE:-}
       MANAGER_SESSION_TTL: ${MANAGER_SESSION_TTL:-3600}
       MANAGER_SESSION_PREFIX: ${MANAGER_SESSION_PREFIX:-quickquiz:manager:session:}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,REMOTE_ADDR}
@@ -260,6 +313,7 @@ services:
       FALLBACK_LOCALE: ${FALLBACK_LOCALE:-en-US}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-en-US,pt-BR}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_KEY__FILE: ${OPENAI_API_KEY__FILE:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_TIMEOUT: ${OPENAI_TIMEOUT:-45}
       OPENAI_MODELS_TIMEOUT: ${OPENAI_MODELS_TIMEOUT:-15}

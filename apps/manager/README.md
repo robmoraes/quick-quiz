@@ -42,6 +42,10 @@ locale, version, and PHP-FPM capacity can be changed by recreating the container
 they do not require rebuilding the image. The PHP and Nginx versions remain
 build-time image dependencies. See `.env-example` for the complete variable set.
 
+Sensitive values support `NAME__FILE`. When both forms are present, the file
+wins. Missing, unreadable, or empty files stop Manager startup. The development
+Compose mounts `${MANAGER_SECRETS_ROOT:-.secrets}` read-only at `/run/secrets`.
+
 ## Commands
 
 ```sh

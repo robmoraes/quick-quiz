@@ -173,6 +173,11 @@ scp deploy/compose.cloud/.env-example ec2-user@<server-ip>:/opt/quickquiz/compos
 
 Edit `/opt/quickquiz/compose/.env` on the server.
 
+To keep sensitive values in files, also copy `deploy/compose.secrets.yml`, create
+the per-service directories described in [the deploy README](./README.md#file-backed-secrets),
+and set `QUICKQUIZ_SECRETS_ROOT` plus the relevant `NAME__FILE` variables. Add
+`-f compose.secrets.yml` to the `pull`, `up`, `ps`, and `logs` commands below.
+
 Production domain values for this environment:
 
 ```env

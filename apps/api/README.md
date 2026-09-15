@@ -44,6 +44,10 @@ Deployment guides:
 
 Environment variables:
 
+Environment variables may be loaded from files by defining `NAME__FILE`.
+The file value takes priority over `NAME`; missing, unreadable, or empty files
+stop startup. Trailing CR/LF characters are removed.
+
 - `HTTP_ADDR`: HTTP server address. Default: `:8080`.
 - `LOG_LEVEL`: structured log threshold: `debug`, `info`, `warn`, or `error`. Default: `info`.
 - `CORS_ALLOWED_ORIGINS`: comma-separated browser origins or `*`. Default: `*`.

@@ -53,6 +53,29 @@ docker compose --env-file deploy/compose.local/.env -f deploy/compose.local/dock
 
 The PHP-FPM container runs with `QUICKQUIZ_RUNTIME_UID` and `QUICKQUIZ_RUNTIME_GID`. Adjust these values if your local user is not `1000:1000`.
 
+## File-backed secrets
+
+Runtime secrets support `NAME__FILE`. The referenced file takes priority over
+`NAME`; missing, unreadable, or empty files stop the affected service. Trailing
+line endings are removed. The SPAs do not accept secrets because their runtime
+configuration is delivered to the browser.
+
+For Docker Compose, create one directory per service under an absolute root:
+`api`, `ads-api`, `redis`, `manager`, and `manager-db`. Set
+`QUICKQUIZ_SECRETS_ROOT`, configure the corresponding `__FILE` variables with
+paths under `/run/secrets`, and add the read-only mount overlay:
+
+```sh
+docker compose \
+  --env-file deploy/compose.local/.env \
+  -f deploy/compose.local/docker-compose.yml \
+  -f deploy/compose.secrets.yml \
+  up -d
+```
+
+Kubernetes can use the same application contract by mounting Secret keys and
+setting each `NAME__FILE` to its mounted path.
+
 ## Image Repositories
 
 The deploy Makefile defaults to these Docker Hub repositories:

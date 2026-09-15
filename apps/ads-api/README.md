@@ -31,6 +31,10 @@ go test ./...
 
 ## Environment
 
+Any environment value may be loaded from a file with `NAME__FILE`. The file
+value takes priority over `NAME`; missing, unreadable, or empty files stop
+startup. Trailing CR/LF characters are removed.
+
 ```text
 HTTP_ADDR=:8080
 LOG_LEVEL=info
