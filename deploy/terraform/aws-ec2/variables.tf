@@ -4,7 +4,18 @@ variable "aws_region" {
 }
 
 variable "ami_id" {
-  description = "Amazon Linux 2023 x86_64 AMI"
+  description = "Amazon Linux 2023 AMI compatible with the selected instance type"
+  type        = string
+}
+
+variable "instance_type" {
+  description = "EC2 instance type used by the single-node beta environment"
+  type        = string
+  default     = "t3.small"
+}
+
+variable "content_bucket_name" {
+  description = "Globally unique S3 bucket used for shared QuickQuiz content"
   type        = string
 }
 

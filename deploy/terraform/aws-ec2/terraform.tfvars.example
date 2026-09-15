@@ -2,6 +2,9 @@
 ami_id   = "ami-0152204c1a187337c"
 key_name = "your-key-ec2"
 
+instance_type       = "t3.small"
+content_bucket_name = "quickquiz-beta-content-aws-account-id-us-east-1"
+
 public_key_path = "~/.ssh/your-key-file.pub"
 
 # your public IP, discovery it in the terminal with: curl ifconfig.me
