@@ -116,7 +116,7 @@ services:
             exit 1
           fi
         fi
-        exec redis-server \
+        exec /usr/local/bin/docker-entrypoint.sh redis-server \
           --save "" \
           --appendonly no \
           --maxmemory "$$REDIS_MAXMEMORY" \
