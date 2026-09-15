@@ -8,6 +8,7 @@ Monorepo documentation:
 
 - [Documentation index](../../docs/README.md)
 - [Manager documentation](../../docs/manager/README.md)
+- [Quiz administration API](../../docs/manager/admin-api.md)
 - [Data documentation](../../docs/data/README.md)
 
 ## Development

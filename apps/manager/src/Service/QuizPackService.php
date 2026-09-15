@@ -41,6 +41,21 @@ final class QuizPackService
         return $this->contentStorage->description();
     }
 
+    public function forTheme(string $theme): self
+    {
+        $theme = $this->normalizeKey($theme);
+        $this->assertSafeIdentifier($theme, 'theme ID');
+
+        return new self(
+            $this->contentRoot,
+            $this->fallbackLocale,
+            implode(',', $this->supportedLocales),
+            fixedTheme: $theme,
+            runQuestionLimit: $this->runQuestionLimit,
+            contentStorage: $this->contentStorage,
+        );
+    }
+
     public function selectedTheme(): string
     {
         if ($this->fixedTheme !== null) {
@@ -129,6 +144,31 @@ final class QuizPackService
         $this->writeJson($this->themeIndexPath(), $index);
     }
 
+    /** @return array{deletedObjects:int} */
+    public function deleteTheme(string $id, bool $recursive = false): array
+    {
+        $id = $this->normalizeKey($id);
+        $this->assertSafeIdentifier($id, 'theme ID');
+        if ($this->theme($id) === null) {
+            throw new RuntimeException(sprintf('Theme "%s" is not defined.', $id));
+        }
+
+        $keys = $this->contentStorage->list($id);
+        if ($keys !== [] && !$recursive) {
+            throw new RuntimeException(sprintf('Theme "%s" contains content; recursive deletion is required.', $id));
+        }
+
+        $index = $this->readThemeIndex();
+        $index['themes'] = array_values(array_filter(
+            $index['themes'],
+            fn (array $theme): bool => $this->normalizeKey((string) ($theme['id'] ?? '')) !== $id,
+        ));
+        $this->validateThemeIndex($index);
+        $this->writeJsonMutation([$this->themeIndexPath() => $index], $keys);
+
+        return ['deletedObjects' => count($keys)];
+    }
+
     public function fallbackLocale(): string
     {
         return $this->fallbackLocale;
@@ -197,6 +237,19 @@ final class QuizPackService
         }, $central);
     }
 
+    /** @return array<string,mixed>|null */
+    public function topic(string $key): ?array
+    {
+        $key = $this->normalizeKey($key);
+        foreach ($this->listTopics() as $topic) {
+            if (($topic['key'] ?? '') === $key) {
+                return $topic;
+            }
+        }
+
+        return null;
+    }
+
     /** @param array<string,mixed> $input */
     public function saveTopic(array $input): void
     {
@@ -225,6 +278,74 @@ final class QuizPackService
         $catalog['topics'] = $this->sortTopics($topics);
         $this->validateCentralCatalog($catalog);
         $this->writeJson($this->join($this->themeRoot(), 'index.json'), $catalog);
+    }
+
+    /**
+     * @param array<string,mixed> $input
+     * @param array<string,array<string,mixed>> $localizations
+     */
+    public function saveTopicSet(array $input, array $localizations = []): void
+    {
+        $key = $this->normalizeKey((string) ($input['key'] ?? ''));
+        if ($key === '') {
+            throw new RuntimeException('Topic key is required.');
+        }
+        $this->assertSafeIdentifier($key, 'topic key');
+
+        $central = $this->readCentralCatalog();
+        $found = false;
+        foreach ($central['topics'] as &$topic) {
+            if ($this->normalizeKey((string) ($topic['key'] ?? '')) !== $key) {
+                continue;
+            }
+            $topic = $this->topicPayload($input, $key);
+            $found = true;
+            break;
+        }
+        unset($topic);
+        if (!$found) {
+            $central['topics'][] = $this->topicPayload($input, $key);
+        }
+        $central['topics'] = $this->sortTopics($central['topics']);
+        $this->validateCentralCatalog($central);
+        $centralKeys = array_flip(array_map(
+            fn (array $topic): string => $this->normalizeKey((string) ($topic['key'] ?? '')),
+            $central['topics'],
+        ));
+
+        $writes = [$this->join($this->themeRoot(), 'index.json') => $central];
+        foreach ($localizations as $locale => $localizedInput) {
+            $locale = (string) $locale;
+            $this->assertSupportedLocale($locale);
+            if (!is_array($localizedInput)) {
+                throw new RuntimeException(sprintf('Localization %s must be an object.', $locale));
+            }
+
+            $catalog = $this->readLocalizedCatalog($locale);
+            $payload = [
+                'key' => $key,
+                'name' => trim((string) ($localizedInput['name'] ?? '')),
+                'description' => trim((string) ($localizedInput['description'] ?? '')),
+            ];
+            $localizedFound = false;
+            foreach ($catalog['topics'] as &$localizedTopic) {
+                if ($this->normalizeKey((string) ($localizedTopic['key'] ?? '')) !== $key) {
+                    continue;
+                }
+                $localizedTopic = $payload;
+                $localizedFound = true;
+                break;
+            }
+            unset($localizedTopic);
+            if (!$localizedFound) {
+                $catalog['topics'][] = $payload;
+            }
+            $catalog['topics'] = $this->sortTopics($catalog['topics']);
+            $this->validateLocalizedCatalog($locale, $catalog, centralKeys: $centralKeys);
+            $writes[$this->join($this->themeRoot(), $locale, 'index.json')] = $catalog;
+        }
+
+        $this->writeJsonSet($writes);
     }
 
     public function deleteTopic(string $key): void
@@ -275,6 +396,70 @@ final class QuizPackService
         $catalog['topics'] = $this->sortTopics($topics);
         $this->validateLocalizedCatalog($locale, $catalog);
         $this->writeJson($this->join($this->themeRoot(), $locale, 'index.json'), $catalog);
+    }
+
+    /** @return array{key:string,name:string,description:string}|null */
+    public function localizedTopic(string $locale, string $key): ?array
+    {
+        $this->assertSupportedLocale($locale);
+        $key = $this->normalizeKey($key);
+        foreach ($this->readLocalizedCatalog($locale)['topics'] as $topic) {
+            if ($this->normalizeKey((string) ($topic['key'] ?? '')) === $key) {
+                return [
+                    'key' => $key,
+                    'name' => trim((string) ($topic['name'] ?? '')),
+                    'description' => trim((string) ($topic['description'] ?? '')),
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /** @return array{deletedQuestionFiles:int} */
+    public function deleteTopicPackage(string $key, bool $recursive = false): array
+    {
+        $key = $this->normalizeKey($key);
+        $this->assertSafeIdentifier($key, 'topic key');
+        if ($this->topic($key) === null) {
+            throw new RuntimeException(sprintf('Topic "%s" is not defined in central catalog.', $key));
+        }
+
+        $questionKeys = [];
+        foreach ($this->supportedLocales as $locale) {
+            $questionKeys = array_merge(
+                $questionKeys,
+                $this->contentStorage->list($this->join($this->themeRoot(), $locale, $key)),
+            );
+        }
+        $questionKeys = array_values(array_unique($questionKeys));
+        if ($questionKeys !== [] && !$recursive) {
+            throw new RuntimeException(sprintf('Topic "%s" contains questions; recursive deletion is required.', $key));
+        }
+
+        $central = $this->readCentralCatalog();
+        $central['topics'] = array_values(array_filter(
+            $central['topics'],
+            fn (array $topic): bool => $this->normalizeKey((string) ($topic['key'] ?? '')) !== $key,
+        ));
+        $writes = [$this->join($this->themeRoot(), 'index.json') => $central];
+
+        foreach ($this->supportedLocales as $locale) {
+            $path = $this->join($this->themeRoot(), $locale, 'index.json');
+            if (!$this->contentStorage->exists($path)) {
+                continue;
+            }
+            $catalog = $this->readLocalizedCatalog($locale);
+            $catalog['topics'] = array_values(array_filter(
+                $catalog['topics'],
+                fn (array $topic): bool => $this->normalizeKey((string) ($topic['key'] ?? '')) !== $key,
+            ));
+            $writes[$path] = $catalog;
+        }
+
+        $this->writeJsonMutation($writes, $questionKeys);
+
+        return ['deletedQuestionFiles' => count($questionKeys)];
     }
 
     /** @return list<array{id:string,path:string,prompt:string,correctCount:int,wrongCount:int}> */
@@ -535,6 +720,91 @@ final class QuizPackService
     }
 
     /**
+     * @param list<array{id?:string,translations?:array<string,array<string,mixed>>}> $items
+     * @return list<string>
+     */
+    public function createLocalizedQuestionSets(string $topic, int $difficulty, array $items): array
+    {
+        $this->assertCentralTopicExists($topic);
+        $this->assertDifficulty($difficulty);
+        if ($items === [] || count($items) > 50) {
+            throw new RuntimeException('Question batch must contain between 1 and 50 items.');
+        }
+
+        $provided = [];
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                throw new RuntimeException('Every question batch item must be an object.');
+            }
+            $id = trim((string) ($item['id'] ?? ''));
+            if ($id === '') {
+                continue;
+            }
+            $this->assertSafeIdentifier($id, 'question ID');
+            if (isset($provided[$id])) {
+                throw new RuntimeException(sprintf('Question ID "%s" is duplicated in the batch.', $id));
+            }
+            $this->assertQuestionIdAvailableInAllLocales($topic, $difficulty, $id);
+            $provided[$id] = true;
+        }
+
+        $nextId = $this->nextQuestionId($topic, $difficulty);
+        $prefix = sprintf('%s-%d-', $this->normalizeKey($topic), $difficulty);
+        $nextSequence = (int) substr($nextId, strlen($prefix));
+        $reserved = $provided;
+        $ids = [];
+        $payloads = [];
+
+        foreach ($items as $item) {
+            $id = trim((string) ($item['id'] ?? ''));
+            if ($id === '') {
+                do {
+                    $id = sprintf('%s-%d-%03d', $this->normalizeKey($topic), $difficulty, $nextSequence++);
+                } while (isset($reserved[$id]));
+                $this->assertQuestionIdAvailableInAllLocales($topic, $difficulty, $id);
+                $reserved[$id] = true;
+            }
+
+            $translations = $item['translations'] ?? null;
+            if (!is_array($translations)) {
+                throw new RuntimeException(sprintf('Question "%s" translations must be an object.', $id));
+            }
+            $providedLocales = array_map('strval', array_keys($translations));
+            sort($providedLocales);
+            $expectedLocales = $this->supportedLocales;
+            sort($expectedLocales);
+            if ($providedLocales !== $expectedLocales) {
+                throw new RuntimeException(sprintf(
+                    'Question "%s" translations must contain exactly: %s.',
+                    $id,
+                    implode(', ', $expectedLocales),
+                ));
+            }
+
+            $canonical = $this->validatedQuestionPayload(
+                is_array($translations[$this->fallbackLocale] ?? null) ? $translations[$this->fallbackLocale] : [],
+                $difficulty,
+            );
+            foreach ($this->supportedLocales as $locale) {
+                $localizedInput = $translations[$locale] ?? [];
+                $localized = $this->validatedQuestionPayload(is_array($localizedInput) ? $localizedInput : [], $difficulty);
+                if (count($localized['correctOptions']) !== count($canonical['correctOptions'])) {
+                    throw new RuntimeException(sprintf('Localization %s changed the number of correct options for question "%s".', $locale, $id));
+                }
+                if (count($localized['wrongOptions']) !== count($canonical['wrongOptions'])) {
+                    throw new RuntimeException(sprintf('Localization %s changed the number of wrong options for question "%s".', $locale, $id));
+                }
+                $payloads[$this->questionPath($locale, $topic, $difficulty, $id)] = $localized;
+            }
+            $ids[] = $id;
+        }
+
+        $this->writeJsonSet($payloads);
+
+        return $ids;
+    }
+
+    /**
      * @param array<string,mixed> $input
      * @return array{questionId:string, question:array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>}}
      */
@@ -698,6 +968,20 @@ final class QuizPackService
         }
 
         return ['deletedLocales' => $deletedLocales, 'missingLocales' => $missingLocales];
+    }
+
+    /** @return array{deletedLocales:list<string>, missingLocales:list<string>} */
+    public function deleteLocalizedQuestionSet(string $topic, int $difficulty, string $questionId): array
+    {
+        $this->assertExistingQuestionSet($topic, $difficulty, $questionId);
+
+        $paths = [];
+        foreach ($this->supportedLocales as $locale) {
+            $paths[] = $this->questionPath($locale, $topic, $difficulty, $questionId);
+        }
+        $this->writeJsonMutation([], $paths);
+
+        return ['deletedLocales' => $this->supportedLocales, 'missingLocales' => []];
     }
 
     /** @return list<string> */
@@ -895,10 +1179,10 @@ final class QuizPackService
     }
 
     /** @param array<string,mixed> $catalog @return list<string> */
-    private function validateLocalizedCatalog(string $locale, array $catalog, bool $throw = true): array
+    private function validateLocalizedCatalog(string $locale, array $catalog, bool $throw = true, ?array $centralKeys = null): array
     {
         $errors = [];
-        $centralKeys = array_flip(array_map(
+        $centralKeys ??= array_flip(array_map(
             fn (array $topic): string => $this->normalizeKey((string) ($topic['key'] ?? '')),
             $this->readCentralCatalog()['topics'],
         ));
@@ -1242,27 +1526,46 @@ final class QuizPackService
     /** @param array<string,array<string,mixed>> $payloads */
     private function writeJsonSet(array $payloads): void
     {
-        $encoded = [];
+        $this->writeJsonMutation($payloads, []);
+    }
+
+    /**
+     * @param array<string,array<string,mixed>> $payloads
+     * @param list<string> $deleteKeys
+     */
+    private function writeJsonMutation(array $payloads, array $deleteKeys): void
+    {
+        $writes = [];
         foreach ($payloads as $key => $data) {
             $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
             if (!is_string($json)) {
                 throw new RuntimeException('Could not encode JSON.');
             }
-            $encoded[$key] = $json.PHP_EOL;
+            $writes[$key] = $json.PHP_EOL;
         }
 
+        $keys = array_values(array_unique(array_merge(array_keys($writes), $deleteKeys)));
         $previous = [];
-        $written = [];
+        foreach ($keys as $key) {
+            $previous[$key] = $this->contentStorage->exists($key)
+                ? $this->contentStorage->read($key)
+                : null;
+        }
+
+        $touched = [];
         try {
-            foreach ($encoded as $key => $contents) {
-                $previous[$key] = $this->contentStorage->exists($key)
-                    ? $this->contentStorage->read($key)
-                    : null;
+            foreach ($writes as $key => $contents) {
+                $touched[] = $key;
                 $this->contentStorage->write($key, $contents);
-                $written[] = $key;
+            }
+            foreach ($deleteKeys as $key) {
+                $touched[] = $key;
+                if (!$this->contentStorage->delete($key)) {
+                    throw new RuntimeException(sprintf('Could not delete %s.', $this->contentStorage->location($key)));
+                }
             }
         } catch (RuntimeException $error) {
-            foreach (array_reverse($written) as $key) {
+            foreach (array_reverse(array_values(array_unique($touched))) as $key) {
                 try {
                     if (is_string($previous[$key])) {
                         $this->contentStorage->write($key, $previous[$key]);

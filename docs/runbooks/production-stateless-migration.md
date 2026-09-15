@@ -89,6 +89,7 @@ Keep secrets out of `.env`. Each application uses the existing
 /opt/quickquiz/secrets/api/redis_password
 /opt/quickquiz/secrets/redis/redis_password
 /opt/quickquiz/secrets/manager/app_secret
+/opt/quickquiz/secrets/manager/admin_api_token
 /opt/quickquiz/secrets/manager/database_url
 /opt/quickquiz/secrets/manager/openai_api_key
 /opt/quickquiz/secrets/manager/session_redis_dsn
@@ -96,8 +97,10 @@ Keep secrets out of `.env`. Each application uses the existing
 ```
 
 Directories must have mode `0700`; secret files must have mode `0600`.
-The EC2 instance role supplies AWS credentials through IMDS, so no AWS access
-key files are created.
+The Manager administration API reads
+`MANAGER_ADMIN_API_TOKEN__FILE=/run/secrets/admin_api_token`. The EC2
+instance role supplies AWS credentials through IMDS, so no AWS access key files
+are created.
 
 ## SQLite to PostgreSQL
 

@@ -13,6 +13,7 @@ installing it on the host.
 - Validate content against the quiz pack contract.
 - Keep inactive content editable while unpublished for the API.
 - Support optional AI-assisted recommendation and localization flows.
+- Expose token-protected theme, topic, and localized question CRUD for trusted automation.
 
 ## Local Development
 
@@ -35,6 +36,8 @@ The session connection, TTL, and key namespace are controlled by
 `MANAGER_SESSION_PREFIX`. Local Compose uses Redis database 1. Admin accounts
 and AI prompts use PostgreSQL through `MANAGER_DATABASE_URL`; its data remains
 in the `manager-db-data` Docker volume.
+
+The automation API is documented in [Quiz Administration API](admin-api.md) and [OpenAPI](../openapi-manager-admin.yaml).
 
 Run tests:
 
