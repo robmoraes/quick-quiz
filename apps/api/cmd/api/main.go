@@ -55,15 +55,19 @@ func main() {
 			logger.Error("failed to close solution storage", "error", err)
 		}
 	}()
+	promptSource, err := loadSolutionPromptSource(context.Background(), cfg)
+	if err != nil {
+		logger.Error("failed to initialize solution prompt storage", "provider", cfg.QuestionStorageProvider, "error", err)
+		os.Exit(1)
+	}
 	solutionGenerator := app.NewOpenAISolutionGenerator(app.OpenAISolutionGeneratorConfig{
 		APIKey:       cfg.OpenAI.APIKey,
 		BaseURL:      cfg.OpenAI.BaseURL,
 		Model:        cfg.OpenAI.Model,
 		Organization: cfg.OpenAI.Organization,
 		Project:      cfg.OpenAI.Project,
-		PromptFile:   cfg.OpenAI.SolutionPromptFile,
 		Timeout:      cfg.OpenAI.Timeout,
-	}, nil)
+	}, nil, promptSource)
 	solutionService := app.NewSolutionService(questionStore, runStore, solutionStore, solutionGenerator, localeManager)
 
 	server := &http.Server{
@@ -95,6 +99,23 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("http server shutdown failed", "error", err)
 		os.Exit(1)
+	}
+}
+
+func loadSolutionPromptSource(ctx context.Context, cfg config.Config) (app.SolutionPromptSource, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.QuestionStorageProvider)) {
+	case "", "local":
+		return store.NewFileSolutionPromptSource(cfg.OpenAI.SolutionPromptFile), nil
+	case "s3":
+		return store.NewS3SolutionPromptSource(ctx, store.S3ContentSourceConfig{
+			Region:         cfg.S3.Region,
+			Bucket:         cfg.S3.Bucket,
+			Prefix:         cfg.S3.Prefix,
+			EndpointURL:    cfg.S3.EndpointURL,
+			ForcePathStyle: cfg.S3.ForcePathStyle,
+		})
+	default:
+		return nil, fmt.Errorf("unsupported QUESTION_STORAGE_PROVIDER %q: use local or s3", cfg.QuestionStorageProvider)
 	}
 }
 
@@ -165,7 +186,7 @@ func loadQuestionDataset(ctx context.Context, cfg config.Config, fallbackLocale 
 	case "", "local":
 		return store.LoadQuestionDatasetFromRootWithFallback(cfg.QuestionSource, fallbackLocale, supportedLocales)
 	case "s3":
-		return store.LoadQuestionDatasetFromS3WithFallback(ctx, store.S3QuestionSourceConfig{
+		return store.LoadQuestionDatasetFromS3WithFallback(ctx, store.S3ContentSourceConfig{
 			Region:         cfg.S3.Region,
 			Bucket:         cfg.S3.Bucket,
 			Prefix:         cfg.S3.Prefix,

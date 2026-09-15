@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -19,22 +18,26 @@ const (
 	defaultSolutionPrompt      = "Explain the correct answer for a programming quiz question. Be concise, accurate, and answer in the requested locale."
 )
 
+type SolutionPromptSource interface {
+	Load(ctx context.Context, theme string) (string, error)
+}
+
 type OpenAISolutionGeneratorConfig struct {
 	APIKey       string
 	BaseURL      string
 	Model        string
 	Organization string
 	Project      string
-	PromptFile   string
 	Timeout      time.Duration
 }
 
 type OpenAISolutionGenerator struct {
-	config OpenAISolutionGeneratorConfig
-	client *http.Client
+	config       OpenAISolutionGeneratorConfig
+	client       *http.Client
+	promptSource SolutionPromptSource
 }
 
-func NewOpenAISolutionGenerator(config OpenAISolutionGeneratorConfig, client *http.Client) *OpenAISolutionGenerator {
+func NewOpenAISolutionGenerator(config OpenAISolutionGeneratorConfig, client *http.Client, promptSource SolutionPromptSource) *OpenAISolutionGenerator {
 	if strings.TrimSpace(config.BaseURL) == "" {
 		config.BaseURL = defaultOpenAIBaseURL
 	}
@@ -49,8 +52,9 @@ func NewOpenAISolutionGenerator(config OpenAISolutionGeneratorConfig, client *ht
 	}
 
 	return &OpenAISolutionGenerator{
-		config: config,
-		client: client,
+		config:       config,
+		client:       client,
+		promptSource: promptSource,
 	}
 }
 
@@ -65,7 +69,7 @@ func (g *OpenAISolutionGenerator) GenerateSolution(ctx context.Context, input Ge
 
 	payload := openAIResponseRequest{
 		Model:           g.Model(),
-		Instructions:    g.instructions(input),
+		Instructions:    g.instructions(ctx, input),
 		Input:           solutionPromptInput(input),
 		MaxOutputTokens: 700,
 	}
@@ -108,13 +112,11 @@ func (g *OpenAISolutionGenerator) GenerateSolution(ctx context.Context, input Ge
 	return explanation, nil
 }
 
-func (g *OpenAISolutionGenerator) instructions(input GenerateSolutionInput) string {
-	if promptFile := strings.TrimSpace(g.config.PromptFile); promptFile != "" {
-		promptFile = strings.ReplaceAll(promptFile, "{{ theme }}", input.Theme)
-		promptFile = strings.ReplaceAll(promptFile, "{{theme}}", input.Theme)
-		bytes, err := os.ReadFile(promptFile)
+func (g *OpenAISolutionGenerator) instructions(ctx context.Context, input GenerateSolutionInput) string {
+	if g.promptSource != nil {
+		prompt, err := g.promptSource.Load(ctx, input.Theme)
 		if err == nil {
-			if prompt := strings.TrimSpace(string(bytes)); prompt != "" {
+			if prompt = strings.TrimSpace(prompt); prompt != "" {
 				return prompt
 			}
 		}

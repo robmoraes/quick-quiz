@@ -219,7 +219,7 @@ S3_BUCKET=<content-bucket>
 S3_PREFIX=questions
 ```
 
-Use an EC2 instance role for AWS credentials. `S3_ENDPOINT_URL` and `S3_FORCE_PATH_STYLE` are available for other S3-compatible services.
+Use an EC2 instance role for AWS credentials. `S3_ENDPOINT_URL` and `S3_FORCE_PATH_STYLE` are available for other S3-compatible services. The API reads each theme solution prompt from `<S3_PREFIX>/<theme>/ai-prompts/question-solution-prompt.txt`.
 
 Start or update the stack:
 

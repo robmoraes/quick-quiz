@@ -14,7 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type S3QuestionSourceConfig struct {
+type S3ContentSourceConfig struct {
 	Region         string
 	Bucket         string
 	Prefix         string
@@ -27,12 +27,21 @@ type s3QuestionClient interface {
 	GetObject(context.Context, *s3.GetObjectInput, ...func(*s3.Options)) (*s3.GetObjectOutput, error)
 }
 
-func LoadQuestionDatasetFromS3WithFallback(ctx context.Context, config S3QuestionSourceConfig, fallbackLocale string, locales []string) (QuestionDataset, error) {
+func LoadQuestionDatasetFromS3WithFallback(ctx context.Context, config S3ContentSourceConfig, fallbackLocale string, locales []string) (QuestionDataset, error) {
 	config.Bucket = strings.TrimSpace(config.Bucket)
 	if config.Bucket == "" {
 		return QuestionDataset{}, fmt.Errorf("S3_BUCKET is required when QUESTION_STORAGE_PROVIDER=s3")
 	}
 
+	client, err := newS3ContentClient(ctx, config)
+	if err != nil {
+		return QuestionDataset{}, err
+	}
+
+	return loadQuestionDatasetFromS3WithClient(ctx, client, config, fallbackLocale, locales)
+}
+
+func newS3ContentClient(ctx context.Context, config S3ContentSourceConfig) (*s3.Client, error) {
 	loadOptions := make([]func(*awsconfig.LoadOptions) error, 0, 1)
 	if region := strings.TrimSpace(config.Region); region != "" {
 		loadOptions = append(loadOptions, awsconfig.WithRegion(region))
@@ -40,20 +49,18 @@ func LoadQuestionDatasetFromS3WithFallback(ctx context.Context, config S3Questio
 
 	awsConfig, err := awsconfig.LoadDefaultConfig(ctx, loadOptions...)
 	if err != nil {
-		return QuestionDataset{}, fmt.Errorf("load AWS configuration: %w", err)
+		return nil, fmt.Errorf("load AWS configuration: %w", err)
 	}
 
-	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
+	return s3.NewFromConfig(awsConfig, func(options *s3.Options) {
 		options.UsePathStyle = config.ForcePathStyle
 		if endpoint := strings.TrimSpace(config.EndpointURL); endpoint != "" {
 			options.BaseEndpoint = aws.String(endpoint)
 		}
-	})
-
-	return loadQuestionDatasetFromS3WithClient(ctx, client, config, fallbackLocale, locales)
+	}), nil
 }
 
-func loadQuestionDatasetFromS3WithClient(ctx context.Context, client s3QuestionClient, config S3QuestionSourceConfig, fallbackLocale string, locales []string) (QuestionDataset, error) {
+func loadQuestionDatasetFromS3WithClient(ctx context.Context, client s3QuestionClient, config S3ContentSourceConfig, fallbackLocale string, locales []string) (QuestionDataset, error) {
 	bucket := strings.TrimSpace(config.Bucket)
 	if bucket == "" {
 		return QuestionDataset{}, fmt.Errorf("S3_BUCKET is required when QUESTION_STORAGE_PROVIDER=s3")

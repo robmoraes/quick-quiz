@@ -60,7 +60,7 @@ func TestLoadQuestionDatasetFromS3UsesConfiguredPrefixAndIgnoresDerivedContent(t
 		},
 	}
 
-	dataset, err := loadQuestionDatasetFromS3WithClient(context.Background(), client, S3QuestionSourceConfig{
+	dataset, err := loadQuestionDatasetFromS3WithClient(context.Background(), client, S3ContentSourceConfig{
 		Bucket: "question-bucket",
 		Prefix: "/questions/",
 	}, "en-US", []string{"en-US"})
@@ -91,7 +91,7 @@ func TestLoadQuestionDatasetFromS3UsesConfiguredPrefixAndIgnoresDerivedContent(t
 func TestLoadQuestionDatasetFromS3RequiresBucket(t *testing.T) {
 	client := &fakeS3QuestionClient{}
 
-	_, err := loadQuestionDatasetFromS3WithClient(context.Background(), client, S3QuestionSourceConfig{}, "en-US", []string{"en-US"})
+	_, err := loadQuestionDatasetFromS3WithClient(context.Background(), client, S3ContentSourceConfig{}, "en-US", []string{"en-US"})
 	if err == nil || !strings.Contains(err.Error(), "S3_BUCKET is required") {
 		t.Fatalf("expected missing bucket error, got %v", err)
 	}

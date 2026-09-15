@@ -52,7 +52,7 @@ EOF
 ```
 
 If question content is loaded from S3, set `QUESTION_STORAGE_PROVIDER=s3` and add
-the required AWS and S3 variables documented in `apps/api/README.md`. The `.local` volume is not needed to load the question catalog in that case, but it is still used by the current file-backed solution store and solution prompt.
+the required AWS and S3 variables documented in `apps/api/README.md`. The API then reads both the question catalog and the theme solution prompt from S3. The `.local` volume is unnecessary when generated solutions use Redis or memory.
 
 ## Pull the Image
 
