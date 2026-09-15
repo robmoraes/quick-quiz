@@ -18,3 +18,6 @@ A security update consists of reviewing the upstream PHP/Alpine image, updating
 its tag and digest in the Dockerfile, incrementing `PHP_BASE_TAG`, updating the
 Manager default image references, building both architectures, and verifying
 the published manifest.
+
+Detailed update and publishing procedure:
+[Manager PHP base multi-architecture release runbook](../../../docs/runbooks/manager-php-base-multiarch-release.md).

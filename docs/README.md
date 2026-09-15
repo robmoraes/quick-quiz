@@ -17,6 +17,7 @@ monorepo.
   editing risks.
 - [Specs](specs/README.md): product and implementation specifications.
 - [Timeline](timeline/): short development log entries.
+- [Runbooks](runbooks/): operational recovery and manual release procedures.
 
 ## Stable Contracts
 
