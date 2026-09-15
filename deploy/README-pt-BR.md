@@ -88,10 +88,6 @@ Exporte as seis imagens como artefatos OCI em `deploy/dist`:
 ```sh
 make -C deploy build-images \
   TAG=v0.1.0-beta \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=oci
 ```
 
@@ -100,29 +96,23 @@ Publique as seis imagens com a mesma tag:
 ```sh
 make -C deploy build-images \
   TAG=v0.1.0-beta \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=push
 ```
 
 Quando `OUTPUT=push` é usado, o Makefile também marca e publica a mesma imagem como `latest` em cada repositório. Por exemplo, `TAG=v0.1.0-beta` publica `robmoraes/quick-quiz-api:v0.1.0-beta` e `robmoraes/quick-quiz-api:latest`.
 
-Builds de imagem SPA exigem a URL base da Quiz API e da Ads API; use
-`SPA_DEV_API_BASE_URL`/`SPA_DEV_ADS_API_BASE_URL` ou
-`SPA_DSLAB_API_BASE_URL`/`SPA_DSLAB_ADS_API_BASE_URL` para valores específicos
-por app. `VITE_API_BASE_URL` e `VITE_ADS_API_BASE_URL` continuam disponíveis
-como fallback compartilhado para builds locais pontuais. Não há valor padrão de
-propósito, porque esses valores são compilados no bundle estático do frontend.
+As imagens das SPAs são independentes do ambiente. Na inicialização do
+contêiner, o Compose mapeia os valores `SPA_*_API_BASE_URL` para
+`SPA_API_BASE_URL` e `SPA_ADS_API_BASE_URL`; a troca de endpoint exige apenas a
+recriação do contêiner.
 
 Construa ou publique apenas uma imagem com tag individual:
 
 ```sh
 make -C deploy api API_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy ads-api ADS_API_TAG=v0.1.1-beta OUTPUT=push
-make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push
-make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push
+make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta OUTPUT=push
+make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
@@ -137,10 +127,6 @@ make -C deploy build-images \
   SPA_DSLAB_TAG=v0.1.0-dslab \
   MANAGER_FPM_TAG=v0.1.2-fpm \
   MANAGER_WEB_TAG=v0.1.2-web \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=push
 ```
 
@@ -148,17 +134,12 @@ Carregue imagens no Docker local:
 
 ```sh
 make -C deploy build-images \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=load
 ```
 
 O workflow de release do GitHub Actions publica imagens quando tags de release
-suportadas são enviadas. O workflow usa o GitHub Environment `production` e lê
-os repositórios Docker Hub e as URLs da API das SPAs de variáveis do
-environment:
+suportadas são enviadas. O workflow usa o GitHub Environment `production` e lê os repositórios Docker
+Hub das variáveis do environment:
 
 - `DOCKERHUB_API_IMAGE`
 - `DOCKERHUB_ADS_API_IMAGE`
@@ -166,7 +147,3 @@ environment:
 - `DOCKERHUB_SPA_DSLAB_IMAGE`
 - `DOCKERHUB_MANAGER_FPM_IMAGE`
 - `DOCKERHUB_MANAGER_WEB_IMAGE`
-- `SPA_DEV_API_BASE_URL`
-- `SPA_DEV_ADS_API_BASE_URL`
-- `SPA_DSLAB_API_BASE_URL`
-- `SPA_DSLAB_ADS_API_BASE_URL`

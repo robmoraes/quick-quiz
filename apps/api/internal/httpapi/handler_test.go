@@ -251,7 +251,7 @@ func testRouter() http.Handler {
 		i18n.NewManager("en-US", []string{"en-US"}),
 	)
 
-	return NewRouter(runService, solutionService, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	return NewRouter(runService, solutionService, slog.New(slog.NewTextHandler(io.Discard, nil)), []string{"*"})
 }
 
 type testSolutionGenerator struct{}

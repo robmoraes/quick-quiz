@@ -45,6 +45,10 @@ Deployment guides:
 Environment variables:
 
 - `HTTP_ADDR`: HTTP server address. Default: `:8080`.
+- `LOG_LEVEL`: structured log threshold: `debug`, `info`, `warn`, or `error`. Default: `info`.
+- `CORS_ALLOWED_ORIGINS`: comma-separated browser origins or `*`. Default: `*`.
+- `HTTP_READ_HEADER_TIMEOUT`, `HTTP_READ_TIMEOUT`, `HTTP_WRITE_TIMEOUT`, `HTTP_IDLE_TIMEOUT`: HTTP server timeouts. Defaults: `5s`, `15s`, `15s`, and `60s`.
+- `STORAGE_STARTUP_TIMEOUT`: startup deadline for loading S3-backed content. Default: `30s`.
 - `RUN_QUESTION_LIMIT`: fixed maximum number of questions per run. Default: `10`.
 - `QUESTION_STORAGE_PROVIDER`: question storage backend, `local` or `s3`. Default: `local`.
 - `QUESTION_SOURCE`: local content root with `themes.json` and theme folders. Default: `.local`.
@@ -55,6 +59,7 @@ Environment variables:
 - `SOLUTION_STORAGE_PROVIDER`: generated-solution storage backend, `local`, `memory`, or `redis`. Default: `local`.
 - `SOLUTION_TTL`: Redis lifetime for generated solutions. Default: `168h`.
 - `REDIS_ADDR`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_TLS`: Redis connection settings.
+- `REDIS_CONNECT_TIMEOUT`: Redis startup connection deadline. Default: `5s`.
 - `REDIS_KEY_PREFIX`, `REDIS_SOLUTION_KEY_PREFIX`: separate Redis namespaces for runs and generated solutions.
 - `SHUTDOWN_TIMEOUT`: graceful shutdown timeout. Default: `10s`.
 - `OPENAI_API_KEY`: OpenAI API key used only when generating a missing question solution.

@@ -101,3 +101,30 @@ func TestLoadReadsRedisSolutionStorageConfiguration(t *testing.T) {
 		t.Fatalf("unexpected Redis solution key prefix: %q", config.Redis.SolutionKeyPrefix)
 	}
 }
+
+func TestLoadReadsOperationalConfiguration(t *testing.T) {
+	t.Setenv("ENV_FILE", t.TempDir()+"/missing.env")
+	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://dev.example.com, https://dslab.example.com")
+	t.Setenv("HTTP_READ_HEADER_TIMEOUT", "7s")
+	t.Setenv("HTTP_READ_TIMEOUT", "21s")
+	t.Setenv("HTTP_WRITE_TIMEOUT", "22s")
+	t.Setenv("HTTP_IDLE_TIMEOUT", "75s")
+	t.Setenv("STORAGE_STARTUP_TIMEOUT", "40s")
+	t.Setenv("REDIS_CONNECT_TIMEOUT", "8s")
+
+	config := Load()
+
+	if config.LogLevel != "debug" {
+		t.Fatalf("unexpected log level: %q", config.LogLevel)
+	}
+	if len(config.CORSAllowedOrigins) != 2 || config.CORSAllowedOrigins[1] != "https://dslab.example.com" {
+		t.Fatalf("unexpected CORS origins: %#v", config.CORSAllowedOrigins)
+	}
+	if config.HTTPReadHeaderTimeout != 7*time.Second || config.HTTPReadTimeout != 21*time.Second || config.HTTPWriteTimeout != 22*time.Second || config.HTTPIdleTimeout != 75*time.Second {
+		t.Fatalf("unexpected HTTP timeouts: %#v", config)
+	}
+	if config.StorageStartupTimeout != 40*time.Second || config.Redis.ConnectTimeout != 8*time.Second {
+		t.Fatalf("unexpected dependency timeouts: %#v", config)
+	}
+}

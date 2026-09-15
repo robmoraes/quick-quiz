@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestLoadReadsS3StorageConfiguration(t *testing.T) {
 	t.Setenv("ENV_FILE", t.TempDir()+"/missing.env")
@@ -32,5 +35,25 @@ func TestLoadDefaultsStorageToLocal(t *testing.T) {
 
 	if config.AdsStorageProvider != "local" {
 		t.Fatalf("expected local provider, got %q", config.AdsStorageProvider)
+	}
+}
+
+func TestLoadReadsOperationalConfiguration(t *testing.T) {
+	t.Setenv("ENV_FILE", t.TempDir()+"/missing.env")
+	t.Setenv("LOG_LEVEL", "warn")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://dev.example.com, https://dslab.example.com")
+	t.Setenv("HTTP_READ_HEADER_TIMEOUT", "7s")
+	t.Setenv("HTTP_READ_TIMEOUT", "21s")
+	t.Setenv("HTTP_WRITE_TIMEOUT", "22s")
+	t.Setenv("HTTP_IDLE_TIMEOUT", "75s")
+	t.Setenv("STORAGE_STARTUP_TIMEOUT", "40s")
+
+	config := Load()
+
+	if config.LogLevel != "warn" || len(config.CORSAllowedOrigins) != 2 {
+		t.Fatalf("unexpected logging or CORS configuration: %#v", config)
+	}
+	if config.HTTPReadHeaderTimeout != 7*time.Second || config.HTTPReadTimeout != 21*time.Second || config.HTTPWriteTimeout != 22*time.Second || config.HTTPIdleTimeout != 75*time.Second || config.StorageStartupTimeout != 40*time.Second {
+		t.Fatalf("unexpected operational timeouts: %#v", config)
 	}
 }

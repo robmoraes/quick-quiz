@@ -29,10 +29,6 @@ jobs:
       DOCKERHUB_SPA_DSLAB_IMAGE: ${{ vars.DOCKERHUB_SPA_DSLAB_IMAGE }}
       DOCKERHUB_MANAGER_FPM_IMAGE: ${{ vars.DOCKERHUB_MANAGER_FPM_IMAGE }}
       DOCKERHUB_MANAGER_WEB_IMAGE: ${{ vars.DOCKERHUB_MANAGER_WEB_IMAGE }}
-      SPA_DEV_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
-      SPA_DEV_ADS_API_BASE_URL: ${{ vars.SPA_DEV_ADS_API_BASE_URL }}
-      SPA_DSLAB_API_BASE_URL: ${{ vars.SPA_DSLAB_API_BASE_URL }}
-      SPA_DSLAB_ADS_API_BASE_URL: ${{ vars.SPA_DSLAB_ADS_API_BASE_URL }}
 
     steps:
       - name: Classify release tag
@@ -165,28 +161,12 @@ jobs:
             missing+=("DOCKERHUB_ADS_API_IMAGE")
           fi
 
-          if [[ "${{ steps.tag.outputs.app }}" == "spa-dev" ]]; then
-            if [[ -z "${DOCKERHUB_SPA_DEV_IMAGE}" ]]; then
-              missing+=("DOCKERHUB_SPA_DEV_IMAGE")
-            fi
-            if [[ -z "${SPA_DEV_API_BASE_URL}" ]]; then
-              missing+=("SPA_DEV_API_BASE_URL")
-            fi
-            if [[ -z "${SPA_DEV_ADS_API_BASE_URL}" ]]; then
-              missing+=("SPA_DEV_ADS_API_BASE_URL")
-            fi
+          if [[ "${{ steps.tag.outputs.app }}" == "spa-dev" && -z "${DOCKERHUB_SPA_DEV_IMAGE}" ]]; then
+            missing+=("DOCKERHUB_SPA_DEV_IMAGE")
           fi
 
-          if [[ "${{ steps.tag.outputs.app }}" == "spa-dslab" ]]; then
-            if [[ -z "${DOCKERHUB_SPA_DSLAB_IMAGE}" ]]; then
-              missing+=("DOCKERHUB_SPA_DSLAB_IMAGE")
-            fi
-            if [[ -z "${SPA_DSLAB_API_BASE_URL}" ]]; then
-              missing+=("SPA_DSLAB_API_BASE_URL")
-            fi
-            if [[ -z "${SPA_DSLAB_ADS_API_BASE_URL}" ]]; then
-              missing+=("SPA_DSLAB_ADS_API_BASE_URL")
-            fi
+          if [[ "${{ steps.tag.outputs.app }}" == "spa-dslab" && -z "${DOCKERHUB_SPA_DSLAB_IMAGE}" ]]; then
+            missing+=("DOCKERHUB_SPA_DSLAB_IMAGE")
           fi
 
           if [[ "${{ steps.tag.outputs.app }}" == "manager" ]]; then
@@ -265,9 +245,6 @@ jobs:
       - name: Build SPA
         if: steps.tag.outputs.app == 'spa-dev' || steps.tag.outputs.app == 'spa-dslab'
         working-directory: apps/${{ steps.tag.outputs.app }}
-        env:
-          VITE_API_BASE_URL: ${{ steps.tag.outputs.app == 'spa-dev' && vars.SPA_DEV_API_BASE_URL || vars.SPA_DSLAB_API_BASE_URL }}
-          VITE_ADS_API_BASE_URL: ${{ steps.tag.outputs.app == 'spa-dev' && vars.SPA_DEV_ADS_API_BASE_URL || vars.SPA_DSLAB_ADS_API_BASE_URL }}
         run: npm run build
 
       - name: Set up PHP
@@ -316,17 +293,13 @@ jobs:
         if: steps.tag.outputs.app == 'spa-dev'
         env:
           SPA_DEV_TAG: ${{ steps.tag.outputs.version }}
-          SPA_DEV_API_BASE_URL: ${{ vars.SPA_DEV_API_BASE_URL }}
-          SPA_DEV_ADS_API_BASE_URL: ${{ vars.SPA_DEV_ADS_API_BASE_URL }}
-        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" SPA_DEV_API_BASE_URL="${SPA_DEV_API_BASE_URL}" SPA_DEV_ADS_API_BASE_URL="${SPA_DEV_ADS_API_BASE_URL}" OUTPUT=push
+        run: make -C deploy spa-dev SPA_DEV_TAG="${SPA_DEV_TAG}" SPA_DEV_REPOSITORY="${DOCKERHUB_SPA_DEV_IMAGE}" OUTPUT=push
 
       - name: Build and push SPA DSLab image
         if: steps.tag.outputs.app == 'spa-dslab'
         env:
           SPA_DSLAB_TAG: ${{ steps.tag.outputs.version }}
-          SPA_DSLAB_API_BASE_URL: ${{ vars.SPA_DSLAB_API_BASE_URL }}
-          SPA_DSLAB_ADS_API_BASE_URL: ${{ vars.SPA_DSLAB_ADS_API_BASE_URL }}
-        run: make -C deploy spa-dslab SPA_DSLAB_TAG="${SPA_DSLAB_TAG}" SPA_DSLAB_REPOSITORY="${DOCKERHUB_SPA_DSLAB_IMAGE}" SPA_DSLAB_API_BASE_URL="${SPA_DSLAB_API_BASE_URL}" SPA_DSLAB_ADS_API_BASE_URL="${SPA_DSLAB_ADS_API_BASE_URL}" OUTPUT=push
+        run: make -C deploy spa-dslab SPA_DSLAB_TAG="${SPA_DSLAB_TAG}" SPA_DSLAB_REPOSITORY="${DOCKERHUB_SPA_DSLAB_IMAGE}" OUTPUT=push
 
       - name: Build and push manager FPM image
         if: steps.tag.outputs.app == 'manager'

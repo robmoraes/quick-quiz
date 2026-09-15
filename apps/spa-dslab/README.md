@@ -6,9 +6,9 @@ playlist.
 
 Channel: <https://www.youtube.com/@DistributedSystemsLab>
 
-The API theme is fixed to `dslab` in the SPA client. Configure the Quiz API
-through `VITE_API_BASE_URL` and the Ads API through `VITE_ADS_API_BASE_URL`.
-Both values are compiled into the static bundle.
+The API theme is fixed to `dslab` in the SPA client. The Docker image reads
+`SPA_API_BASE_URL` and `SPA_ADS_API_BASE_URL` when the container starts, so
+endpoint changes do not require an image rebuild.
 
 Monorepo documentation:
 
@@ -56,12 +56,19 @@ npm run build
 ### Build the Docker image
 
 ```bash
-make -C ../../deploy spa-dslab \
-  SPA_DSLAB_TAG=v0.1.0 \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  OUTPUT=oci
+make -C ../../deploy spa-dslab SPA_DSLAB_TAG=v0.1.0 OUTPUT=oci
 ```
+
+### Run the Docker image with runtime endpoints
+
+```bash
+docker run --rm -p 8083:8080 \
+  -e SPA_API_BASE_URL=http://localhost:8080 \
+  -e SPA_ADS_API_BASE_URL=http://localhost:8084 \
+  quickquiz-dslab:local
+```
+
+Direct `npm run dev` uses the development defaults in `public/runtime-config.js`.
 
 ### Customize the configuration
 

@@ -10,6 +10,13 @@ import (
 
 type Config struct {
 	HTTPAddr                string
+	HTTPReadHeaderTimeout   time.Duration
+	HTTPReadTimeout         time.Duration
+	HTTPWriteTimeout        time.Duration
+	HTTPIdleTimeout         time.Duration
+	CORSAllowedOrigins      []string
+	LogLevel                string
+	StorageStartupTimeout   time.Duration
 	RunQuestionLimit        int
 	RunStorageProvider      string
 	SolutionStorageProvider string
@@ -27,6 +34,7 @@ type Config struct {
 
 type RedisConfig struct {
 	Addr              string
+	ConnectTimeout    time.Duration
 	Username          string
 	Password          string
 	DB                int
@@ -58,6 +66,13 @@ func Load() Config {
 
 	return Config{
 		HTTPAddr:                getEnv("HTTP_ADDR", ":8080"),
+		HTTPReadHeaderTimeout:   getEnvDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
+		HTTPReadTimeout:         getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
+		HTTPWriteTimeout:        getEnvDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
+		HTTPIdleTimeout:         getEnvDuration("HTTP_IDLE_TIMEOUT", 60*time.Second),
+		CORSAllowedOrigins:      getEnvList("CORS_ALLOWED_ORIGINS", []string{"*"}),
+		LogLevel:                strings.ToLower(strings.TrimSpace(getEnv("LOG_LEVEL", "info"))),
+		StorageStartupTimeout:   getEnvDuration("STORAGE_STARTUP_TIMEOUT", 30*time.Second),
 		RunQuestionLimit:        getEnvInt("RUN_QUESTION_LIMIT", 10),
 		RunStorageProvider:      strings.ToLower(strings.TrimSpace(getEnv("RUN_STORAGE_PROVIDER", "memory"))),
 		SolutionStorageProvider: strings.ToLower(strings.TrimSpace(getEnv("SOLUTION_STORAGE_PROVIDER", "local"))),
@@ -70,6 +85,7 @@ func Load() Config {
 		ShutdownTimeout:         getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
 		Redis: RedisConfig{
 			Addr:              getEnv("REDIS_ADDR", "127.0.0.1:6379"),
+			ConnectTimeout:    getEnvDuration("REDIS_CONNECT_TIMEOUT", 5*time.Second),
 			Username:          getEnv("REDIS_USERNAME", ""),
 			Password:          getEnv("REDIS_PASSWORD", ""),
 			DB:                getEnvInt("REDIS_DB", 0),

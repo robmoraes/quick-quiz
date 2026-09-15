@@ -54,10 +54,6 @@ Publish all images with a shared tag:
 docker login
 make -C deploy build-images \
   TAG=v0.1.0-beta \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=push
 ```
 
@@ -73,8 +69,8 @@ Publish one image independently:
 ```sh
 make -C deploy api API_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy ads-api ADS_API_TAG=v0.1.1-beta OUTPUT=push
-make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push
-make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push
+make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta OUTPUT=push
+make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```

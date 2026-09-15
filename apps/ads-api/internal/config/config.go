@@ -9,11 +9,18 @@ import (
 )
 
 type Config struct {
-	HTTPAddr           string
-	AdsStorageProvider string
-	AdsSource          string
-	ShutdownTimeout    time.Duration
-	S3                 S3Config
+	HTTPAddr              string
+	HTTPReadHeaderTimeout time.Duration
+	HTTPReadTimeout       time.Duration
+	HTTPWriteTimeout      time.Duration
+	HTTPIdleTimeout       time.Duration
+	CORSAllowedOrigins    []string
+	LogLevel              string
+	StorageStartupTimeout time.Duration
+	AdsStorageProvider    string
+	AdsSource             string
+	ShutdownTimeout       time.Duration
+	S3                    S3Config
 }
 
 type S3Config struct {
@@ -28,10 +35,17 @@ func Load() Config {
 	loadDotEnv(getEnv("ENV_FILE", ".env"))
 
 	return Config{
-		HTTPAddr:           getEnv("HTTP_ADDR", ":8080"),
-		AdsStorageProvider: strings.ToLower(strings.TrimSpace(getEnv("ADS_STORAGE_PROVIDER", "local"))),
-		AdsSource:          getEnv("ADS_SOURCE", ".local"),
-		ShutdownTimeout:    getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
+		HTTPAddr:              getEnv("HTTP_ADDR", ":8080"),
+		HTTPReadHeaderTimeout: getEnvDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
+		HTTPReadTimeout:       getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
+		HTTPWriteTimeout:      getEnvDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
+		HTTPIdleTimeout:       getEnvDuration("HTTP_IDLE_TIMEOUT", 60*time.Second),
+		CORSAllowedOrigins:    getEnvList("CORS_ALLOWED_ORIGINS", []string{"*"}),
+		LogLevel:              strings.ToLower(strings.TrimSpace(getEnv("LOG_LEVEL", "info"))),
+		StorageStartupTimeout: getEnvDuration("STORAGE_STARTUP_TIMEOUT", 30*time.Second),
+		AdsStorageProvider:    strings.ToLower(strings.TrimSpace(getEnv("ADS_STORAGE_PROVIDER", "local"))),
+		AdsSource:             getEnv("ADS_SOURCE", ".local"),
+		ShutdownTimeout:       getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
 		S3: S3Config{
 			Region:         getEnv("AWS_REGION", "us-east-1"),
 			Bucket:         getEnv("S3_BUCKET", ""),
@@ -75,6 +89,26 @@ func getEnv(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func getEnvList(key string, fallback []string) []string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+
+	parts := strings.Split(value, ",")
+	items := make([]string, 0, len(parts))
+	for _, part := range parts {
+		item := strings.TrimSpace(part)
+		if item != "" {
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		return fallback
+	}
+	return items
 }
 
 func getEnvDuration(key string, fallback time.Duration) time.Duration {

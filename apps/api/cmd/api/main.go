@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"quickquiz/api/internal/app"
 	"quickquiz/api/internal/config"
@@ -20,14 +19,15 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-
 	cfg := config.Load()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: parseLogLevel(cfg.LogLevel),
+	}))
 	localeManager := i18n.NewManager(cfg.FallbackLocale, cfg.SupportedLocales)
 
-	questionDataset, err := loadQuestionDataset(context.Background(), cfg, localeManager.Fallback(), localeManager.Supported())
+	storageCtx, cancelStorage := context.WithTimeout(context.Background(), cfg.StorageStartupTimeout)
+	questionDataset, err := loadQuestionDataset(storageCtx, cfg, localeManager.Fallback(), localeManager.Supported())
+	cancelStorage()
 	if err != nil {
 		logger.Error("failed to load questions", "provider", cfg.QuestionStorageProvider, "error", err)
 		os.Exit(1)
@@ -55,7 +55,9 @@ func main() {
 			logger.Error("failed to close solution storage", "error", err)
 		}
 	}()
-	promptSource, err := loadSolutionPromptSource(context.Background(), cfg)
+	promptCtx, cancelPrompt := context.WithTimeout(context.Background(), cfg.StorageStartupTimeout)
+	promptSource, err := loadSolutionPromptSource(promptCtx, cfg)
+	cancelPrompt()
 	if err != nil {
 		logger.Error("failed to initialize solution prompt storage", "provider", cfg.QuestionStorageProvider, "error", err)
 		os.Exit(1)
@@ -72,11 +74,11 @@ func main() {
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(runService, solutionService, logger),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		Handler:           httpapi.NewRouter(runService, solutionService, logger, cfg.CORSAllowedOrigins),
+		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
+		ReadTimeout:       cfg.HTTPReadTimeout,
+		WriteTimeout:      cfg.HTTPWriteTimeout,
+		IdleTimeout:       cfg.HTTPIdleTimeout,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -131,7 +133,7 @@ func loadSolutionStore(ctx context.Context, cfg config.Config) (app.SolutionRepo
 			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 		}
 
-		connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		connectCtx, cancel := context.WithTimeout(ctx, cfg.Redis.ConnectTimeout)
 		defer cancel()
 		solutionStore, err := store.NewRedisSolutionStore(connectCtx, store.RedisSolutionStoreConfig{
 			Addr:      cfg.Redis.Addr,
@@ -161,7 +163,7 @@ func loadRunStore(ctx context.Context, cfg config.Config) (app.RunRepository, fu
 			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 		}
 
-		connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		connectCtx, cancel := context.WithTimeout(ctx, cfg.Redis.ConnectTimeout)
 		defer cancel()
 		runStore, err := store.NewRedisRunStore(connectCtx, store.RedisRunStoreConfig{
 			Addr:      cfg.Redis.Addr,
@@ -196,4 +198,12 @@ func loadQuestionDataset(ctx context.Context, cfg config.Config, fallbackLocale 
 	default:
 		return store.QuestionDataset{}, fmt.Errorf("unsupported QUESTION_STORAGE_PROVIDER %q: use local or s3", cfg.QuestionStorageProvider)
 	}
+}
+
+func parseLogLevel(value string) slog.Level {
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(value)); err != nil {
+		return slog.LevelInfo
+	}
+	return level
 }

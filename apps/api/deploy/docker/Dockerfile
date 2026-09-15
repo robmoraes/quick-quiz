@@ -43,7 +43,6 @@ ENV OPENAI_SOLUTION_PROMPT_FILE=/app/.local/{{theme}}/ai-prompts/question-soluti
 ENV OPENAI_TIMEOUT=30s
 
 EXPOSE 8080
-VOLUME ["/app/.local"]
 
 USER quickquiz
 

@@ -26,3 +26,10 @@ declare module '*.wav' {
   const src: string;
   export default src;
 }
+
+interface Window {
+  __QUICKQUIZ_CONFIG__?: {
+    apiBaseUrl?: string;
+    adsApiBaseUrl?: string;
+  };
+}
