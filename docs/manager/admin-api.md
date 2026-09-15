@@ -50,6 +50,17 @@ read -rsp 'Manager API token: ' QUICKQUIZ_ADMIN_TOKEN
 export QUICKQUIZ_ADMIN_TOKEN
 ```
 
+For repeated local use, keep both variables in the repository-local
+`.env.remote-api`, which is ignored by Git, set its mode to `0600`, and load
+it before starting Codex:
+
+```sh
+set -a
+. ./.env.remote-api
+set +a
+codex
+```
+
 Discover the existing catalog before choosing where new material belongs:
 
 ```sh
