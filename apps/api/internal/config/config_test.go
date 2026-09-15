@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestLoadReadsS3QuestionStorageConfiguration(t *testing.T) {
 	t.Setenv("ENV_FILE", t.TempDir()+"/missing.env")
@@ -77,5 +80,24 @@ func TestLoadDefaultsSolutionStorageToLocal(t *testing.T) {
 
 	if config.SolutionStorageProvider != "local" {
 		t.Fatalf("expected local solution provider, got %q", config.SolutionStorageProvider)
+	}
+}
+
+func TestLoadReadsRedisSolutionStorageConfiguration(t *testing.T) {
+	t.Setenv("ENV_FILE", t.TempDir()+"/missing.env")
+	t.Setenv("SOLUTION_STORAGE_PROVIDER", " Redis ")
+	t.Setenv("SOLUTION_TTL", "48h")
+	t.Setenv("REDIS_SOLUTION_KEY_PREFIX", "test:solutions:")
+
+	config := Load()
+
+	if config.SolutionStorageProvider != "redis" {
+		t.Fatalf("expected Redis solution provider, got %q", config.SolutionStorageProvider)
+	}
+	if config.SolutionTTL != 48*time.Hour {
+		t.Fatalf("expected 48 hour solution TTL, got %s", config.SolutionTTL)
+	}
+	if config.Redis.SolutionKeyPrefix != "test:solutions:" {
+		t.Fatalf("unexpected Redis solution key prefix: %q", config.Redis.SolutionKeyPrefix)
 	}
 }

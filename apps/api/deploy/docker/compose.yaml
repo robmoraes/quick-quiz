@@ -8,7 +8,9 @@ services:
       - ${QUICKQUIZ_ENV_FILE:-./api.env.example}
     environment:
       RUN_STORAGE_PROVIDER: redis
-      SOLUTION_STORAGE_PROVIDER: memory
+      SOLUTION_STORAGE_PROVIDER: redis
+      SOLUTION_TTL: 168h
+      REDIS_SOLUTION_KEY_PREFIX: "quickquiz:solutions:"
       REDIS_ADDR: redis:6379
     depends_on:
       redis:

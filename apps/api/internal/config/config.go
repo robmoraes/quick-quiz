@@ -18,6 +18,7 @@ type Config struct {
 	FallbackLocale          string
 	SupportedLocales        []string
 	SessionTTL              time.Duration
+	SolutionTTL             time.Duration
 	ShutdownTimeout         time.Duration
 	Redis                   RedisConfig
 	S3                      S3Config
@@ -25,12 +26,13 @@ type Config struct {
 }
 
 type RedisConfig struct {
-	Addr      string
-	Username  string
-	Password  string
-	DB        int
-	TLS       bool
-	KeyPrefix string
+	Addr              string
+	Username          string
+	Password          string
+	DB                int
+	TLS               bool
+	KeyPrefix         string
+	SolutionKeyPrefix string
 }
 
 type S3Config struct {
@@ -64,14 +66,16 @@ func Load() Config {
 		FallbackLocale:          getEnv("FALLBACK_LOCALE", "en-US"),
 		SupportedLocales:        getEnvList("SUPPORTED_LOCALES", []string{"en-US", "pt-BR"}),
 		SessionTTL:              getEnvDuration("SESSION_TTL", 30*time.Minute),
+		SolutionTTL:             getEnvDuration("SOLUTION_TTL", 7*24*time.Hour),
 		ShutdownTimeout:         getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
 		Redis: RedisConfig{
-			Addr:      getEnv("REDIS_ADDR", "127.0.0.1:6379"),
-			Username:  getEnv("REDIS_USERNAME", ""),
-			Password:  getEnv("REDIS_PASSWORD", ""),
-			DB:        getEnvInt("REDIS_DB", 0),
-			TLS:       getEnvBool("REDIS_TLS", false),
-			KeyPrefix: getEnv("REDIS_KEY_PREFIX", "quickquiz:runs:"),
+			Addr:              getEnv("REDIS_ADDR", "127.0.0.1:6379"),
+			Username:          getEnv("REDIS_USERNAME", ""),
+			Password:          getEnv("REDIS_PASSWORD", ""),
+			DB:                getEnvInt("REDIS_DB", 0),
+			TLS:               getEnvBool("REDIS_TLS", false),
+			KeyPrefix:         getEnv("REDIS_KEY_PREFIX", "quickquiz:runs:"),
+			SolutionKeyPrefix: getEnv("REDIS_SOLUTION_KEY_PREFIX", "quickquiz:solutions:"),
 		},
 		S3: S3Config{
 			Region:         getEnv("AWS_REGION", "us-east-1"),

@@ -278,7 +278,7 @@ The Manager creates its PostgreSQL tables when the admin repository is first use
 ## Operational Notes
 
 - Keep `MANAGER_APP_SECRET` stable between manager restarts so session cookies remain valid.
-- Redis is ephemeral in this single-node profile; restarting it invalidates active quiz runs and Manager login sessions.
+- Redis is ephemeral in this single-node profile; restarting it invalidates active quiz runs and Manager login sessions, while generated solutions are recreated on demand.
 - Keep `ACME_EMAIL` set to a real mailbox for Let's Encrypt notifications.
 - Back up the configured content backend and the Manager PostgreSQL database with `pg_dump`.
 - The Terraform state and `.env` files can contain sensitive or environment-specific values and should not be committed.

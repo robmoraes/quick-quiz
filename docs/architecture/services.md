@@ -28,8 +28,7 @@ content, but that does not imply player accounts. Login sessions are stored in R
 Path: `apps/api/`
 
 The API is a Go service that serves the player SPA. It loads active quiz pack
-content from local files or S3-compatible storage and keeps MVP run/session
-state in memory.
+content from local files or S3-compatible storage. Run/session state and generated solutions can use Redis.
 
 Responsibilities:
 

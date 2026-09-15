@@ -58,7 +58,7 @@ paths:
       tags:
         - Session
       summary: Resets the current session.
-      description: Removes in-memory runs associated with the provided session header.
+      description: Removes tracked runs associated with the provided session header.
       operationId: resetSession
       parameters:
         - $ref: "#/components/parameters/Theme"
@@ -134,7 +134,7 @@ paths:
     get:
       tags:
         - Session
-      summary: Lists tracked in-memory sessions.
+      summary: Lists tracked sessions.
       description: Returns non-expired run sessions visible to the API at request time, including finished runs until session TTL cleanup removes them. This endpoint is open for now and only returns operational metadata.
       operationId: getActiveSessions
       responses:

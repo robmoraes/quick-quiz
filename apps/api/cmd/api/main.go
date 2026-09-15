@@ -45,11 +45,16 @@ func main() {
 		}
 	}()
 	runService := app.NewRunService(questionStore, runStore, cfg.RunQuestionLimit, localeManager)
-	solutionStore, err := loadSolutionStore(cfg)
+	solutionStore, closeSolutionStore, err := loadSolutionStore(context.Background(), cfg)
 	if err != nil {
 		logger.Error("failed to initialize solution storage", "provider", cfg.SolutionStorageProvider, "error", err)
 		os.Exit(1)
 	}
+	defer func() {
+		if err := closeSolutionStore(); err != nil {
+			logger.Error("failed to close solution storage", "error", err)
+		}
+	}()
 	solutionGenerator := app.NewOpenAISolutionGenerator(app.OpenAISolutionGeneratorConfig{
 		APIKey:       cfg.OpenAI.APIKey,
 		BaseURL:      cfg.OpenAI.BaseURL,
@@ -93,14 +98,35 @@ func main() {
 	}
 }
 
-func loadSolutionStore(cfg config.Config) (app.SolutionRepository, error) {
+func loadSolutionStore(ctx context.Context, cfg config.Config) (app.SolutionRepository, func() error, error) {
 	switch strings.ToLower(strings.TrimSpace(cfg.SolutionStorageProvider)) {
 	case "", "local":
-		return store.NewFileSolutionStore(cfg.QuestionSource), nil
+		return store.NewFileSolutionStore(cfg.QuestionSource), func() error { return nil }, nil
 	case "memory":
-		return store.NewMemorySolutionStore(nil), nil
+		return store.NewMemorySolutionStore(nil), func() error { return nil }, nil
+	case "redis":
+		var tlsConfig *tls.Config
+		if cfg.Redis.TLS {
+			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+
+		connectCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		solutionStore, err := store.NewRedisSolutionStore(connectCtx, store.RedisSolutionStoreConfig{
+			Addr:      cfg.Redis.Addr,
+			Username:  cfg.Redis.Username,
+			Password:  cfg.Redis.Password,
+			DB:        cfg.Redis.DB,
+			TLSConfig: tlsConfig,
+			KeyPrefix: cfg.Redis.SolutionKeyPrefix,
+			TTL:       cfg.SolutionTTL,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		return solutionStore, solutionStore.Close, nil
 	default:
-		return nil, fmt.Errorf("unsupported SOLUTION_STORAGE_PROVIDER %q: use local or memory", cfg.SolutionStorageProvider)
+		return nil, nil, fmt.Errorf("unsupported SOLUTION_STORAGE_PROVIDER %q: use local, memory, or redis", cfg.SolutionStorageProvider)
 	}
 }
 

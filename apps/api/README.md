@@ -52,8 +52,10 @@ Environment variables:
 - `SUPPORTED_LOCALES`: comma-separated supported BCP 47 locales. Default: `en-US,pt-BR`.
 - `SESSION_TTL`: inactive run lifetime. Default: `30m`.
 - `RUN_STORAGE_PROVIDER`: run/session storage backend, `memory` or `redis`. Default: `memory`.
-- `SOLUTION_STORAGE_PROVIDER`: generated-solution storage backend, `local` or `memory`. Default: `local`.
-- `REDIS_ADDR`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_TLS`, `REDIS_KEY_PREFIX`: Redis connection and key namespace settings.
+- `SOLUTION_STORAGE_PROVIDER`: generated-solution storage backend, `local`, `memory`, or `redis`. Default: `local`.
+- `SOLUTION_TTL`: Redis lifetime for generated solutions. Default: `168h`.
+- `REDIS_ADDR`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_TLS`: Redis connection settings.
+- `REDIS_KEY_PREFIX`, `REDIS_SOLUTION_KEY_PREFIX`: separate Redis namespaces for runs and generated solutions.
 - `SHUTDOWN_TIMEOUT`: graceful shutdown timeout. Default: `10s`.
 - `OPENAI_API_KEY`: OpenAI API key used only when generating a missing question solution.
 - `OPENAI_BASE_URL`: OpenAI API base URL. Default: `https://api.openai.com/v1`.
@@ -84,7 +86,7 @@ For local development, use `.local/themes.json` to publish themes, `.local/<them
 
 Question JSON files contain only `prompt`, `correctOptions`, and `wrongOptions`. The loader derives `theme`, `id`, `locale`, `topic`, and `difficulty` from the path, and only loads active themes from `themes.json` and active topics listed in the theme `index.json`.
 
-The S3 provider currently covers the read-only question catalog. Generated question solutions use `SOLUTION_STORAGE_PROVIDER`: `local` stores derived artifacts under `.local/<theme>/.solutions/<locale>/<topic>/<difficulty>/<question-id>.json`, while `memory` keeps them only for the lifetime of the API process. The repository-wide local Docker Compose uses `memory`, so the API does not write to its filesystem. A solution can only be requested for a question that was answered incorrectly in the requested run.
+The S3 provider covers the read-only question catalog. Generated question solutions use `SOLUTION_STORAGE_PROVIDER`: `local` stores derived artifacts under `.local/<theme>/.solutions/<locale>/<topic>/<difficulty>/<question-id>.json`, `memory` keeps them for the API process lifetime, and `redis` stores them under `REDIS_SOLUTION_KEY_PREFIX` for `SOLUTION_TTL`. The Docker Compose profiles use Redis, so generated solutions survive API restarts without creating API filesystem state. Losing the cache only causes a missing solution to be generated again. A solution can only be requested for a question that was answered incorrectly in the requested run.
 
 The solution-generation prompt is expected at `.local/<theme>/ai-prompts/question-solution-prompt.txt` by default. The manager writes this file when the `question_solution` AI prompt is saved, restored, or imported.
 

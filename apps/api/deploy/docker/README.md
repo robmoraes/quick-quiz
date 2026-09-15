@@ -37,7 +37,7 @@ docker run -d \
   quickquiz-api:local
 ```
 
-Or run the API and its Redis session store with Compose from this directory:
+Or run the API with Redis-backed runs and generated solutions using Compose from this directory:
 
 ```sh
 docker compose up -d --build
