@@ -13,6 +13,7 @@ parameters:
   manager.default_session_ttl: 3600
   manager.default_session_prefix: 'quickquiz:manager:session:'
   manager.default_trusted_proxies: '127.0.0.1,REMOTE_ADDR'
+  manager.default_admin_api_token: ''
   openai.default_base_url: 'https://api.openai.com/v1'
   openai.default_timeout: 45
   openai.default_models_timeout: 15
@@ -30,6 +31,7 @@ parameters:
   manager.session_ttl: '%env(int:default:manager.default_session_ttl:MANAGER_SESSION_TTL)%'
   manager.session_prefix: '%env(default:manager.default_session_prefix:MANAGER_SESSION_PREFIX)%'
   manager.trusted_proxies: '%env(csv:default:manager.default_trusted_proxies:TRUSTED_PROXIES)%'
+  manager.admin_api_token: '%env(default:manager.default_admin_api_token:MANAGER_ADMIN_API_TOKEN)%'
   manager.database_url: '%env(MANAGER_DATABASE_URL)%'
   manager.content_root: '%env(MANAGER_CONTENT_ROOT)%'
   manager.fallback_locale: '%env(FALLBACK_LOCALE)%'
@@ -92,6 +94,10 @@ services:
       $themeContext: '@App\Service\ThemeContext'
       $runQuestionLimit: '%manager.run_question_limit%'
       $contentStorage: '@App\Storage\ContentStorage'
+
+  App\Security\AdminApiTokenAuthenticator:
+    arguments:
+      $token: '%manager.admin_api_token%'
 
   App\Service\AdService:
     arguments:
