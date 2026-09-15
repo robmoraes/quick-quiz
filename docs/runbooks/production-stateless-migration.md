@@ -8,7 +8,8 @@ from local runtime state to S3, Redis, and PostgreSQL.
 - EC2: `i-043c1e8324ef79e4c`
 - Region/AZ: `us-east-1` / `us-east-1d`
 - Elastic IP: `34.207.253.17`
-- Instance type: `t3.small` after migration
+- Instance type: `t3.small`
+- Pre-migration EBS snapshot: `snap-008f672539b6aaacb`
 - Content: `s3://quickquiz-beta-content-379197597050-us-east-1/questions/`
 - Compose root: `/opt/quickquiz/compose`
 - Secrets root: `/opt/quickquiz/secrets`
@@ -56,7 +57,7 @@ Before pulling new images:
    `rollback-stateless-20260915` tag.
 3. Create an EBS snapshot while the instance is stopped for resizing.
 
-The prepared server backup is:
+The completed snapshot contains the stopped 8 GiB root volume. The prepared server backup is:
 
 ```text
 /opt/quickquiz/backups/stateless-20260915
@@ -183,3 +184,16 @@ docker compose --env-file .env up -d
 The old local content and SQLite database remain untouched during migration.
 If the instance cannot boot or its local state is damaged, restore the
 pre-migration EBS snapshot.
+
+## Migration result
+
+The migration completed on 2026-09-15 with these checks:
+
+- 702 canonical files and 534,793 bytes matched between local storage and S3;
+- one administrator and five AI prompts migrated to PostgreSQL;
+- all nine containers started with zero restarts;
+- Redis returned `PONG`;
+- the Manager read `themes.json` through its S3 storage adapter;
+- API, Ads API, both SPAs, and Manager health endpoints returned HTTP 200;
+- a disposable quiz run returned HTTP 201 and its session reset returned HTTP 200;
+- no panic, fatal error, access denial, or permission error appeared in deployment logs.
