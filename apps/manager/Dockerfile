@@ -1,10 +1,7 @@
-ARG MANAGER_DOCKER_PHP_VERSION=8.3
-FROM php:${MANAGER_DOCKER_PHP_VERSION}-cli-alpine
+ARG MANAGER_DOCKER_PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.33-alpine3.24-r1
+FROM ${MANAGER_DOCKER_PHP_BASE_IMAGE}
 
-RUN apk add --no-cache bash git libpq libxml2 sqlite-libs unzip \
-  && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpq-dev libxml2-dev sqlite-dev \
-  && docker-php-ext-install pdo_pgsql pdo_sqlite simplexml \
-  && apk del .build-deps
+RUN apk add --no-cache bash git unzip
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

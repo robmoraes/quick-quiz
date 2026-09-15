@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        MANAGER_DOCKER_PHP_VERSION: ${MANAGER_DOCKER_PHP_VERSION:-8.3}
+        MANAGER_DOCKER_PHP_BASE_IMAGE: ${MANAGER_DOCKER_PHP_BASE_IMAGE:-robmoraes/quick-quiz-php-base:8.3.33-alpine3.24-r1}
     working_dir: /app
     command: php -S 0.0.0.0:8081 -t public public/dev-router.php
     env_file:

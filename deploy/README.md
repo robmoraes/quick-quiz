@@ -87,6 +87,7 @@ robmoraes/quick-quiz-dev
 robmoraes/quick-quiz-dslab
 robmoraes/quick-quiz-manager-fpm
 robmoraes/quick-quiz-manager-web
+robmoraes/quick-quiz-php-base
 ```
 
 You can override each repository with:
@@ -98,6 +99,7 @@ SPA_DEV_REPOSITORY=example/spa
 SPA_DSLAB_REPOSITORY=example/spa-dslab
 MANAGER_FPM_REPOSITORY=example/manager-fpm
 MANAGER_WEB_REPOSITORY=example/manager-web
+PHP_BASE_REPOSITORY=example/php-base
 ```
 
 ## Image Builds
@@ -105,19 +107,36 @@ MANAGER_WEB_REPOSITORY=example/manager-web
 The Makefile uses `docker buildx` and builds `linux/amd64` and `linux/arm64` images by default.
 
 Multi-platform builds need a `docker-container` builder with ARM execution support.
-The release workflow configures QEMU and Buildx automatically. For a manual build
-on Linux, install ARM emulation and create a dedicated builder once:
+The release workflow configures QEMU and Buildx automatically. For a persistent manual build setup on Ubuntu/Debian, install ARM emulation
+and create one reusable builder:
 
 ```sh
-docker run --privileged --rm tonistiigi/binfmt --install arm64
-docker buildx create --name quickquiz-multiarch --driver docker-container --bootstrap
-export BUILDER=quickquiz-multiarch
+sudo apt-get update
+sudo apt-get install -y qemu-user-static binfmt-support
+docker buildx create --name multiarch --driver docker-container --use --bootstrap
+export BUILDER=multiarch
 ```
 
 Docker Desktop already provides emulation, so only the builder creation and
 `BUILDER` export are normally required there.
 
 For the optional cloud publishing flow using AWS EC2, Docker Compose, Traefik, and the project domains, see [Cloud Publishing](./CLOUD-PUBLISHING.md).
+
+### Manager PHP base
+
+The `robmoraes/quick-quiz-php-base` image is built from
+[`deploy/docker/php-base/Dockerfile`](./docker/php-base/Dockerfile). It is
+deliberately excluded from the `build-images` target and GitHub Actions.
+Build and publish it manually:
+
+```sh
+docker login
+make -C deploy php-base BUILDER=multiarch OUTPUT=push
+```
+
+The default tag is `8.3.33-alpine3.24-r1`; pushing also updates `latest`.
+PHP, Alpine, or package security updates require reviewing the Dockerfile,
+incrementing the revision, and rebuilding both architectures.
 
 Export all six images as OCI artifacts under `deploy/dist`:
 

@@ -1,14 +1,11 @@
 # syntax=docker/dockerfile:1.7
 
-ARG PHP_VERSION=8.3
+ARG PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.33-alpine3.24-r1
 ARG NGINX_VERSION=1.27
 
-FROM --platform=$BUILDPLATFORM php:${PHP_VERSION}-cli-alpine AS vendor
+FROM --platform=$BUILDPLATFORM ${PHP_BASE_IMAGE} AS vendor
 
-RUN apk add --no-cache git libpq libxml2 sqlite-libs unzip \
-    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpq-dev libxml2-dev sqlite-dev \
-    && docker-php-ext-install pdo_pgsql pdo_sqlite simplexml \
-    && apk del .build-deps
+RUN apk add --no-cache git unzip
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
@@ -44,12 +41,7 @@ COPY apps/manager/importmap.php ./importmap.php
 RUN composer dump-autoload --classmap-authoritative --no-dev \
     && php bin/console asset-map:compile
 
-FROM php:${PHP_VERSION}-fpm-alpine AS fpm
-
-RUN apk add --no-cache libpq libxml2 sqlite-libs \
-    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS libpq-dev libxml2-dev sqlite-dev \
-    && docker-php-ext-install opcache pdo_pgsql pdo_sqlite simplexml \
-    && apk del .build-deps
+FROM ${PHP_BASE_IMAGE} AS fpm
 
 WORKDIR /app
 

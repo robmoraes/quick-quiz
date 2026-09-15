@@ -88,6 +88,7 @@ robmoraes/quick-quiz-dev
 robmoraes/quick-quiz-dslab
 robmoraes/quick-quiz-manager-fpm
 robmoraes/quick-quiz-manager-web
+robmoraes/quick-quiz-php-base
 ```
 
 Você pode sobrescrever cada repositório com:
@@ -99,6 +100,7 @@ SPA_DEV_REPOSITORY=example/spa
 SPA_DSLAB_REPOSITORY=example/spa-dslab
 MANAGER_FPM_REPOSITORY=example/manager-fpm
 MANAGER_WEB_REPOSITORY=example/manager-web
+PHP_BASE_REPOSITORY=example/php-base
 ```
 
 ## Builds de Imagens
@@ -107,19 +109,36 @@ O Makefile usa `docker buildx` e constrói imagens `linux/amd64` e `linux/arm64`
 
 Builds multiplataforma exigem um builder `docker-container` com suporte para
 executar ARM. O workflow de release configura QEMU e Buildx automaticamente.
-Para um build manual no Linux, instale a emulação ARM e crie uma vez um builder
-dedicado:
+Para um build manual persistente em Ubuntu/Debian, instale a emulação ARM e
+crie uma vez um builder reutilizável:
 
 ```sh
-docker run --privileged --rm tonistiigi/binfmt --install arm64
-docker buildx create --name quickquiz-multiarch --driver docker-container --bootstrap
-export BUILDER=quickquiz-multiarch
+sudo apt-get update
+sudo apt-get install -y qemu-user-static binfmt-support
+docker buildx create --name multiarch --driver docker-container --use --bootstrap
+export BUILDER=multiarch
 ```
 
 O Docker Desktop já fornece emulação; normalmente basta criar o builder e
 exportar `BUILDER`.
 
 Para o fluxo opcional de publicação em nuvem usando AWS EC2, Docker Compose, Traefik e os domínios do projeto, consulte [Cloud Publishing](./CLOUD-PUBLISHING.md).
+
+### Base PHP do Manager
+
+A base `robmoraes/quick-quiz-php-base` é construída a partir de
+[`deploy/docker/php-base/Dockerfile`](./docker/php-base/Dockerfile). Ela fica
+deliberadamente fora do alvo `build-images` e do GitHub Actions. O build e a
+publicação são manuais:
+
+```sh
+docker login
+make -C deploy php-base BUILDER=multiarch OUTPUT=push
+```
+
+A tag padrão é `8.3.33-alpine3.24-r1`; o push também atualiza `latest`.
+Atualizações de PHP, Alpine ou pacotes exigem revisão do Dockerfile, incremento
+da revisão e novo build das duas arquiteturas.
 
 Exporte as seis imagens como artefatos OCI em `deploy/dist`:
 

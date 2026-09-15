@@ -8,6 +8,7 @@ SPA_DEV_TAG ?= $(TAG)
 SPA_DSLAB_TAG ?= $(TAG)
 MANAGER_FPM_TAG ?= $(TAG)
 MANAGER_WEB_TAG ?= $(TAG)
+PHP_BASE_TAG ?= 8.3.33-alpine3.24-r1
 PLATFORM ?= linux/amd64,linux/arm64
 BUILDER ?=
 OUTPUT ?= oci
@@ -18,14 +19,17 @@ SPA_DEV_REPOSITORY ?= robmoraes/quick-quiz-dev
 SPA_DSLAB_REPOSITORY ?= robmoraes/quick-quiz-dslab
 MANAGER_FPM_REPOSITORY ?= robmoraes/quick-quiz-manager-fpm
 MANAGER_WEB_REPOSITORY ?= robmoraes/quick-quiz-manager-web
+PHP_BASE_REPOSITORY ?= robmoraes/quick-quiz-php-base
+PHP_BASE_IMAGE ?= $(PHP_BASE_REPOSITORY):$(PHP_BASE_TAG)
 
 API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/api/Dockerfile
 ADS_API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/ads-api/Dockerfile
 SPA_DEV_DOCKERFILE := $(ROOT_DIR)/deploy/docker/spa-dev/Dockerfile
 SPA_DSLAB_DOCKERFILE := $(ROOT_DIR)/deploy/docker/spa-dslab/Dockerfile
 MANAGER_DOCKERFILE := $(ROOT_DIR)/deploy/docker/manager/Dockerfile
+PHP_BASE_DOCKERFILE := $(ROOT_DIR)/deploy/docker/php-base/Dockerfile
 
-.PHONY: build-images api ads-api spa-dev spa-dslab manager-fpm manager-web validate-output dist-dir
+.PHONY: build-images api ads-api spa-dev spa-dslab manager-fpm manager-web php-base validate-output dist-dir
 
 build-images: api ads-api spa-dev spa-dslab manager-fpm manager-web
 
@@ -66,6 +70,7 @@ manager-fpm: validate-output dist-dir
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(MANAGER_FPM_REPOSITORY),$(MANAGER_FPM_TAG)) \
 		--file "$(MANAGER_DOCKERFILE)" \
+		--build-arg PHP_BASE_IMAGE="$(PHP_BASE_IMAGE)" \
 		--target fpm \
 		$(call output_args,manager-fpm,$(MANAGER_FPM_TAG)) \
 		"$(ROOT_DIR)"
@@ -75,8 +80,19 @@ manager-web: validate-output dist-dir
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(MANAGER_WEB_REPOSITORY),$(MANAGER_WEB_TAG)) \
 		--file "$(MANAGER_DOCKERFILE)" \
+		--build-arg PHP_BASE_IMAGE="$(PHP_BASE_IMAGE)" \
 		--target nginx \
 		$(call output_args,manager-web,$(MANAGER_WEB_TAG)) \
+		"$(ROOT_DIR)"
+
+# Deliberately excluded from build-images and the GitHub Actions workflow.
+# Publish a new revision manually after reviewing PHP or Alpine security updates.
+php-base: validate-output dist-dir
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
+		--platform "$(PLATFORM)" \
+		$(call image_tags,$(PHP_BASE_REPOSITORY),$(PHP_BASE_TAG)) \
+		--file "$(PHP_BASE_DOCKERFILE)" \
+		$(call output_args,php-base,$(PHP_BASE_TAG)) \
 		"$(ROOT_DIR)"
 
 validate-output:
