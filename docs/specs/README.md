@@ -15,6 +15,9 @@ constraints, and planned work before implementation.
   the manager question authoring flow spec.
 - `001-manager-question-form-flow/tasks.md`: implementation and validation
   task list for the manager question authoring flow spec.
+- `002-quiz-admin-api/spec.md`: token-protected quiz administration API behavior.
+- `002-quiz-admin-api/plan.md`: Manager-owned API architecture and verification plan.
+- `002-quiz-admin-api/tasks.md`: implementation and validation task list.
 
 ## Archive
 

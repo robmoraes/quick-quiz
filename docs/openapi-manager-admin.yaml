@@ -1,0 +1,963 @@
+openapi: 3.0.3
+info:
+  title: QuickQuiz Manager Administration API
+  version: 0.1.0
+  description: |
+    Protected API for discovering and maintaining QuickQuiz themes, topics,
+    and complete localized question sets. Every operation requires an
+    administrative Bearer token.
+servers:
+  - url: http://localhost:8081
+    description: Local Manager
+security:
+  - adminToken: []
+tags:
+  - name: Discovery
+  - name: Themes
+  - name: Topics
+  - name: Questions
+paths:
+  /api/admin/quiz/catalog:
+    get:
+      tags: [Discovery]
+      summary: Returns the complete catalog for placement decisions.
+      operationId: discoverQuizCatalog
+      parameters:
+        - $ref: "#/components/parameters/Locale"
+      responses:
+        "200":
+          description: Themes, topics, publication metadata, and canonical question counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Catalog"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/quiz/themes:
+    get:
+      tags: [Themes]
+      summary: Lists themes.
+      operationId: listThemes
+      responses:
+        "200":
+          description: Theme list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [themes]
+                properties:
+                  themes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Theme"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Themes]
+      summary: Creates a theme.
+      operationId: createTheme
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTheme"
+      responses:
+        "201":
+          description: Theme created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThemeMutation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/quiz/themes/{theme}:
+    parameters:
+      - $ref: "#/components/parameters/ThemeId"
+    get:
+      tags: [Themes]
+      summary: Gets a theme.
+      operationId: getTheme
+      responses:
+        "200":
+          description: Theme found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [theme]
+                properties:
+                  theme:
+                    $ref: "#/components/schemas/Theme"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Themes]
+      summary: Replaces a theme.
+      operationId: replaceTheme
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceTheme"
+      responses:
+        "200":
+          description: Theme replaced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ThemeMutation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Themes]
+      summary: Deletes a theme.
+      description: Set recursive=true when the theme contains catalog or question objects.
+      operationId: deleteTheme
+      parameters:
+        - $ref: "#/components/parameters/Recursive"
+      responses:
+        "200":
+          description: Theme deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteThemeResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/quiz/themes/{theme}/topics:
+    parameters:
+      - $ref: "#/components/parameters/ThemeId"
+    get:
+      tags: [Topics]
+      summary: Lists topics in a theme.
+      operationId: listTopics
+      parameters:
+        - $ref: "#/components/parameters/Locale"
+      responses:
+        "200":
+          description: Topic list with localized display fields and question counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [topics]
+                properties:
+                  topics:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TopicView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Topics]
+      summary: Creates a topic and optional localized metadata.
+      operationId: createTopic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTopic"
+      responses:
+        "201":
+          description: Topic created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicMutation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/quiz/themes/{theme}/topics/{topic}:
+    parameters:
+      - $ref: "#/components/parameters/ThemeId"
+      - $ref: "#/components/parameters/TopicId"
+    get:
+      tags: [Topics]
+      summary: Gets a topic.
+      operationId: getTopic
+      parameters:
+        - $ref: "#/components/parameters/Locale"
+      responses:
+        "200":
+          description: Topic found.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [topic]
+                properties:
+                  topic:
+                    $ref: "#/components/schemas/TopicView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Topics]
+      summary: Replaces a topic and optional localized metadata.
+      operationId: replaceTopic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceTopic"
+      responses:
+        "200":
+          description: Topic replaced.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopicMutation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Topics]
+      summary: Deletes a topic.
+      description: Set recursive=true when the topic contains questions.
+      operationId: deleteTopic
+      parameters:
+        - $ref: "#/components/parameters/Recursive"
+      responses:
+        "200":
+          description: Topic deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteTopicResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/quiz/themes/{theme}/topics/{topic}/questions:
+    parameters:
+      - $ref: "#/components/parameters/ThemeId"
+      - $ref: "#/components/parameters/TopicId"
+    get:
+      tags: [Questions]
+      summary: Lists question summaries.
+      operationId: listQuestions
+      parameters:
+        - $ref: "#/components/parameters/Locale"
+        - $ref: "#/components/parameters/OptionalDifficulty"
+      responses:
+        "200":
+          description: Question summaries for the selected locale.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Questions]
+      summary: Creates one to 50 complete localized question sets.
+      operationId: createQuestionBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuestionBatch"
+            example:
+              difficulty: 2
+              questions:
+                - translations:
+                    en-US:
+                      prompt: Which command creates a Git commit?
+                      correctOptions: [git commit]
+                      wrongOptions: [git add, git push, git fetch, git status]
+                    pt-BR:
+                      prompt: Qual comando cria um commit no Git?
+                      correctOptions: [git commit]
+                      wrongOptions: [git add, git push, git fetch, git status]
+      responses:
+        "201":
+          description: All localized question files were created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateQuestionBatchResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/admin/quiz/themes/{theme}/topics/{topic}/questions/{difficulty}/{questionId}:
+    parameters:
+      - $ref: "#/components/parameters/ThemeId"
+      - $ref: "#/components/parameters/TopicId"
+      - $ref: "#/components/parameters/Difficulty"
+      - $ref: "#/components/parameters/QuestionId"
+    get:
+      tags: [Questions]
+      summary: Gets a complete localized question set.
+      operationId: getQuestionSet
+      responses:
+        "200":
+          description: Complete localized question set.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuestionSet"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Questions]
+      summary: Replaces every locale in a question set.
+      operationId: replaceQuestionSet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [translations]
+              properties:
+                translations:
+                  $ref: "#/components/schemas/Translations"
+      responses:
+        "200":
+          description: Complete localized question set replaced.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/QuestionSet"
+                  - type: object
+                    required: [publication]
+                    properties:
+                      publication:
+                        $ref: "#/components/schemas/Publication"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Questions]
+      summary: Deletes every locale in a question set.
+      operationId: deleteQuestionSet
+      responses:
+        "200":
+          description: Complete localized question set deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteQuestionResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    adminToken:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: Token configured through MANAGER_ADMIN_API_TOKEN or its __FILE variant.
+
+  parameters:
+    ThemeId:
+      name: theme
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/SafeId"
+    TopicId:
+      name: topic
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/SafeId"
+    QuestionId:
+      name: questionId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/SafeId"
+    Difficulty:
+      name: difficulty
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 4
+    OptionalDifficulty:
+      name: difficulty
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 4
+    Locale:
+      name: locale
+      in: query
+      required: false
+      description: Supported BCP 47 locale. Defaults to FALLBACK_LOCALE.
+      schema:
+        type: string
+        example: pt-BR
+    Recursive:
+      name: recursive
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+
+  responses:
+    BadRequest:
+      description: Invalid JSON or query value.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid administrative token.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+            example: Bearer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource or complete localized question set was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource already exists or recursive deletion is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationFailed:
+      description: Quiz-pack validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unavailable:
+      description: Administrative token is not configured or content storage is unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Unexpected internal failure.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    SafeId:
+      type: string
+      pattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"
+    Theme:
+      type: object
+      required: [id, name, description, weight, createdAt, active]
+      properties:
+        id:
+          $ref: "#/components/schemas/SafeId"
+        name:
+          type: string
+        description:
+          type: string
+        weight:
+          type: integer
+        createdAt:
+          type: string
+        active:
+          type: boolean
+    CreateTheme:
+      type: object
+      required: [id, name, description]
+      properties:
+        id:
+          $ref: "#/components/schemas/SafeId"
+        name:
+          type: string
+        description:
+          type: string
+        weight:
+          type: integer
+          default: 100
+        createdAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+          default: true
+    ReplaceTheme:
+      type: object
+      required: [name, description, weight, createdAt, active]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        weight:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+    LocalizedTopic:
+      type: object
+      required: [name, description]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+    Topic:
+      type: object
+      required: [key, name, description, weight, created_at, active]
+      properties:
+        key:
+          $ref: "#/components/schemas/SafeId"
+        name:
+          type: string
+        description:
+          type: string
+        weight:
+          type: integer
+        created_at:
+          type: string
+        active:
+          type: boolean
+        questionCount:
+          type: integer
+          minimum: 0
+    TopicView:
+      allOf:
+        - $ref: "#/components/schemas/Topic"
+        - type: object
+          required: [displayLocale, displayName, displayDescription, questionCounts]
+          properties:
+            displayLocale:
+              type: string
+            displayName:
+              type: string
+            displayDescription:
+              type: string
+            questionCounts:
+              type: object
+              required: ["1", "2", "3", "4"]
+              properties:
+                "1": {type: integer, minimum: 0}
+                "2": {type: integer, minimum: 0}
+                "3": {type: integer, minimum: 0}
+                "4": {type: integer, minimum: 0}
+    CreateTopic:
+      type: object
+      required: [key, name, description]
+      properties:
+        key:
+          $ref: "#/components/schemas/SafeId"
+        name:
+          type: string
+        description:
+          type: string
+        weight:
+          type: integer
+          default: 100
+        created_at:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+          default: true
+        localizations:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedTopic"
+    ReplaceTopic:
+      type: object
+      required: [name, description, weight, created_at, active]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        weight:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+        localizations:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/LocalizedTopic"
+    Question:
+      type: object
+      required: [prompt, correctOptions, wrongOptions]
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+        correctOptions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+        wrongOptions:
+          type: array
+          minItems: 2
+          uniqueItems: true
+          items:
+            type: string
+    Translations:
+      type: object
+      description: Must contain exactly every locale configured in SUPPORTED_LOCALES.
+      additionalProperties:
+        $ref: "#/components/schemas/Question"
+    QuestionBatchItem:
+      type: object
+      required: [translations]
+      properties:
+        id:
+          $ref: "#/components/schemas/SafeId"
+        translations:
+          $ref: "#/components/schemas/Translations"
+    CreateQuestionBatch:
+      type: object
+      required: [difficulty, questions]
+      properties:
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 4
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/QuestionBatchItem"
+    QuestionSummary:
+      type: object
+      required: [difficulty, id, prompt, correctCount, wrongCount]
+      properties:
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 4
+        id:
+          $ref: "#/components/schemas/SafeId"
+        prompt:
+          type: string
+        correctCount:
+          type: integer
+          minimum: 0
+        wrongCount:
+          type: integer
+          minimum: 0
+    QuestionList:
+      type: object
+      required: [theme, topic, locale, questions]
+      properties:
+        theme:
+          $ref: "#/components/schemas/SafeId"
+        topic:
+          $ref: "#/components/schemas/SafeId"
+        locale:
+          type: string
+        questions:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuestionSummary"
+    QuestionSet:
+      type: object
+      required: [theme, topic, difficulty, id, translations]
+      properties:
+        theme:
+          $ref: "#/components/schemas/SafeId"
+        topic:
+          $ref: "#/components/schemas/SafeId"
+        difficulty:
+          type: integer
+          minimum: 1
+          maximum: 4
+        id:
+          $ref: "#/components/schemas/SafeId"
+        translations:
+          $ref: "#/components/schemas/Translations"
+    Difficulty:
+      type: object
+      required: [label, optionCount, wrongRequired]
+      properties:
+        label:
+          type: string
+        optionCount:
+          type: integer
+        wrongRequired:
+          type: integer
+    Catalog:
+      type: object
+      required: [fallbackLocale, supportedLocales, difficulties, themes]
+      properties:
+        fallbackLocale:
+          type: string
+        supportedLocales:
+          type: array
+          items:
+            type: string
+        difficulties:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/Difficulty"
+        themes:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/Theme"
+              - type: object
+                required: [topics]
+                properties:
+                  topics:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TopicView"
+    Publication:
+      type: object
+      required: [apiReloadRequired, reason]
+      properties:
+        apiReloadRequired:
+          type: boolean
+          enum: [true]
+        reason:
+          type: string
+    ThemeMutation:
+      type: object
+      required: [theme, publication]
+      properties:
+        theme:
+          $ref: "#/components/schemas/Theme"
+        publication:
+          $ref: "#/components/schemas/Publication"
+    TopicMutation:
+      type: object
+      required: [topic, publication]
+      properties:
+        topic:
+          $ref: "#/components/schemas/TopicView"
+        publication:
+          $ref: "#/components/schemas/Publication"
+    CreateQuestionBatchResult:
+      type: object
+      required: [theme, topic, difficulty, questionIds, publication]
+      properties:
+        theme:
+          $ref: "#/components/schemas/SafeId"
+        topic:
+          $ref: "#/components/schemas/SafeId"
+        difficulty:
+          type: integer
+        questionIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/SafeId"
+        publication:
+          $ref: "#/components/schemas/Publication"
+    DeleteThemeResult:
+      type: object
+      required: [theme, deletedObjects, publication]
+      properties:
+        theme:
+          $ref: "#/components/schemas/SafeId"
+        deletedObjects:
+          type: integer
+        publication:
+          $ref: "#/components/schemas/Publication"
+    DeleteTopicResult:
+      type: object
+      required: [theme, topic, deletedQuestionFiles, publication]
+      properties:
+        theme:
+          $ref: "#/components/schemas/SafeId"
+        topic:
+          $ref: "#/components/schemas/SafeId"
+        deletedQuestionFiles:
+          type: integer
+        publication:
+          $ref: "#/components/schemas/Publication"
+    DeleteQuestionResult:
+      type: object
+      required: [theme, topic, difficulty, id, deletedLocales, missingLocales, publication]
+      properties:
+        theme:
+          $ref: "#/components/schemas/SafeId"
+        topic:
+          $ref: "#/components/schemas/SafeId"
+        difficulty:
+          type: integer
+        id:
+          $ref: "#/components/schemas/SafeId"
+        deletedLocales:
+          type: array
+          items:
+            type: string
+        missingLocales:
+          type: array
+          items:
+            type: string
+        publication:
+          $ref: "#/components/schemas/Publication"
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string

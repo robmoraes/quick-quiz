@@ -13,6 +13,7 @@ monorepo.
   OpenAPI entry point.
 - [SPA docs](spa/README.md): player frontend responsibilities and validation.
 - [Manager docs](manager/README.md): quiz pack editing and validation app.
+- [Manager administration API](manager/admin-api.md): token-protected catalog and quiz CRUD for automation.
 - [Data docs](data/README.md): quiz pack structure, locale rules, and content
   editing risks.
 - [Specs](specs/README.md): product and implementation specifications.
@@ -23,6 +24,7 @@ monorepo.
 
 - [OpenAPI contract](openapi.yaml)
 - [Ads API OpenAPI contract](openapi-ads.yaml)
+- [Manager administration OpenAPI contract](openapi-manager-admin.yaml)
 - [Quiz pack contract](quiz-pack-contract.md)
 
 ## Documentation Policy

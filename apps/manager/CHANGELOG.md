@@ -11,6 +11,8 @@ format.
 
 ### Added
 
+- Token-protected administration API for catalog discovery and theme, topic,
+  and complete localized question-set CRUD through local or S3 storage.
 - Added a QuickQuiz API session monitor screen backed by the open active-session
   endpoint.
 - Added Ads API client integration through `QUICKQUIZ_ADS_API_BASE_URL` for ad
