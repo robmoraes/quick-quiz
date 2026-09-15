@@ -2,11 +2,11 @@ name: quickquiz
 
 networks:
   web:
-    name: quickquiz-web
+    name: ${QUICKQUIZ_WEB_NETWORK:-quickquiz-web}
 
 services:
   traefik:
-    image: traefik:v3.6
+    image: ${QUICKQUIZ_IMAGE_TRAEFIK:-traefik:v3.6}
     restart: unless-stopped
     command:
       - --providers.docker=true
@@ -27,7 +27,7 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /opt/quickquiz/traefik/letsencrypt:/letsencrypt
+      - ${TRAEFIK_ACME_ROOT:-/opt/quickquiz/traefik/letsencrypt}:/letsencrypt
     networks:
       - web
 
@@ -35,25 +35,60 @@ services:
     image: ${QUICKQUIZ_IMAGE_API}
     environment:
       HTTP_ADDR: :8080
-      QUESTION_STORAGE_PROVIDER:
+      LOG_LEVEL: ${API_LOG_LEVEL:-info}
+      CORS_ALLOWED_ORIGINS: "${API_CORS_ALLOWED_ORIGINS:-*}"
+      HTTP_READ_HEADER_TIMEOUT: ${API_HTTP_READ_HEADER_TIMEOUT:-5s}
+      HTTP_READ_TIMEOUT: ${API_HTTP_READ_TIMEOUT:-15s}
+      HTTP_WRITE_TIMEOUT: ${API_HTTP_WRITE_TIMEOUT:-15s}
+      HTTP_IDLE_TIMEOUT: ${API_HTTP_IDLE_TIMEOUT:-60s}
+      STORAGE_STARTUP_TIMEOUT: ${API_STORAGE_STARTUP_TIMEOUT:-30s}
+      QUESTION_STORAGE_PROVIDER: ${QUESTION_STORAGE_PROVIDER:-local}
       QUESTION_SOURCE: /app/.local
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_ACCESS_KEY_ID__FILE: ${AWS_ACCESS_KEY_ID__FILE:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY__FILE: ${AWS_SECRET_ACCESS_KEY__FILE:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_SESSION_TOKEN__FILE: ${AWS_SESSION_TOKEN__FILE:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-questions}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
       FALLBACK_LOCALE: ${FALLBACK_LOCALE:-en-US}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-en-US,pt-BR}
       RUN_QUESTION_LIMIT: ${RUN_QUESTION_LIMIT:-10}
+      RUN_STORAGE_PROVIDER: ${RUN_STORAGE_PROVIDER:-redis}
+      SOLUTION_STORAGE_PROVIDER: ${SOLUTION_STORAGE_PROVIDER:-redis}
+      SOLUTION_TTL: ${SOLUTION_TTL:-168h}
       SESSION_TTL: ${SESSION_TTL:-30m}
+      REDIS_ADDR: ${REDIS_ADDR:-redis:6379}
+      REDIS_CONNECT_TIMEOUT: ${API_REDIS_CONNECT_TIMEOUT:-5s}
+      REDIS_USERNAME: ${REDIS_USERNAME:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD__FILE: ${REDIS_PASSWORD__FILE:-}
+      REDIS_DB: ${REDIS_DB:-0}
+      REDIS_TLS: ${REDIS_TLS:-false}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-quickquiz:runs:}
+      REDIS_SOLUTION_KEY_PREFIX: ${REDIS_SOLUTION_KEY_PREFIX:-quickquiz:solutions:}
       SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT:-10s}
-      OPENAI_API_KEY: ${API_OPENAI_API_KEY:?set API_OPENAI_API_KEY}
+      OPENAI_API_KEY: ${API_OPENAI_API_KEY:-}
+      OPENAI_API_KEY__FILE: ${API_OPENAI_API_KEY__FILE:-}
       OPENAI_BASE_URL: ${API_OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_MODEL: ${API_OPENAI_MODEL:?set API_OPENAI_MODEL}
       OPENAI_ORGANIZATION: ${API_OPENAI_ORG_ID:-}
       OPENAI_PROJECT: ${API_OPENAI_PROJECT:-}
-      OPENAI_SOLUTION_PROMPT_FILE: ${API_OPENAI_SOLUTION_PROMPT_FILE:?set API_OPENAI_SOLUTION_PROMPT_FILE}
+      OPENAI_SOLUTION_PROMPT_FILE: ${API_OPENAI_SOLUTION_PROMPT_FILE:-}
       OPENAI_TIMEOUT: ${API_OPENAI_TIMEOUT:-30s}
+    depends_on:
+      redis:
+        condition: service_healthy
+        restart: true
     read_only: true
     restart: unless-stopped
     user: "${QUICKQUIZ_RUNTIME_UID:-1000}:${QUICKQUIZ_RUNTIME_GID:-1000}"
     volumes:
-      - ${QUICKQUIZ_CONTENT_ROOT}:/app/.local
+      - ${QUICKQUIZ_CONTENT_ROOT}:/app/.local:ro
     networks:
       - web
     labels:
@@ -64,11 +99,83 @@ services:
     - traefik.http.routers.quickquiz-api.tls.certresolver=letsencrypt
     - traefik.http.services.quickquiz-api.loadbalancer.server.port=8080
 
+  redis:
+    image: ${QUICKQUIZ_IMAGE_REDIS:-redis:7.4-alpine}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        password="$${REDIS_PASSWORD:-}"
+        if [ -n "$${REDIS_PASSWORD__FILE:-}" ]; then
+          if [ ! -r "$$REDIS_PASSWORD__FILE" ]; then
+            echo "cannot read REDIS_PASSWORD__FILE: $$REDIS_PASSWORD__FILE" >&2
+            exit 1
+          fi
+          password="$$(cat "$$REDIS_PASSWORD__FILE")"
+          if [ -z "$$password" ]; then
+            echo "REDIS_PASSWORD__FILE is empty" >&2
+            exit 1
+          fi
+        fi
+        exec /usr/local/bin/docker-entrypoint.sh redis-server \
+          --save "" \
+          --appendonly no \
+          --maxmemory "$$REDIS_MAXMEMORY" \
+          --maxmemory-policy noeviction \
+          --requirepass "$$password"
+    environment:
+      REDIS_MAXMEMORY: ${REDIS_MAXMEMORY:-256mb}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD__FILE: ${REDIS_PASSWORD__FILE:-}
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          password="$${REDIS_PASSWORD:-}"
+          if [ -n "$${REDIS_PASSWORD__FILE:-}" ]; then
+            [ -r "$$REDIS_PASSWORD__FILE" ] || exit 1
+            password="$$(cat "$$REDIS_PASSWORD__FILE")"
+          fi
+          if [ -n "$$password" ]; then
+            REDISCLI_AUTH="$$password" redis-cli ping
+          else
+            redis-cli ping
+          fi
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    mem_limit: ${REDIS_MEMORY_LIMIT:-384m}
+    read_only: true
+    restart: unless-stopped
+    tmpfs:
+      - /data:rw,noexec,nosuid,size=32m
+    networks:
+      - web
+
   ads-api:
     image: ${QUICKQUIZ_IMAGE_ADS_API:-robmoraes/quick-quiz-ads-api:latest}
     environment:
       HTTP_ADDR: :8080
+      LOG_LEVEL: ${ADS_API_LOG_LEVEL:-info}
+      CORS_ALLOWED_ORIGINS: "${ADS_API_CORS_ALLOWED_ORIGINS:-*}"
+      HTTP_READ_HEADER_TIMEOUT: ${ADS_API_HTTP_READ_HEADER_TIMEOUT:-5s}
+      HTTP_READ_TIMEOUT: ${ADS_API_HTTP_READ_TIMEOUT:-15s}
+      HTTP_WRITE_TIMEOUT: ${ADS_API_HTTP_WRITE_TIMEOUT:-15s}
+      HTTP_IDLE_TIMEOUT: ${ADS_API_HTTP_IDLE_TIMEOUT:-60s}
+      STORAGE_STARTUP_TIMEOUT: ${ADS_API_STORAGE_STARTUP_TIMEOUT:-30s}
+      ADS_STORAGE_PROVIDER: ${ADS_STORAGE_PROVIDER:-local}
       ADS_SOURCE: /app/.local
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_ACCESS_KEY_ID__FILE: ${AWS_ACCESS_KEY_ID__FILE:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY__FILE: ${AWS_SECRET_ACCESS_KEY__FILE:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_SESSION_TOKEN__FILE: ${AWS_SESSION_TOKEN__FILE:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-questions}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
       SHUTDOWN_TIMEOUT: ${ADS_API_SHUTDOWN_TIMEOUT:-10s}
     read_only: true
     restart: unless-stopped
@@ -87,6 +194,9 @@ services:
 
   spa-dev:
     image: ${QUICKQUIZ_IMAGE_DEV}
+    environment:
+      SPA_API_BASE_URL: ${SPA_DEV_API_BASE_URL:?set SPA_DEV_API_BASE_URL}
+      SPA_ADS_API_BASE_URL: ${SPA_DEV_ADS_API_BASE_URL:?set SPA_DEV_ADS_API_BASE_URL}
     depends_on:
       - api
       - ads-api
@@ -106,6 +216,9 @@ services:
 
   spa-dslab:
     image: ${QUICKQUIZ_IMAGE_DSLAB:-robmoraes/quick-quiz-dslab:latest}
+    environment:
+      SPA_API_BASE_URL: ${SPA_DSLAB_API_BASE_URL:?set SPA_DSLAB_API_BASE_URL}
+      SPA_ADS_API_BASE_URL: ${SPA_DSLAB_ADS_API_BASE_URL:?set SPA_DSLAB_ADS_API_BASE_URL}
     depends_on:
       - api
       - ads-api
@@ -123,28 +236,113 @@ services:
       - traefik.http.routers.quickquiz-dslab.tls.certresolver=letsencrypt
       - traefik.http.services.quickquiz-dslab.loadbalancer.server.port=8080
 
+  manager-db:
+    image: ${QUICKQUIZ_IMAGE_POSTGRES:-postgres:17-alpine}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        password="$${MANAGER_DB_PASSWORD:-}"
+        if [ -n "$${MANAGER_DB_PASSWORD__FILE:-}" ]; then
+          if [ ! -r "$$MANAGER_DB_PASSWORD__FILE" ]; then
+            echo "cannot read MANAGER_DB_PASSWORD__FILE: $$MANAGER_DB_PASSWORD__FILE" >&2
+            exit 1
+          fi
+          password="$$(cat "$$MANAGER_DB_PASSWORD__FILE")"
+        fi
+        if [ -z "$$password" ]; then
+          echo "MANAGER_DB_PASSWORD or MANAGER_DB_PASSWORD__FILE is required" >&2
+          exit 1
+        fi
+        export POSTGRES_PASSWORD="$$password"
+        exec /usr/local/bin/docker-entrypoint.sh postgres \
+          -c "shared_buffers=$$MANAGER_DB_SHARED_BUFFERS" \
+          -c "max_connections=$$MANAGER_DB_MAX_CONNECTIONS"
+    environment:
+      POSTGRES_DB: ${MANAGER_DB_NAME:-quickquiz_manager}
+      POSTGRES_USER: ${MANAGER_DB_USER:-quickquiz}
+      MANAGER_DB_PASSWORD: ${MANAGER_DB_PASSWORD:-}
+      MANAGER_DB_PASSWORD__FILE: ${MANAGER_DB_PASSWORD__FILE:-}
+      MANAGER_DB_SHARED_BUFFERS: ${MANAGER_DB_SHARED_BUFFERS:-64MB}
+      MANAGER_DB_MAX_CONNECTIONS: ${MANAGER_DB_MAX_CONNECTIONS:-30}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    mem_limit: ${MANAGER_DB_MEMORY_LIMIT:-256m}
+    restart: unless-stopped
+    volumes:
+      - manager-db-data:/var/lib/postgresql/data
+    networks:
+      - web
+
   manager-fpm:
     image: ${QUICKQUIZ_IMAGE_MANAGER_FPM}
     environment:
       APP_ENV: prod
       APP_DEBUG: "0"
       APP_SECRET: ${MANAGER_APP_SECRET}
+      APP_SECRET__FILE: ${MANAGER_APP_SECRET__FILE:-}
+      MANAGER_VERSION: ${MANAGER_VERSION:-0.5.0}
       MANAGER_DATABASE_URL: ${MANAGER_DATABASE_URL}
+      MANAGER_DATABASE_URL__FILE: ${MANAGER_DATABASE_URL__FILE:-}
       MANAGER_CONTENT_ROOT: /content
+      MANAGER_CONTENT_STORAGE_PROVIDER: ${MANAGER_CONTENT_STORAGE_PROVIDER:-local}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_ACCESS_KEY_ID__FILE: ${AWS_ACCESS_KEY_ID__FILE:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY__FILE: ${AWS_SECRET_ACCESS_KEY__FILE:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_SESSION_TOKEN__FILE: ${AWS_SESSION_TOKEN__FILE:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-questions}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      MANAGER_SESSION_REDIS_DSN: ${MANAGER_SESSION_REDIS_DSN:-redis://redis:6379/1}
+      MANAGER_SESSION_REDIS_DSN__FILE: ${MANAGER_SESSION_REDIS_DSN__FILE:-}
+      MANAGER_SESSION_TTL: ${MANAGER_SESSION_TTL:-3600}
+      MANAGER_SESSION_PREFIX: ${MANAGER_SESSION_PREFIX:-quickquiz:manager:session:}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,REMOTE_ADDR}
       QUICKQUIZ_API_BASE_URL: ${QUICKQUIZ_API_BASE_URL:-http://api:8080}
+      QUICKQUIZ_API_TIMEOUT: ${QUICKQUIZ_API_TIMEOUT:-3}
       QUICKQUIZ_ADS_API_BASE_URL: ${QUICKQUIZ_ADS_API_BASE_URL:-http://ads-api:8080}
+      QUICKQUIZ_ADS_API_TIMEOUT: ${QUICKQUIZ_ADS_API_TIMEOUT:-5}
+      RUN_QUESTION_LIMIT: ${RUN_QUESTION_LIMIT:-10}
       FALLBACK_LOCALE: ${FALLBACK_LOCALE:-en-US}
       SUPPORTED_LOCALES: ${SUPPORTED_LOCALES:-en-US,pt-BR}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_API_KEY__FILE: ${OPENAI_API_KEY__FILE:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_TIMEOUT: ${OPENAI_TIMEOUT:-45}
+      OPENAI_MODELS_TIMEOUT: ${OPENAI_MODELS_TIMEOUT:-15}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
       OPENAI_PROJECT: ${OPENAI_PROJECT:-}
       OPENAI_ORG_ID: ${OPENAI_ORG_ID:-}
+      MANAGER_PHP_MEMORY_LIMIT: ${MANAGER_PHP_MEMORY_LIMIT:-128M}
+      MANAGER_PHP_POST_MAX_SIZE: ${MANAGER_PHP_POST_MAX_SIZE:-2M}
+      MANAGER_PHP_UPLOAD_MAX_FILESIZE: ${MANAGER_PHP_UPLOAD_MAX_FILESIZE:-2M}
+      MANAGER_PHP_OPCACHE_MEMORY: ${MANAGER_PHP_OPCACHE_MEMORY:-96}
+      MANAGER_FPM_MAX_CHILDREN: ${MANAGER_FPM_MAX_CHILDREN:-8}
+      MANAGER_FPM_START_SERVERS: ${MANAGER_FPM_START_SERVERS:-2}
+      MANAGER_FPM_MIN_SPARE_SERVERS: ${MANAGER_FPM_MIN_SPARE_SERVERS:-1}
+      MANAGER_FPM_MAX_SPARE_SERVERS: ${MANAGER_FPM_MAX_SPARE_SERVERS:-3}
+    depends_on:
+      manager-db:
+        condition: service_healthy
+        restart: true
+      redis:
+        condition: service_healthy
+        restart: true
     restart: unless-stopped
+    read_only: true
     user: "${QUICKQUIZ_RUNTIME_UID:-1000}:${QUICKQUIZ_RUNTIME_GID:-1000}"
     volumes:
       - ${QUICKQUIZ_CONTENT_ROOT}:/content
     tmpfs:
       - /app/var:rw,noexec,nosuid,size=64m,mode=1777
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
     networks:
       - web
     healthcheck:
@@ -173,3 +371,6 @@ services:
       - traefik.http.routers.quickquiz-manager.tls=true
       - traefik.http.routers.quickquiz-manager.tls.certresolver=letsencrypt
       - traefik.http.services.quickquiz-manager.loadbalancer.server.port=8080
+
+volumes:
+  manager-db-data:

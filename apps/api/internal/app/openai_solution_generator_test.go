@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -54,7 +52,7 @@ func TestOpenAISolutionGeneratorCallsResponsesAPI(t *testing.T) {
 		BaseURL: server.URL,
 		Model:   "test-model",
 		Project: "proj_test",
-	}, server.Client())
+	}, server.Client(), nil)
 
 	explanation, err := generator.GenerateSolution(context.Background(), GenerateSolutionInput{
 		Locale:         "en-US",
@@ -73,15 +71,8 @@ func TestOpenAISolutionGeneratorCallsResponsesAPI(t *testing.T) {
 	}
 }
 
-func TestOpenAISolutionGeneratorLoadsPromptFileByTheme(t *testing.T) {
-	promptRoot := t.TempDir()
-	promptDir := filepath.Join(promptRoot, "dev", "ai-prompts")
-	if err := os.MkdirAll(promptDir, 0o755); err != nil {
-		t.Fatalf("create prompt dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(promptDir, "question-solution-prompt.txt"), []byte("Custom theme prompt."), 0o644); err != nil {
-		t.Fatalf("write prompt file: %v", err)
-	}
+func TestOpenAISolutionGeneratorLoadsPromptSourceByTheme(t *testing.T) {
+	source := &testSolutionPromptSource{prompt: "Custom theme prompt."}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var payload openAIResponseRequest
@@ -98,11 +89,10 @@ func TestOpenAISolutionGeneratorLoadsPromptFileByTheme(t *testing.T) {
 	defer server.Close()
 
 	generator := NewOpenAISolutionGenerator(OpenAISolutionGeneratorConfig{
-		APIKey:     "test-key",
-		BaseURL:    server.URL,
-		Model:      "test-model",
-		PromptFile: filepath.Join(promptRoot, "{{theme}}", "ai-prompts", "question-solution-prompt.txt"),
-	}, server.Client())
+		APIKey:  "test-key",
+		BaseURL: server.URL,
+		Model:   "test-model",
+	}, server.Client(), source)
 
 	explanation, err := generator.GenerateSolution(context.Background(), GenerateSolutionInput{
 		Theme:          "dev",
@@ -120,4 +110,17 @@ func TestOpenAISolutionGeneratorLoadsPromptFileByTheme(t *testing.T) {
 	if explanation != "Theme prompt loaded." {
 		t.Fatalf("unexpected explanation: %q", explanation)
 	}
+	if source.theme != "dev" {
+		t.Fatalf("expected dev prompt theme, got %q", source.theme)
+	}
+}
+
+type testSolutionPromptSource struct {
+	prompt string
+	theme  string
+}
+
+func (s *testSolutionPromptSource) Load(_ context.Context, theme string) (string, error) {
+	s.theme = theme
+	return s.prompt, nil
 }

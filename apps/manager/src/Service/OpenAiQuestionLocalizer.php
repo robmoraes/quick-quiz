@@ -16,7 +16,19 @@ final class OpenAiQuestionLocalizer implements QuestionLocalizer
         private readonly string $organization = '',
         private readonly ?AiPromptProvider $aiPrompts = null,
         private readonly ?OpenAiModelProvider $modelProvider = null,
+        private readonly string $baseUrl = 'https://api.openai.com/v1',
+        private readonly int $requestTimeout = 45,
     ) {
+    }
+
+    private function openAiEndpoint(string $path): string
+    {
+        $baseUrl = rtrim(trim($this->baseUrl), '/');
+        if ($baseUrl === '') {
+            $baseUrl = 'https://api.openai.com/v1';
+        }
+
+        return $baseUrl.'/'.ltrim($path, '/');
     }
 
     /**
@@ -42,9 +54,9 @@ final class OpenAiQuestionLocalizer implements QuestionLocalizer
         }
 
         try {
-            $response = $this->httpClient->request('POST', 'https://api.openai.com/v1/responses', [
+            $response = $this->httpClient->request('POST', $this->openAiEndpoint('responses'), [
                 'headers' => $headers,
-                'timeout' => 45,
+                'timeout' => max(1, $this->requestTimeout),
                 'json' => $this->requestBody($question, $locales, $translateOptions),
             ]);
             $statusCode = $response->getStatusCode();

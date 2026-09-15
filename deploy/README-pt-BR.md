@@ -7,10 +7,12 @@ Empacotamento Docker para executar e testar o QuickQuiz Dev localmente com uma e
 ## Serviços
 
 - `api`: API Go compilada estaticamente em imagem multi-stage, rodando sem root.
+- `redis`: armazenamento efêmero de runs/sessões e cache de soluções geradas, limitado a 256 MiB de dados e 384 MiB de memória do container.
+- `manager-db`: PostgreSQL para administradores e prompts de IA do Manager.
 - `ads-api`: API Go de publicidade para entrega e gerenciamento de anúncios.
 - `spa-dev`: build estático Quasar/Vue servido por Nginx sem root.
 - `spa-dslab`: build estático Quasar/Vue com tema DSLab servido por Nginx sem root.
-- `manager-fpm`: app Symfony manager com dependências Composer de produção, PHP-FPM, OPcache e SQLite.
+- `manager-fpm`: app Symfony manager com dependências Composer de produção, PHP-FPM, OPcache e PDO PostgreSQL.
 - `manager-web`: Nginx leve para servir o manager via FastCGI.
 
 ## Execução Local
@@ -18,13 +20,13 @@ Empacotamento Docker para executar e testar o QuickQuiz Dev localmente com uma e
 Copie o arquivo de ambiente de exemplo quando quiser sobrescrever portas, secrets, tags de imagem ou caminho de conteúdo:
 
 ```sh
-cp deploy/compose/.env.example deploy/compose/.env
+cp deploy/compose.local/.env-example deploy/compose.local/.env
 ```
 
 Suba a stack:
 
 ```sh
-docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.yml up -d --build
+docker compose --env-file deploy/compose.local/.env -f deploy/compose.local/docker-compose.yml up -d --build
 ```
 
 URLs locais:
@@ -33,24 +35,47 @@ URLs locais:
 - SPA Dev: `http://localhost:8082`
 - Manager: `http://localhost:8081`
 
-Por padrão, o Compose monta `deploy/content-demo` como conteúdo local de demonstração. A API monta esse conteúdo como somente leitura em `/app/.local`; o manager monta a mesma pasta em `/content` com escrita para testes locais. Para usar outra pasta de conteúdo, ajuste `QUICKQUIZ_CONTENT_ROOT` em `deploy/compose/.env`.
+O Compose local inicia o Redis junto com a stack e configura os runs da API, as soluções geradas e as sessões do Manager para usá-lo pela rede interna do Docker. O Redis não é instalado no host, não expõe porta no host e não possui volume persistente; reiniciá-lo invalida os runs de quiz ativos e as sessões de login do Manager, enquanto as soluções são recriadas sob demanda. A imagem oficial oferece suporte a `linux/amd64` e `linux/arm64`. A API não grava estado de runtime no próprio sistema de arquivos.
 
-O banco SQLite do manager fica, por padrão, dentro da pasta de conteúdo montada:
+Por padrão, o Compose monta `deploy/content-demo` como conteúdo local de demonstração. A API monta esse conteúdo como somente leitura em `/app/.local`; o Manager monta a mesma pasta em `/content` com escrita para testes locais. Para usar outra pasta de conteúdo, ajuste `QUICKQUIZ_CONTENT_ROOT` em `deploy/compose.local/.env`. Para testar armazenamento S3 compatível compartilhado, defina `QUESTION_STORAGE_PROVIDER=s3`, `ADS_STORAGE_PROVIDER=s3` e `MANAGER_CONTENT_STORAGE_PROVIDER=s3`, depois configure os mesmos valores de `AWS_REGION`, `S3_BUCKET`, `S3_PREFIX`, `S3_ENDPOINT_URL` e `S3_FORCE_PATH_STYLE`.
 
-```text
-<QUICKQUIZ_CONTENT_ROOT>/.manager/manager.sqlite
-```
-
-O manager cria `.manager/manager.sqlite` quando o repositório de admin é usado pela primeira vez, por exemplo em uma tentativa de login ou ao criar um usuário admin.
+O Manager guarda administradores e prompts de IA no PostgreSQL. O banco local
+fica disponível somente na rede interna do Docker e persiste no volume
+`manager-db-data`. Configure-o com `MANAGER_DATABASE_URL` e as variáveis
+`MANAGER_DB_*`.
 
 Crie um admin local do manager:
 
 ```sh
-docker compose --env-file deploy/compose/.env -f deploy/compose/docker-compose.yml exec manager-fpm \
+docker compose --env-file deploy/compose.local/.env -f deploy/compose.local/docker-compose.yml exec manager-fpm \
   php bin/console manager:admin:create admin@example.com 'change-this-password'
 ```
 
 O container PHP-FPM roda com `QUICKQUIZ_RUNTIME_UID` e `QUICKQUIZ_RUNTIME_GID`. Ajuste esses valores se seu usuário local não for `1000:1000`.
+
+## Secrets por arquivo
+
+Os secrets de runtime aceitam `NAME__FILE`. O arquivo apontado tem prioridade
+sobre `NAME`; arquivos ausentes, sem permissão de leitura ou vazios impedem a
+inicialização do serviço afetado. Quebras de linha no final são removidas. As
+SPAs não recebem secrets porque sua configuração de runtime é entregue ao
+navegador.
+
+Para Docker Compose, crie uma pasta por serviço sob um caminho absoluto:
+`api`, `ads-api`, `redis`, `manager` e `manager-db`. Defina
+`QUICKQUIZ_SECRETS_ROOT`, configure as variáveis `__FILE` correspondentes com
+caminhos sob `/run/secrets` e inclua o overlay de montagem somente leitura:
+
+```sh
+docker compose \
+  --env-file deploy/compose.local/.env \
+  -f deploy/compose.local/docker-compose.yml \
+  -f deploy/compose.secrets.yml \
+  up -d
+```
+
+O Kubernetes pode usar o mesmo contrato montando chaves de Secret e definindo
+cada `NAME__FILE` com o caminho montado.
 
 ## Repositórios de Imagem
 
@@ -63,6 +88,7 @@ robmoraes/quick-quiz-dev
 robmoraes/quick-quiz-dslab
 robmoraes/quick-quiz-manager-fpm
 robmoraes/quick-quiz-manager-web
+robmoraes/quick-quiz-php-base
 ```
 
 Você pode sobrescrever cada repositório com:
@@ -74,23 +100,51 @@ SPA_DEV_REPOSITORY=example/spa
 SPA_DSLAB_REPOSITORY=example/spa-dslab
 MANAGER_FPM_REPOSITORY=example/manager-fpm
 MANAGER_WEB_REPOSITORY=example/manager-web
+PHP_BASE_REPOSITORY=example/php-base
 ```
 
 ## Builds de Imagens
 
-O Makefile usa `docker buildx` e constrói imagens `linux/amd64` por padrão.
+O Makefile usa `docker buildx` e constrói imagens `linux/amd64` e `linux/arm64` por padrão.
+
+Builds multiplataforma exigem um builder `docker-container` com suporte para
+executar ARM. O workflow de release configura QEMU e Buildx automaticamente.
+Para um build manual persistente em Ubuntu/Debian, instale a emulação ARM e
+crie uma vez um builder reutilizável:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y qemu-user-static binfmt-support
+docker buildx create --name multiarch --driver docker-container --use --bootstrap
+export BUILDER=multiarch
+```
+
+O Docker Desktop já fornece emulação; normalmente basta criar o builder e
+exportar `BUILDER`.
 
 Para o fluxo opcional de publicação em nuvem usando AWS EC2, Docker Compose, Traefik e os domínios do projeto, consulte [Cloud Publishing](./CLOUD-PUBLISHING.md).
+
+### Base PHP do Manager
+
+A base `robmoraes/quick-quiz-php-base` é construída a partir de
+[`deploy/docker/php-base/Dockerfile`](./docker/php-base/Dockerfile). Ela fica
+deliberadamente fora do alvo `build-images` e do GitHub Actions. O build e a
+publicação são manuais:
+
+```sh
+docker login
+make -C deploy php-base BUILDER=multiarch OUTPUT=push
+```
+
+A tag padrão é `8.3.33-alpine3.24-r1`; o push também atualiza `latest`.
+Atualizações de PHP, Alpine ou pacotes exigem revisão do Dockerfile, incremento
+da revisão e novo build das duas arquiteturas.
 
 Exporte as seis imagens como artefatos OCI em `deploy/dist`:
 
 ```sh
 make -C deploy build-images \
   TAG=v0.1.0-beta \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=oci
 ```
 
@@ -99,29 +153,34 @@ Publique as seis imagens com a mesma tag:
 ```sh
 make -C deploy build-images \
   TAG=v0.1.0-beta \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=push
 ```
 
 Quando `OUTPUT=push` é usado, o Makefile também marca e publica a mesma imagem como `latest` em cada repositório. Por exemplo, `TAG=v0.1.0-beta` publica `robmoraes/quick-quiz-api:v0.1.0-beta` e `robmoraes/quick-quiz-api:latest`.
 
-Builds de imagem SPA exigem a URL base da Quiz API e da Ads API; use
-`SPA_DEV_API_BASE_URL`/`SPA_DEV_ADS_API_BASE_URL` ou
-`SPA_DSLAB_API_BASE_URL`/`SPA_DSLAB_ADS_API_BASE_URL` para valores específicos
-por app. `VITE_API_BASE_URL` e `VITE_ADS_API_BASE_URL` continuam disponíveis
-como fallback compartilhado para builds locais pontuais. Não há valor padrão de
-propósito, porque esses valores são compilados no bundle estático do frontend.
+`OUTPUT=push` publica um único manifesto multiplataforma para as duas
+arquiteturas. Os artefatos OCI também contêm ambas. Como o Docker não carrega
+um manifesto multiplataforma no armazenamento local, use uma única plataforma
+com `OUTPUT=load`:
+
+```sh
+make -C deploy build-images PLATFORM=linux/amd64 OUTPUT=load
+```
+
+Use `PLATFORM=linux/arm64` para exportar ou carregar somente ARM.
+
+As imagens das SPAs são independentes do ambiente. Na inicialização do
+contêiner, o Compose mapeia os valores `SPA_*_API_BASE_URL` para
+`SPA_API_BASE_URL` e `SPA_ADS_API_BASE_URL`; a troca de endpoint exige apenas a
+recriação do contêiner.
 
 Construa ou publique apenas uma imagem com tag individual:
 
 ```sh
 make -C deploy api API_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy ads-api ADS_API_TAG=v0.1.1-beta OUTPUT=push
-make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push
-make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push
+make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta OUTPUT=push
+make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
@@ -136,10 +195,6 @@ make -C deploy build-images \
   SPA_DSLAB_TAG=v0.1.0-dslab \
   MANAGER_FPM_TAG=v0.1.2-fpm \
   MANAGER_WEB_TAG=v0.1.2-web \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=push
 ```
 
@@ -147,17 +202,13 @@ Carregue imagens no Docker local:
 
 ```sh
 make -C deploy build-images \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
+  PLATFORM=linux/amd64 \
   OUTPUT=load
 ```
 
 O workflow de release do GitHub Actions publica imagens quando tags de release
-suportadas são enviadas. O workflow usa o GitHub Environment `production` e lê
-os repositórios Docker Hub e as URLs da API das SPAs de variáveis do
-environment:
+suportadas são enviadas. O workflow usa o GitHub Environment `production` e lê os repositórios Docker
+Hub das variáveis do environment:
 
 - `DOCKERHUB_API_IMAGE`
 - `DOCKERHUB_ADS_API_IMAGE`
@@ -165,7 +216,3 @@ environment:
 - `DOCKERHUB_SPA_DSLAB_IMAGE`
 - `DOCKERHUB_MANAGER_FPM_IMAGE`
 - `DOCKERHUB_MANAGER_WEB_IMAGE`
-- `SPA_DEV_API_BASE_URL`
-- `SPA_DEV_ADS_API_BASE_URL`
-- `SPA_DSLAB_API_BASE_URL`
-- `SPA_DSLAB_ADS_API_BASE_URL`

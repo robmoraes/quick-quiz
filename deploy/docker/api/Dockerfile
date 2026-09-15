@@ -7,7 +7,7 @@ FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS b
 
 WORKDIR /src
 
-COPY apps/api/go.mod ./
+COPY apps/api/go.mod apps/api/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY apps/api/cmd ./cmd
@@ -48,7 +48,6 @@ ENV SESSION_TTL=30m
 ENV SHUTDOWN_TIMEOUT=10s
 
 EXPOSE 8080
-VOLUME ["/app/.local"]
 
 USER 10001:10001
 

@@ -150,6 +150,39 @@ final class OpenAiQuestionRecommenderTest extends TestCase
         self::assertSame('Custom question prompt with 9 wrong answers.', $requests[0]['input'][0]['content'][0]['text']);
     }
 
+    public function testUsesConfiguredEndpointAndTimeout(): void
+    {
+        $request = [];
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$request): MockResponse {
+            $request = [$method, $url, $options['timeout'] ?? null];
+
+            return new MockResponse(json_encode(['output_text' => json_encode([
+                'prompt' => 'Question',
+                'correctOptions' => ['A'],
+                'wrongOptions' => ['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'],
+            ])]));
+        });
+        $recommender = new OpenAiQuestionRecommender(
+            httpClient: $client,
+            apiKey: 'test-key',
+            model: 'gpt-test',
+            baseUrl: 'http://openai.test/custom/',
+            requestTimeout: 12,
+        );
+
+        $recommender->recommend('en-US', [
+            'key' => 'php',
+            'name' => 'PHP',
+            'description' => 'PHP fundamentals',
+        ], 1, [
+            'label' => 'easy',
+            'optionCount' => 3,
+            'wrongRequired' => 2,
+        ], []);
+
+        self::assertSame(['POST', 'http://openai.test/custom/responses', 12.0], $request);
+    }
+
     private function promptProvider(AiPromptRepository $repository): AiPromptProvider
     {
         $request = Request::create('/');

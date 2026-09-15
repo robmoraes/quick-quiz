@@ -2,12 +2,17 @@
 
 namespace App\Service;
 
+use App\Storage\ContentStorage;
+use App\Storage\LocalContentStorage;
 use RuntimeException;
 
 final class AiPromptExportService
 {
-    public function __construct(private readonly string $contentRoot)
+    private readonly ContentStorage $contentStorage;
+
+    public function __construct(string $contentRoot, ?ContentStorage $contentStorage = null)
     {
+        $this->contentStorage = $contentStorage ?? new LocalContentStorage($contentRoot);
     }
 
     public function export(string $theme, string $key, string $text): void
@@ -22,23 +27,17 @@ final class AiPromptExportService
             throw new RuntimeException('Prompt text is required for export.');
         }
 
-        $path = $this->questionSolutionPromptPath($theme);
-        $dir = dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
-            throw new RuntimeException(sprintf('Could not create AI prompt export directory %s.', $dir));
-        }
-
-        if (file_put_contents($path, $text."\n", LOCK_EX) === false) {
-            throw new RuntimeException(sprintf('Could not export AI prompt to %s.', $path));
-        }
+        $this->contentStorage->write($this->questionSolutionPromptKey($theme), $text."\n");
     }
 
     public function questionSolutionPromptPath(string $theme): string
     {
-        return rtrim($this->contentRoot, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR
-            .$this->cleanPathComponent($theme, 'theme').DIRECTORY_SEPARATOR
-            .'ai-prompts'.DIRECTORY_SEPARATOR
-            .'question-solution-prompt.txt';
+        return $this->contentStorage->location($this->questionSolutionPromptKey($theme));
+    }
+
+    private function questionSolutionPromptKey(string $theme): string
+    {
+        return $this->cleanPathComponent($theme, 'theme').'/ai-prompts/question-solution-prompt.txt';
     }
 
     private function cleanPathComponent(string $value, string $label): string

@@ -54,10 +54,6 @@ Publish all images with a shared tag:
 docker login
 make -C deploy build-images \
   TAG=v0.1.0-beta \
-  SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
-  SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br \
-  SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br \
   OUTPUT=push
 ```
 
@@ -73,15 +69,15 @@ Publish one image independently:
 ```sh
 make -C deploy api API_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy ads-api ADS_API_TAG=v0.1.1-beta OUTPUT=push
-make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push
-make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push
+make -C deploy spa-dev SPA_DEV_TAG=v0.1.1-beta OUTPUT=push
+make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
 
-The build currently targets `linux/amd64`.
+The build publishes a multi-platform manifest for `linux/amd64` and `linux/arm64`.
 
-During the beta phase, image publishing is manual and intentionally stays outside GitHub Actions. The operator builds and pushes images from a local machine using the deploy Makefile.
+Supported release tags publish the same multi-platform images through GitHub Actions. The commands above remain available for an explicit manual release from a configured workstation.
 
 ## Infrastructure
 
@@ -135,6 +131,9 @@ The EC2 bootstrap prepares this base layout:
 /opt/quickquiz/traefik/letsencrypt/acme.json
 ```
 
+For temporary SSH recovery and permanent-key installation, see the
+[EC2 SSH access recovery runbook](../docs/runbooks/ec2-ssh-access-recovery.md).
+
 Recommended runtime layout:
 
 ```text
@@ -142,26 +141,20 @@ Recommended runtime layout:
 /opt/quickquiz/compose/.env
 /opt/quickquiz/themes.json
 /opt/quickquiz/dev/...
-/opt/quickquiz/.manager/manager.sqlite
 /opt/quickquiz/traefik/letsencrypt/acme.json
 ```
 
-The cloud Compose file mounts `QUICKQUIZ_CONTENT_ROOT` into:
+With the default local content provider, the cloud Compose file mounts `QUICKQUIZ_CONTENT_ROOT` into:
 
 - `/app/.local` read-only for the API.
-- `/content` read-write for the manager.
+- `/content` read-write for the Manager.
 
-The manager SQLite path defaults to:
+The alternative S3-compatible backend does not depend on these mounts. The Quiz API, Ads API, and Manager must use the same bucket and prefix.
 
-```text
-sqlite:////content/.manager/manager.sqlite
-```
-
-That means the database is persisted under:
-
-```text
-${QUICKQUIZ_CONTENT_ROOT}/.manager/manager.sqlite
-```
+The Manager stores administrators and AI prompts in the `manager-db` PostgreSQL
+service. `MANAGER_DATABASE_URL` configures the connection, while the database
+files persist in the `manager-db-data` Docker volume. Set a unique
+`MANAGER_DB_PASSWORD` and keep its matching URL outside Git.
 
 ## Cloud Compose
 
@@ -179,6 +172,11 @@ scp deploy/compose.cloud/.env-example ec2-user@<server-ip>:/opt/quickquiz/compos
 ```
 
 Edit `/opt/quickquiz/compose/.env` on the server.
+
+To keep sensitive values in files, also copy `deploy/compose.secrets.yml`, create
+the per-service directories described in [the deploy README](./README.md#file-backed-secrets),
+and set `QUICKQUIZ_SECRETS_ROOT` plus the relevant `NAME__FILE` variables. Add
+`-f compose.secrets.yml` to the `pull`, `up`, `ps`, and `logs` commands below.
 
 Production domain values for this environment:
 
@@ -202,11 +200,27 @@ QUICKQUIZ_IMAGE_MANAGER_FPM=robmoraes/quick-quiz-manager-fpm:v0.1.0-beta
 QUICKQUIZ_IMAGE_MANAGER_WEB=robmoraes/quick-quiz-manager-web:v0.1.0-beta
 ```
 
-Set the content root:
+For the current local content layout, set:
 
 ```env
+QUESTION_STORAGE_PROVIDER=local
+ADS_STORAGE_PROVIDER=local
+MANAGER_CONTENT_STORAGE_PROVIDER=local
 QUICKQUIZ_CONTENT_ROOT=/opt/quickquiz
 ```
+
+When the S3 migration is deployed, use one shared content location:
+
+```env
+QUESTION_STORAGE_PROVIDER=s3
+ADS_STORAGE_PROVIDER=s3
+MANAGER_CONTENT_STORAGE_PROVIDER=s3
+AWS_REGION=us-east-1
+S3_BUCKET=<content-bucket>
+S3_PREFIX=questions
+```
+
+Use an EC2 instance role for AWS credentials. `S3_ENDPOINT_URL` and `S3_FORCE_PATH_STYLE` are available for other S3-compatible services. The API reads each theme solution prompt from `<S3_PREFIX>/<theme>/ai-prompts/question-solution-prompt.txt`.
 
 Start or update the stack:
 
@@ -260,12 +274,13 @@ docker compose --env-file .env exec manager-fpm \
   php bin/console manager:admin:create admin@example.com 'change-this-password'
 ```
 
-The manager creates the SQLite database and `.manager` directory when the admin repository is first used.
+The Manager creates its PostgreSQL tables when the admin repository is first used.
 
 ## Operational Notes
 
-- Keep `MANAGER_APP_SECRET` stable between manager restarts so sessions remain valid.
+- Keep `MANAGER_APP_SECRET` stable between manager restarts so session cookies remain valid.
+- Redis is ephemeral in this single-node profile; restarting it invalidates active quiz runs and Manager login sessions, while generated solutions are recreated on demand.
 - Keep `ACME_EMAIL` set to a real mailbox for Let's Encrypt notifications.
-- Back up `QUICKQUIZ_CONTENT_ROOT`, especially quiz JSON files and `.manager/manager.sqlite`.
+- Back up the configured content backend and the Manager PostgreSQL database with `pg_dump`.
 - The Terraform state and `.env` files can contain sensitive or environment-specific values and should not be committed.
-- If API startup fails, check that `${QUICKQUIZ_CONTENT_ROOT}/themes.json` and the active theme package exist and are valid.
+- If API startup fails, check that `themes.json` and the active theme package exist and are valid in the configured local or S3 content backend.

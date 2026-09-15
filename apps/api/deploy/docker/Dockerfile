@@ -4,7 +4,7 @@ FROM golang:1.22-alpine AS build
 
 WORKDIR /src
 
-COPY go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY cmd ./cmd
@@ -43,7 +43,6 @@ ENV OPENAI_SOLUTION_PROMPT_FILE=/app/.local/{{theme}}/ai-prompts/question-soluti
 ENV OPENAI_TIMEOUT=30s
 
 EXPOSE 8080
-VOLUME ["/app/.local"]
 
 USER quickquiz
 

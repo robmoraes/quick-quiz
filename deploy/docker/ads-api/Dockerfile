@@ -7,7 +7,7 @@ FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine${ALPINE_VERSION} AS b
 
 WORKDIR /src
 
-COPY apps/ads-api/go.mod ./
+COPY apps/ads-api/go.mod apps/ads-api/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY apps/ads-api/cmd ./cmd
@@ -39,11 +39,11 @@ RUN mkdir -p /app/.local \
     && chown -R quickquiz:quickquiz /app
 
 ENV HTTP_ADDR=:8080
+ENV ADS_STORAGE_PROVIDER=local
 ENV ADS_SOURCE=/app/.local
 ENV SHUTDOWN_TIMEOUT=10s
 
 EXPOSE 8080
-VOLUME ["/app/.local"]
 
 USER 10001:10001
 

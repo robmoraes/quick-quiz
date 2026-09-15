@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -45,6 +46,37 @@ type questionIndexTopic struct {
 	Active      bool   `json:"active"`
 }
 
+type questionFileEntry struct {
+	name  string
+	isDir bool
+}
+
+type questionFileSource interface {
+	ReadFile(name string) ([]byte, error)
+	ReadDir(name string) ([]questionFileEntry, error)
+}
+
+type localQuestionFileSource struct {
+	root string
+}
+
+func (s localQuestionFileSource) ReadFile(name string) ([]byte, error) {
+	return os.ReadFile(filepath.Join(s.root, filepath.FromSlash(name)))
+}
+
+func (s localQuestionFileSource) ReadDir(name string) ([]questionFileEntry, error) {
+	entries, err := os.ReadDir(filepath.Join(s.root, filepath.FromSlash(name)))
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]questionFileEntry, 0, len(entries))
+	for _, entry := range entries {
+		result = append(result, questionFileEntry{name: entry.Name(), isDir: entry.IsDir()})
+	}
+	return result, nil
+}
+
 func LoadQuestionDatasetFromRoot(root string, locales []string) (QuestionDataset, error) {
 	fallbackLocale := ""
 	for _, locale := range locales {
@@ -57,17 +89,22 @@ func LoadQuestionDatasetFromRoot(root string, locales []string) (QuestionDataset
 }
 
 func LoadQuestionDatasetFromRootWithFallback(root, fallbackLocale string, locales []string) (QuestionDataset, error) {
+	return loadQuestionDatasetWithFallback(localQuestionFileSource{root: root}, fallbackLocale, locales)
+}
+
+func loadQuestionDatasetWithFallback(source questionFileSource, fallbackLocale string, locales []string) (QuestionDataset, error) {
 	var dataset QuestionDataset
 	fallbackLocale = i18n.NormalizeLocale(fallbackLocale)
 	if fallbackLocale == "" {
 		return QuestionDataset{}, errors.New("fallback locale is required")
 	}
 
-	themes, err := loadThemeIndex(filepath.Join(root, "themes.json"))
+	themesPath := "themes.json"
+	themes, err := loadThemeIndex(source, themesPath)
 	if err != nil {
 		return QuestionDataset{}, err
 	}
-	if err := validateThemeIndex(themes, filepath.Join(root, "themes.json")); err != nil {
+	if err := validateThemeIndex(themes, themesPath); err != nil {
 		return QuestionDataset{}, err
 	}
 	dataset.Themes = themeIndexToDomain(themes)
@@ -77,7 +114,7 @@ func LoadQuestionDatasetFromRootWithFallback(root, fallbackLocale string, locale
 			continue
 		}
 
-		loaded, err := loadQuestionDatasetFromTheme(root, theme.ID, fallbackLocale, locales)
+		loaded, err := loadQuestionDatasetFromTheme(source, theme.ID, fallbackLocale, locales)
 		if err != nil {
 			return QuestionDataset{}, err
 		}
@@ -100,13 +137,13 @@ func LoadQuestionsFromRoot(root string, locales []string) ([]domain.Question, er
 	return dataset.Questions, nil
 }
 
-func loadQuestionDatasetFromTheme(root, theme, fallbackLocale string, locales []string) (QuestionDataset, error) {
-	themeRoot := filepath.Join(root, theme)
-	centralIndex, err := loadQuestionIndex(filepath.Join(themeRoot, "index.json"))
+func loadQuestionDatasetFromTheme(source questionFileSource, theme, fallbackLocale string, locales []string) (QuestionDataset, error) {
+	themeRoot := theme
+	centralIndex, err := loadQuestionIndex(source, path.Join(themeRoot, "index.json"))
 	if err != nil {
 		return QuestionDataset{}, err
 	}
-	if err := validateCentralQuestionIndex(centralIndex, filepath.Join(themeRoot, "index.json")); err != nil {
+	if err := validateCentralQuestionIndex(centralIndex, path.Join(themeRoot, "index.json")); err != nil {
 		return QuestionDataset{}, err
 	}
 
@@ -117,7 +154,7 @@ func loadQuestionDatasetFromTheme(root, theme, fallbackLocale string, locales []
 			continue
 		}
 
-		loaded, err := loadQuestionDatasetFromLocale(themeRoot, theme, locale, centralIndex)
+		loaded, err := loadQuestionDatasetFromLocale(source, themeRoot, theme, locale, centralIndex)
 		if err != nil {
 			return QuestionDataset{}, err
 		}
@@ -133,13 +170,13 @@ func loadQuestionDatasetFromTheme(root, theme, fallbackLocale string, locales []
 	return dataset, nil
 }
 
-func loadQuestionDatasetFromLocale(themeRoot, theme, locale string, centralIndex questionIndex) (QuestionDataset, error) {
-	localeDir := filepath.Join(themeRoot, locale)
-	localizedIndex, err := loadLocalizedQuestionIndex(filepath.Join(localeDir, "index.json"))
+func loadQuestionDatasetFromLocale(source questionFileSource, themeRoot, theme, locale string, centralIndex questionIndex) (QuestionDataset, error) {
+	localeDir := path.Join(themeRoot, locale)
+	localizedIndex, err := loadLocalizedQuestionIndex(source, path.Join(localeDir, "index.json"))
 	if err != nil {
 		return QuestionDataset{}, err
 	}
-	if err := validateLocalizedQuestionIndex(localizedIndex, centralIndex, filepath.Join(localeDir, "index.json")); err != nil {
+	if err := validateLocalizedQuestionIndex(localizedIndex, centralIndex, path.Join(localeDir, "index.json")); err != nil {
 		return QuestionDataset{}, err
 	}
 
@@ -153,12 +190,12 @@ func loadQuestionDatasetFromLocale(themeRoot, theme, locale string, centralIndex
 
 		topic := indexedTopic.mergeLocalized(localizedByKey[indexedTopic.normalizedKey()]).toTopicOption(theme, locale)
 		if topic.ID == "" {
-			return QuestionDataset{}, fmt.Errorf("invalid topic key in %s", filepath.Join(themeRoot, "index.json"))
+			return QuestionDataset{}, fmt.Errorf("invalid topic key in %s", path.Join(themeRoot, "index.json"))
 		}
 
 		dataset.Topics = append(dataset.Topics, topic)
 
-		questions, err := loadQuestionsForTopic(localeDir, theme, locale, topic.ID)
+		questions, err := loadQuestionsForTopic(source, localeDir, theme, locale, topic.ID)
 		if err != nil {
 			return QuestionDataset{}, err
 		}
@@ -230,15 +267,15 @@ func validateLocalizedQuestionPackages(datasets map[string]QuestionDataset, fall
 	return nil
 }
 
-func loadThemeIndex(path string) (themeIndex, error) {
-	bytes, err := os.ReadFile(path)
+func loadThemeIndex(source questionFileSource, name string) (themeIndex, error) {
+	bytes, err := source.ReadFile(name)
 	if err != nil {
-		return themeIndex{}, fmt.Errorf("read theme index %s: %w", path, err)
+		return themeIndex{}, fmt.Errorf("read theme index %s: %w", name, err)
 	}
 
 	var index themeIndex
 	if err := json.Unmarshal(bytes, &index); err != nil {
-		return themeIndex{}, fmt.Errorf("decode theme index %s: %w", path, err)
+		return themeIndex{}, fmt.Errorf("decode theme index %s: %w", name, err)
 	}
 
 	return index, nil
@@ -301,22 +338,22 @@ func questionPackageKey(question domain.Question) string {
 	return fmt.Sprintf("%s/%d/%s", question.Topic, question.Difficulty, question.ID)
 }
 
-func loadQuestionIndex(path string) (questionIndex, error) {
-	bytes, err := os.ReadFile(path)
+func loadQuestionIndex(source questionFileSource, name string) (questionIndex, error) {
+	bytes, err := source.ReadFile(name)
 	if err != nil {
-		return questionIndex{}, fmt.Errorf("read question index %s: %w", path, err)
+		return questionIndex{}, fmt.Errorf("read question index %s: %w", name, err)
 	}
 
 	var index questionIndex
 	if err := json.Unmarshal(bytes, &index); err != nil {
-		return questionIndex{}, fmt.Errorf("decode question index %s: %w", path, err)
+		return questionIndex{}, fmt.Errorf("decode question index %s: %w", name, err)
 	}
 
 	return index, nil
 }
 
-func loadLocalizedQuestionIndex(path string) (questionIndex, error) {
-	index, err := loadQuestionIndex(path)
+func loadLocalizedQuestionIndex(source questionFileSource, name string) (questionIndex, error) {
+	index, err := loadQuestionIndex(source, name)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return questionIndex{}, nil
@@ -403,9 +440,9 @@ func (t questionIndexTopic) toTopicOption(theme, locale string) domain.TopicOpti
 	}
 }
 
-func loadQuestionsForTopic(localeDir, theme, locale, topic string) ([]domain.Question, error) {
-	topicDir := filepath.Join(localeDir, topic)
-	entries, err := os.ReadDir(topicDir)
+func loadQuestionsForTopic(source questionFileSource, localeDir, theme, locale, topic string) ([]domain.Question, error) {
+	topicDir := path.Join(localeDir, topic)
+	entries, err := source.ReadDir(topicDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
@@ -415,16 +452,16 @@ func loadQuestionsForTopic(localeDir, theme, locale, topic string) ([]domain.Que
 
 	var questions []domain.Question
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.isDir {
 			continue
 		}
 
-		difficulty, err := difficultyFromDirectory(entry.Name())
+		difficulty, err := difficultyFromDirectory(entry.name)
 		if err != nil {
-			return nil, fmt.Errorf("invalid difficulty directory %s: %w", filepath.Join(topicDir, entry.Name()), err)
+			return nil, fmt.Errorf("invalid difficulty directory %s: %w", path.Join(topicDir, entry.name), err)
 		}
 
-		loaded, err := loadQuestionsFromDifficultyDir(filepath.Join(topicDir, entry.Name()), theme, locale, topic, difficulty)
+		loaded, err := loadQuestionsFromDifficultyDir(source, path.Join(topicDir, entry.name), theme, locale, topic, difficulty)
 		if err != nil {
 			return nil, err
 		}
@@ -448,31 +485,31 @@ func difficultyFromDirectory(name string) (domain.Difficulty, error) {
 	return difficulty, nil
 }
 
-func loadQuestionsFromDifficultyDir(dir, theme, locale, topic string, difficulty domain.Difficulty) ([]domain.Question, error) {
-	entries, err := os.ReadDir(dir)
+func loadQuestionsFromDifficultyDir(source questionFileSource, dir, theme, locale, topic string, difficulty domain.Difficulty) ([]domain.Question, error) {
+	entries, err := source.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("read questions directory %s: %w", dir, err)
 	}
 
 	var questions []domain.Question
 	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+		if entry.isDir || path.Ext(entry.name) != ".json" {
 			continue
 		}
 
-		path := filepath.Join(dir, entry.Name())
-		question, err := loadQuestionFile(path)
+		questionPath := path.Join(dir, entry.name)
+		question, err := loadQuestionFile(source, questionPath)
 		if err != nil {
 			return nil, err
 		}
 
-		question.ID = strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+		question.ID = strings.TrimSuffix(entry.name, path.Ext(entry.name))
 		question.Theme = theme
 		question.Locale = locale
 		question.Topic = topic
 		question.Difficulty = difficulty
 		if err := question.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid question %q in %s: %w", question.ID, path, err)
+			return nil, fmt.Errorf("invalid question %q in %s: %w", question.ID, questionPath, err)
 		}
 		questions = append(questions, question)
 	}
@@ -480,15 +517,15 @@ func loadQuestionsFromDifficultyDir(dir, theme, locale, topic string, difficulty
 	return questions, nil
 }
 
-func loadQuestionFile(path string) (domain.Question, error) {
-	bytes, err := os.ReadFile(path)
+func loadQuestionFile(source questionFileSource, name string) (domain.Question, error) {
+	bytes, err := source.ReadFile(name)
 	if err != nil {
-		return domain.Question{}, fmt.Errorf("read question file %s: %w", path, err)
+		return domain.Question{}, fmt.Errorf("read question file %s: %w", name, err)
 	}
 
 	var question domain.Question
 	if err := json.Unmarshal(bytes, &question); err != nil {
-		return domain.Question{}, fmt.Errorf("decode question file %s: %w", path, err)
+		return domain.Question{}, fmt.Errorf("decode question file %s: %w", name, err)
 	}
 
 	return question, nil

@@ -14,17 +14,12 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 COPY apps/spa-dslab/public ./public
 COPY apps/spa-dslab/src ./src
 
-ARG VITE_API_BASE_URL
-ARG VITE_ADS_API_BASE_URL
-ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-ENV VITE_ADS_API_BASE_URL=${VITE_ADS_API_BASE_URL}
-RUN test -n "${VITE_API_BASE_URL}" || (echo "VITE_API_BASE_URL build arg is required" >&2; exit 1)
-RUN test -n "${VITE_ADS_API_BASE_URL}" || (echo "VITE_ADS_API_BASE_URL build arg is required" >&2; exit 1)
 RUN npm run build
 
 FROM nginx:${NGINX_VERSION}-alpine
 
 COPY deploy/docker/spa-dslab/nginx.conf /etc/nginx/nginx.conf
+COPY --chmod=755 deploy/docker/spa-entrypoint.sh /usr/local/bin/spa-entrypoint
 COPY --from=build /app/dist/spa /usr/share/nginx/html
 
 RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/run
@@ -36,4 +31,4 @@ USER nginx
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["spa-entrypoint"]

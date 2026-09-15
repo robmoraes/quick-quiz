@@ -150,8 +150,10 @@ export interface ApiError extends Error {
   status: number;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
-const ADS_API_BASE_URL = import.meta.env.VITE_ADS_API_BASE_URL ?? API_BASE_URL;
+const API_BASE_URL =
+  window.__QUICKQUIZ_CONFIG__?.apiBaseUrl?.trim() || 'http://localhost:8080';
+const ADS_API_BASE_URL =
+  window.__QUICKQUIZ_CONFIG__?.adsApiBaseUrl?.trim() || API_BASE_URL;
 
 export async function getCatalog(): Promise<Catalog> {
   return request<Catalog>('/api/catalog');

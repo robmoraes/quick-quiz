@@ -13,6 +13,8 @@ final class AdServiceTest extends TestCase
     /** @var array{exists:bool,ads:list<array<string,mixed>>} */
     private array $adsApiState;
     private int $nextAdId;
+    /** @var list<array<string,mixed>> */
+    private array $requestOptions;
 
     protected function setUp(): void
     {
@@ -20,6 +22,7 @@ final class AdServiceTest extends TestCase
         mkdir($this->root, 0775, true);
         $this->adsApiState = ['exists' => false, 'ads' => []];
         $this->nextAdId = 1;
+        $this->requestOptions = [];
     }
 
     protected function tearDown(): void
@@ -233,6 +236,15 @@ final class AdServiceTest extends TestCase
         ]);
     }
 
+    public function testUsesConfiguredRequestTimeout(): void
+    {
+        $this->writeThemes();
+
+        $this->service(14)->exists();
+
+        self::assertSame(14.0, $this->requestOptions[0]['timeout'] ?? null);
+    }
+
     private function writeThemes(): void
     {
         file_put_contents($this->root.'/themes.json', json_encode([
@@ -256,19 +268,20 @@ final class AdServiceTest extends TestCase
         ]));
     }
 
-    private function service(): AdService
+    private function service(int $requestTimeout = 5): AdService
     {
         $client = new MockHttpClient(
             fn (string $method, string $url, array $options = []): MockResponse => $this->adsApiResponse($method, $url, $options),
             'http://ads-api.test',
         );
 
-        return new AdService($client, $this->root, 'http://ads-api.test');
+        return new AdService($client, $this->root, 'http://ads-api.test', null, $requestTimeout);
     }
 
     /** @param array<string,mixed> $options */
     private function adsApiResponse(string $method, string $url, array $options): MockResponse
     {
+        $this->requestOptions[] = $options;
         $parts = parse_url($url);
         $path = (string) ($parts['path'] ?? '');
         parse_str((string) ($parts['query'] ?? ''), $query);

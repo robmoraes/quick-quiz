@@ -7,7 +7,7 @@ import (
 	"quickquiz/ads-api/internal/app"
 )
 
-func NewRouter(public *app.PublicAdService, admin *app.AdminAdService, logger *slog.Logger) http.Handler {
+func NewRouter(public *app.PublicAdService, admin *app.AdminAdService, logger *slog.Logger, allowedOrigins []string) http.Handler {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -26,5 +26,5 @@ func NewRouter(public *app.PublicAdService, admin *app.AdminAdService, logger *s
 	mux.HandleFunc("PUT /api/admin/ads/{id}", handler.UpdateAdminAd)
 	mux.HandleFunc("DELETE /api/admin/ads/{id}", handler.DeleteAdminAd)
 
-	return recoverer(requestLogger(logger)(cors(mux)))
+	return recoverer(requestLogger(logger)(cors(allowedOrigins, mux)))
 }

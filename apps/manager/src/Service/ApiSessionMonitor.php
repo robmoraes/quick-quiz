@@ -12,6 +12,7 @@ final class ApiSessionMonitor
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly string $apiBaseUrl,
+        private readonly int $requestTimeout = 3,
     ) {
     }
 
@@ -21,7 +22,7 @@ final class ApiSessionMonitor
         $url = $this->activeSessionsUrl();
 
         try {
-            $response = $this->httpClient->request('GET', $url, ['timeout' => 3]);
+            $response = $this->httpClient->request('GET', $url, ['timeout' => max(1, $this->requestTimeout)]);
             $status = $response->getStatusCode();
             $data = $response->toArray(false);
         } catch (TransportExceptionInterface $error) {

@@ -21,15 +21,14 @@ Responsibilities:
 - optionally use OpenAI-assisted question recommendation and localization.
 
 The manager is not the player API. It may have admin authentication for editing
-content, but that does not imply player accounts.
+content, but that does not imply player accounts. Login sessions are stored in Redis. Admin accounts and AI prompts are stored in PostgreSQL. Published content is read and written through a configurable local or S3-compatible storage backend.
 
 ## API
 
 Path: `apps/api/`
 
 The API is a Go service that serves the player SPA. It loads active quiz pack
-content from local files or S3-compatible storage and keeps MVP run/session
-state in memory.
+content from local files or S3-compatible storage. Run/session state and generated solutions can use Redis.
 
 Responsibilities:
 

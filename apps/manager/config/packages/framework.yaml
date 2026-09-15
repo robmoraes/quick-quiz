@@ -1,5 +1,7 @@
 framework:
   secret: '%env(APP_SECRET)%'
+  trusted_proxies: '%manager.trusted_proxies%'
+  trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-prefix']
   http_method_override: false
   handle_all_throwables: true
   php_errors:
@@ -7,6 +9,6 @@ framework:
   session:
     cookie_secure: auto
     cookie_samesite: lax
-    handler_id: null
+    handler_id: Symfony\Component\HttpFoundation\Session\Storage\Handler\RedisSessionHandler
   router:
     utf8: true

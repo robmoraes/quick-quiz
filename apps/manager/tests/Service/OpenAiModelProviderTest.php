@@ -71,6 +71,28 @@ final class OpenAiModelProviderTest extends TestCase
         self::assertSame(['gpt-default'], $provider->availableModels());
     }
 
+    public function testUsesConfiguredEndpointAndTimeout(): void
+    {
+        $request = [];
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$request): MockResponse {
+            $request = [$method, $url, $options['timeout'] ?? null];
+
+            return new MockResponse(json_encode(['data' => [['id' => 'gpt-5.4-mini']]]));
+        });
+        $provider = new OpenAiModelProvider(
+            requestStack: $this->requestStack(),
+            httpClient: $client,
+            apiKey: 'test-key',
+            defaultModel: 'gpt-5.4-mini',
+            baseUrl: 'http://openai.test/custom/',
+            requestTimeout: 9,
+        );
+
+        $provider->availableModels();
+
+        self::assertSame(['GET', 'http://openai.test/custom/models', 9.0], $request);
+    }
+
     private function requestStack(): RequestStack
     {
         $request = Request::create('/');

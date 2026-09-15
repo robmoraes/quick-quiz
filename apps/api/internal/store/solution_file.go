@@ -35,7 +35,7 @@ func (s *FileSolutionStore) Get(_ context.Context, key domain.QuestionSolution) 
 		return domain.QuestionSolution{}, fmt.Errorf("read solution file %s: %w", path, err)
 	}
 
-	var record solutionFileRecord
+	var record storedSolutionRecord
 	if err := json.Unmarshal(bytes, &record); err != nil {
 		return domain.QuestionSolution{}, fmt.Errorf("decode solution file %s: %w", path, err)
 	}
@@ -62,7 +62,7 @@ func (s *FileSolutionStore) Save(_ context.Context, solution domain.QuestionSolu
 	tempName := file.Name()
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
-	encodeErr := encoder.Encode(solutionFileRecordFromDomain(solution))
+	encodeErr := encoder.Encode(storedSolutionRecordFromDomain(solution))
 	closeErr := file.Close()
 	if encodeErr != nil {
 		_ = os.Remove(tempName)
@@ -81,7 +81,7 @@ func (s *FileSolutionStore) Save(_ context.Context, solution domain.QuestionSolu
 	return nil
 }
 
-type solutionFileRecord struct {
+type storedSolutionRecord struct {
 	Theme        string            `json:"theme"`
 	Locale       string            `json:"locale"`
 	Topic        string            `json:"topic"`
@@ -93,8 +93,8 @@ type solutionFileRecord struct {
 	GeneratedAt  string            `json:"generatedAt,omitempty"`
 }
 
-func solutionFileRecordFromDomain(solution domain.QuestionSolution) solutionFileRecord {
-	return solutionFileRecord{
+func storedSolutionRecordFromDomain(solution domain.QuestionSolution) storedSolutionRecord {
+	return storedSolutionRecord{
 		Theme:        solution.Theme,
 		Locale:       solution.Locale,
 		Topic:        solution.Topic,
@@ -107,7 +107,7 @@ func solutionFileRecordFromDomain(solution domain.QuestionSolution) solutionFile
 	}
 }
 
-func (r solutionFileRecord) toDomain() domain.QuestionSolution {
+func (r storedSolutionRecord) toDomain() domain.QuestionSolution {
 	return domain.QuestionSolution{
 		Theme:        r.Theme,
 		Locale:       r.Locale,

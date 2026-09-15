@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
-	"time"
 
 	"quickquiz/ads-api/internal/app"
 	"quickquiz/ads-api/internal/config"
@@ -16,23 +17,31 @@ import (
 )
 
 func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("failed to load configuration", "error", err)
+		os.Exit(1)
+	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: parseLogLevel(cfg.LogLevel),
 	}))
-
-	cfg := config.Load()
-	adStore := store.NewFileAdStore(cfg.AdsSource)
-	catalogStore := store.NewFileCatalogStore(cfg.AdsSource)
+	storageCtx, cancelStorage := context.WithTimeout(context.Background(), cfg.StorageStartupTimeout)
+	adStore, catalogStore, err := loadStores(storageCtx, cfg)
+	cancelStorage()
+	if err != nil {
+		logger.Error("failed to initialize content storage", "provider", cfg.AdsStorageProvider, "error", err)
+		os.Exit(1)
+	}
 	publicService := app.NewPublicAdService(adStore, catalogStore)
 	adminService := app.NewAdminAdService(adStore, catalogStore)
 
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(publicService, adminService, logger),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		Handler:           httpapi.NewRouter(publicService, adminService, logger, cfg.CORSAllowedOrigins),
+		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
+		ReadTimeout:       cfg.HTTPReadTimeout,
+		WriteTimeout:      cfg.HTTPWriteTimeout,
+		IdleTimeout:       cfg.HTTPIdleTimeout,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -56,4 +65,33 @@ func main() {
 		logger.Error("http server shutdown failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+func loadStores(ctx context.Context, cfg config.Config) (app.AdRepository, app.CatalogRepository, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.AdsStorageProvider)) {
+	case "", "local":
+		return store.NewFileAdStore(cfg.AdsSource), store.NewFileCatalogStore(cfg.AdsSource), nil
+	case "s3":
+		adStore, catalogStore, err := store.NewS3Stores(ctx, store.S3ContentStoreConfig{
+			Region:         cfg.S3.Region,
+			Bucket:         cfg.S3.Bucket,
+			Prefix:         cfg.S3.Prefix,
+			EndpointURL:    cfg.S3.EndpointURL,
+			ForcePathStyle: cfg.S3.ForcePathStyle,
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		return adStore, catalogStore, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported ADS_STORAGE_PROVIDER %q: use local or s3", cfg.AdsStorageProvider)
+	}
+}
+
+func parseLogLevel(value string) slog.Level {
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(value)); err != nil {
+		return slog.LevelInfo
+	}
+	return level
 }

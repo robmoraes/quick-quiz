@@ -36,6 +36,13 @@ Create `/opt/quickquiz/api/api.env`:
 ```sh
 cat >/opt/quickquiz/api/api.env <<'EOF'
 HTTP_ADDR=:8080
+LOG_LEVEL=info
+CORS_ALLOWED_ORIGINS=*
+HTTP_READ_HEADER_TIMEOUT=5s
+HTTP_READ_TIMEOUT=15s
+HTTP_WRITE_TIMEOUT=15s
+HTTP_IDLE_TIMEOUT=60s
+STORAGE_STARTUP_TIMEOUT=30s
 QUESTION_STORAGE_PROVIDER=local
 QUESTION_SOURCE=/app/.local
 FALLBACK_LOCALE=en-US
@@ -52,8 +59,7 @@ EOF
 ```
 
 If question content is loaded from S3, set `QUESTION_STORAGE_PROVIDER=s3` and add
-the required AWS and S3 variables documented in `apps/api/README.md`. In that
-case, the `.local` volume mount is optional.
+the required AWS and S3 variables documented in `apps/api/README.md`. The API then reads both the question catalog and the theme solution prompt from S3. The `.local` volume is unnecessary when generated solutions use Redis or memory.
 
 ## Pull the Image
 

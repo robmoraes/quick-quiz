@@ -8,22 +8,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"quickquiz/ads-api/internal/domain"
 )
 
 type FileAdStore struct {
+	*AdStore
+}
+
+type fileAdIndexBackend struct {
 	root string
-	mu   sync.Mutex
 }
 
 func NewFileAdStore(root string) *FileAdStore {
-	return &FileAdStore{root: root}
+	backend := &fileAdIndexBackend{root: root}
+	return &FileAdStore{AdStore: newAdStore(backend)}
 }
 
-func (s *FileAdStore) Exists(_ context.Context) (bool, error) {
+func (s *fileAdIndexBackend) exists(_ context.Context) (bool, error) {
 	_, err := os.Stat(s.adsPath())
 	if err == nil {
 		return true, nil
@@ -32,133 +35,6 @@ func (s *FileAdStore) Exists(_ context.Context) (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
-
-func (s *FileAdStore) CreateBaseFile(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	exists, err := s.Exists(ctx)
-	if err != nil || exists {
-		return err
-	}
-	return s.writeIndex(adIndex{Ads: []adRecord{}})
-}
-
-func (s *FileAdStore) List(_ context.Context) ([]domain.Ad, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	index, err := s.readIndex()
-	if err != nil {
-		return nil, err
-	}
-	return index.toDomain(s.adsPath())
-}
-
-func (s *FileAdStore) ListByTheme(_ context.Context, theme string) ([]domain.Ad, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	index, err := s.readIndex()
-	if err != nil {
-		return nil, err
-	}
-	ads, err := index.toDomain(s.adsPath())
-	if err != nil {
-		return nil, err
-	}
-
-	output := make([]domain.Ad, 0)
-	for _, ad := range ads {
-		if target, ok := adTargetForTheme(ad, theme); ok {
-			ad.Targets = []domain.AdTarget{target}
-			output = append(output, ad)
-		}
-	}
-	return output, nil
-}
-
-func (s *FileAdStore) Ad(_ context.Context, id string) (domain.Ad, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	index, err := s.readIndex()
-	if err != nil {
-		return domain.Ad{}, err
-	}
-	ads, err := index.toDomain(s.adsPath())
-	if err != nil {
-		return domain.Ad{}, err
-	}
-	for _, ad := range ads {
-		if ad.ID == id {
-			return ad, nil
-		}
-	}
-	return domain.Ad{}, domain.ErrAdNotFound
-}
-
-func (s *FileAdStore) Create(_ context.Context, ad domain.Ad) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	index, err := s.readIndex()
-	if err != nil {
-		return err
-	}
-	for _, existing := range index.Ads {
-		if strings.TrimSpace(existing.ID) == ad.ID {
-			return fmt.Errorf("duplicate ad id %s", ad.ID)
-		}
-	}
-	index.Ads = append(index.Ads, recordFromDomain(ad))
-	return s.writeIndex(index)
-}
-
-func (s *FileAdStore) Update(_ context.Context, id string, ad domain.Ad) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	index, err := s.readIndex()
-	if err != nil {
-		return err
-	}
-	found := false
-	for i, existing := range index.Ads {
-		if strings.TrimSpace(existing.ID) != id {
-			continue
-		}
-		index.Ads[i] = recordFromDomain(ad)
-		found = true
-		break
-	}
-	if !found {
-		return domain.ErrAdNotFound
-	}
-	return s.writeIndex(index)
-}
-
-func (s *FileAdStore) Delete(_ context.Context, id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	index, err := s.readIndex()
-	if err != nil {
-		return err
-	}
-	originalCount := len(index.Ads)
-	filtered := index.Ads[:0]
-	for _, ad := range index.Ads {
-		if strings.TrimSpace(ad.ID) != id {
-			filtered = append(filtered, ad)
-		}
-	}
-	if len(filtered) == originalCount {
-		return domain.ErrAdNotFound
-	}
-	index.Ads = filtered
-	return s.writeIndex(index)
 }
 
 type adIndex struct {
@@ -330,7 +206,7 @@ func recordFromDomain(ad domain.Ad) adRecord {
 	}
 }
 
-func (s *FileAdStore) readIndex() (adIndex, error) {
+func (s *fileAdIndexBackend) readIndex(_ context.Context) (adIndex, error) {
 	bytes, err := os.ReadFile(s.adsPath())
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -349,7 +225,7 @@ func (s *FileAdStore) readIndex() (adIndex, error) {
 	return index, nil
 }
 
-func (s *FileAdStore) writeIndex(index adIndex) error {
+func (s *fileAdIndexBackend) writeIndex(_ context.Context, index adIndex) error {
 	if err := os.MkdirAll(filepath.Dir(s.adsPath()), 0o775); err != nil {
 		return fmt.Errorf("create ads directory: %w", err)
 	}
@@ -371,8 +247,12 @@ func (s *FileAdStore) writeIndex(index adIndex) error {
 	return nil
 }
 
-func (s *FileAdStore) adsPath() string {
+func (s *fileAdIndexBackend) adsPath() string {
 	return filepath.Join(s.root, "ads", "ads.json")
+}
+
+func (s *fileAdIndexBackend) location() string {
+	return s.adsPath()
 }
 
 func adTargetForTheme(ad domain.Ad, theme string) (domain.AdTarget, bool) {

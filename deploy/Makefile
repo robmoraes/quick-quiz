@@ -8,14 +8,10 @@ SPA_DEV_TAG ?= $(TAG)
 SPA_DSLAB_TAG ?= $(TAG)
 MANAGER_FPM_TAG ?= $(TAG)
 MANAGER_WEB_TAG ?= $(TAG)
-PLATFORM ?= linux/amd64
+PHP_BASE_TAG ?= 8.3.33-alpine3.24-r1
+PLATFORM ?= linux/amd64,linux/arm64
+BUILDER ?=
 OUTPUT ?= oci
-VITE_API_BASE_URL ?=
-VITE_ADS_API_BASE_URL ?=
-SPA_DEV_API_BASE_URL ?= $(VITE_API_BASE_URL)
-SPA_DSLAB_API_BASE_URL ?= $(VITE_API_BASE_URL)
-SPA_DEV_ADS_API_BASE_URL ?= $(VITE_ADS_API_BASE_URL)
-SPA_DSLAB_ADS_API_BASE_URL ?= $(VITE_ADS_API_BASE_URL)
 
 API_REPOSITORY ?= robmoraes/quick-quiz-api
 ADS_API_REPOSITORY ?= robmoraes/quick-quiz-ads-api
@@ -23,19 +19,22 @@ SPA_DEV_REPOSITORY ?= robmoraes/quick-quiz-dev
 SPA_DSLAB_REPOSITORY ?= robmoraes/quick-quiz-dslab
 MANAGER_FPM_REPOSITORY ?= robmoraes/quick-quiz-manager-fpm
 MANAGER_WEB_REPOSITORY ?= robmoraes/quick-quiz-manager-web
+PHP_BASE_REPOSITORY ?= robmoraes/quick-quiz-php-base
+PHP_BASE_IMAGE ?= $(PHP_BASE_REPOSITORY):$(PHP_BASE_TAG)
 
 API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/api/Dockerfile
 ADS_API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/ads-api/Dockerfile
 SPA_DEV_DOCKERFILE := $(ROOT_DIR)/deploy/docker/spa-dev/Dockerfile
 SPA_DSLAB_DOCKERFILE := $(ROOT_DIR)/deploy/docker/spa-dslab/Dockerfile
 MANAGER_DOCKERFILE := $(ROOT_DIR)/deploy/docker/manager/Dockerfile
+PHP_BASE_DOCKERFILE := $(ROOT_DIR)/deploy/docker/php-base/Dockerfile
 
-.PHONY: build-images api ads-api spa-dev spa-dslab manager-fpm manager-web validate-output validate-spa-dev-api-base-url validate-spa-dslab-api-base-url validate-spa-dev-ads-api-base-url validate-spa-dslab-ads-api-base-url dist-dir
+.PHONY: build-images api ads-api spa-dev spa-dslab manager-fpm manager-web php-base validate-output dist-dir
 
 build-images: api ads-api spa-dev spa-dslab manager-fpm manager-web
 
 api: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(API_REPOSITORY),$(API_TAG)) \
 		--file "$(API_DOCKERFILE)" \
@@ -43,49 +42,57 @@ api: validate-output dist-dir
 		"$(ROOT_DIR)"
 
 ads-api: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(ADS_API_REPOSITORY),$(ADS_API_TAG)) \
 		--file "$(ADS_API_DOCKERFILE)" \
 		$(call output_args,ads-api,$(ADS_API_TAG)) \
 		"$(ROOT_DIR)"
 
-spa-dev: validate-output validate-spa-dev-api-base-url validate-spa-dev-ads-api-base-url dist-dir
-	docker buildx build \
+spa-dev: validate-output dist-dir
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(SPA_DEV_REPOSITORY),$(SPA_DEV_TAG)) \
 		--file "$(SPA_DEV_DOCKERFILE)" \
-		--build-arg VITE_API_BASE_URL="$(SPA_DEV_API_BASE_URL)" \
-		--build-arg VITE_ADS_API_BASE_URL="$(SPA_DEV_ADS_API_BASE_URL)" \
 		$(call output_args,spa-dev,$(SPA_DEV_TAG)) \
 		"$(ROOT_DIR)"
 
-spa-dslab: validate-output validate-spa-dslab-api-base-url validate-spa-dslab-ads-api-base-url dist-dir
-	docker buildx build \
+spa-dslab: validate-output dist-dir
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(SPA_DSLAB_REPOSITORY),$(SPA_DSLAB_TAG)) \
 		--file "$(SPA_DSLAB_DOCKERFILE)" \
-		--build-arg VITE_API_BASE_URL="$(SPA_DSLAB_API_BASE_URL)" \
-		--build-arg VITE_ADS_API_BASE_URL="$(SPA_DSLAB_ADS_API_BASE_URL)" \
 		$(call output_args,spa-dslab,$(SPA_DSLAB_TAG)) \
 		"$(ROOT_DIR)"
 
 manager-fpm: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(MANAGER_FPM_REPOSITORY),$(MANAGER_FPM_TAG)) \
 		--file "$(MANAGER_DOCKERFILE)" \
+		--build-arg PHP_BASE_IMAGE="$(PHP_BASE_IMAGE)" \
 		--target fpm \
 		$(call output_args,manager-fpm,$(MANAGER_FPM_TAG)) \
 		"$(ROOT_DIR)"
 
 manager-web: validate-output dist-dir
-	docker buildx build \
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(MANAGER_WEB_REPOSITORY),$(MANAGER_WEB_TAG)) \
 		--file "$(MANAGER_DOCKERFILE)" \
+		--build-arg PHP_BASE_IMAGE="$(PHP_BASE_IMAGE)" \
 		--target nginx \
 		$(call output_args,manager-web,$(MANAGER_WEB_TAG)) \
+		"$(ROOT_DIR)"
+
+# Deliberately excluded from build-images and the GitHub Actions workflow.
+# Publish a new revision manually after reviewing PHP or Alpine security updates.
+php-base: validate-output dist-dir
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
+		--platform "$(PLATFORM)" \
+		$(call image_tags,$(PHP_BASE_REPOSITORY),$(PHP_BASE_TAG)) \
+		--file "$(PHP_BASE_DOCKERFILE)" \
+		$(call output_args,php-base,$(PHP_BASE_TAG)) \
 		"$(ROOT_DIR)"
 
 validate-output:
@@ -93,33 +100,10 @@ validate-output:
 		echo "Unsupported OUTPUT=$(OUTPUT). Use oci, push, or load." >&2; \
 		exit 1; \
 	fi
-
-validate-spa-dev-api-base-url:
-	@if [ -z "$(strip $(SPA_DEV_API_BASE_URL))" ]; then \
-		echo "SPA_DEV_API_BASE_URL or VITE_API_BASE_URL is required for spa-dev image builds." >&2; \
-		echo "Example: make -C deploy spa-dev SPA_DEV_TAG=v0.1.0 SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push" >&2; \
-		exit 1; \
-	fi
-
-validate-spa-dev-ads-api-base-url:
-	@if [ -z "$(strip $(SPA_DEV_ADS_API_BASE_URL))" ]; then \
-		echo "SPA_DEV_ADS_API_BASE_URL or VITE_ADS_API_BASE_URL is required for spa-dev image builds." >&2; \
-		echo "Example: make -C deploy spa-dev SPA_DEV_TAG=v0.1.0 SPA_DEV_API_BASE_URL=https://api.quickquiz.com.br SPA_DEV_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push" >&2; \
-		exit 1; \
-	fi
-
-validate-spa-dslab-api-base-url:
-	@if [ -z "$(strip $(SPA_DSLAB_API_BASE_URL))" ]; then \
-		echo "SPA_DSLAB_API_BASE_URL or VITE_API_BASE_URL is required for spa-dslab image builds." >&2; \
-		echo "Example: make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.0 SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push" >&2; \
-		exit 1; \
-	fi
-
-validate-spa-dslab-ads-api-base-url:
-	@if [ -z "$(strip $(SPA_DSLAB_ADS_API_BASE_URL))" ]; then \
-		echo "SPA_DSLAB_ADS_API_BASE_URL or VITE_ADS_API_BASE_URL is required for spa-dslab image builds." >&2; \
-		echo "Example: make -C deploy spa-dslab SPA_DSLAB_TAG=v0.1.0 SPA_DSLAB_API_BASE_URL=https://api.quickquiz.com.br SPA_DSLAB_ADS_API_BASE_URL=https://ads.quickquiz.com.br OUTPUT=push" >&2; \
-		exit 1; \
+	@if [ "$(OUTPUT)" = "load" ]; then \
+		case "$(PLATFORM)" in \
+			*,*) echo "OUTPUT=load supports one platform. Set PLATFORM=linux/amd64 or PLATFORM=linux/arm64." >&2; exit 1 ;; \
+		esac; \
 	fi
 
 dist-dir:

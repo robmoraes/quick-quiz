@@ -4,12 +4,22 @@ import (
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"slices"
 	"time"
 )
 
-func cors(next http.Handler) http.Handler {
+func cors(allowedOrigins []string, next http.Handler) http.Handler {
+	allowAll := slices.Contains(allowedOrigins, "*")
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := r.Header.Get("Origin")
+		switch {
+		case allowAll:
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+		case origin != "" && slices.Contains(allowedOrigins, origin):
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Add("Vary", "Origin")
+		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-QuickQuiz-Session-ID, X-QuickQuiz-Locale, X-QuickQuiz-Theme, Accept-Language")
 

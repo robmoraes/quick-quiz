@@ -111,6 +111,30 @@ final class OpenAiCatalogAssistantTest extends TestCase
         self::assertSame('Custom catalog translation prompt.', $requests[0]['input'][0]['content'][0]['text']);
     }
 
+    public function testUsesConfiguredEndpointAndTimeout(): void
+    {
+        $request = [];
+        $client = new MockHttpClient(function (string $method, string $url, array $options) use (&$request): MockResponse {
+            $request = [$method, $url, $options['timeout'] ?? null];
+
+            return new MockResponse(json_encode(['output_text' => json_encode([
+                'name' => 'PHP',
+                'description' => 'PHP fundamentals.',
+            ])]));
+        });
+        $assistant = new OpenAiCatalogAssistant(
+            httpClient: $client,
+            apiKey: 'test-key',
+            model: 'gpt-test',
+            baseUrl: 'http://openai.test/custom/',
+            requestTimeout: 13,
+        );
+
+        $assistant->suggestDescription('en-US', 'PHP');
+
+        self::assertSame(['POST', 'http://openai.test/custom/responses', 13.0], $request);
+    }
+
     private function promptProvider(AiPromptRepository $repository): AiPromptProvider
     {
         $request = Request::create('/');

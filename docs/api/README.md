@@ -8,7 +8,7 @@ The API service lives in `apps/api/` and is implemented in Go.
 - Start quiz runs.
 - Select questions and answer options.
 - Validate answers.
-- Track in-memory session exhaustion.
+- Track session exhaustion through the configured run store.
 - Return run results.
 - Read quiz packs from local files or S3-compatible storage.
 
