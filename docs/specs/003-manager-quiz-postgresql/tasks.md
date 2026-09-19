@@ -157,7 +157,8 @@
 ## Production Cutover
 
 The [production migration record](../../runbooks/manager-postgresql-migration.md)
-tracks the staged release, backups, and remaining source-catalog cleanup.
+tracks release verification, backups, the completed import/publication, and
+the application rollback pending corrected-image activation.
 
 19. Prepare production without enabling PostgreSQL quiz reads.
     - Build and publish the Manager images.
