@@ -3,6 +3,11 @@
 This runbook records the migration of the single-node QuickQuiz beta environment
 from local runtime state to S3, Redis, and PostgreSQL.
 
+The later [Manager quiz PostgreSQL cutover](manager-postgresql-migration.md)
+records the current Manager release, authoritative quiz database, and recovery
+backups as of 2026-09-19. The release list below describes the original
+2026-09-15 infrastructure migration.
+
 ## Target
 
 - EC2: `i-043c1e8324ef79e4c`
