@@ -3,11 +3,14 @@
 namespace App\Service;
 
 use App\Exception\AdminApiException;
+use App\Exception\QuizPublicationException;
+use App\Exception\QuizDatabaseException;
+use PDOException;
 use RuntimeException;
 
 final class QuizAdministrationService
 {
-    public function __construct(private readonly QuizPackService $packs)
+    public function __construct(private readonly QuizAuthoringService $packs)
     {
     }
 
@@ -55,6 +58,9 @@ final class QuizAdministrationService
         try {
             $this->packs->saveTheme($input);
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             throw AdminApiException::validation($error->getMessage());
         }
 
@@ -72,6 +78,9 @@ final class QuizAdministrationService
         try {
             $this->packs->saveTheme($input);
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             throw AdminApiException::validation($error->getMessage());
         }
 
@@ -88,6 +97,9 @@ final class QuizAdministrationService
         try {
             $result = $this->packs->deleteTheme($theme, $recursive);
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             if (str_contains($error->getMessage(), 'recursive deletion is required')) {
                 throw AdminApiException::conflict($error->getMessage());
             }
@@ -135,6 +147,9 @@ final class QuizAdministrationService
         try {
             $scoped->saveTopicSet($input, $localizations);
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             throw AdminApiException::validation($error->getMessage());
         }
 
@@ -153,6 +168,9 @@ final class QuizAdministrationService
         try {
             $scoped->saveTopicSet($input, $this->localizations($input));
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             throw AdminApiException::validation($error->getMessage());
         }
 
@@ -169,6 +187,9 @@ final class QuizAdministrationService
         try {
             $result = $this->packs->forTheme($theme)->deleteTopicPackage($topic, $recursive);
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             if (str_contains($error->getMessage(), 'recursive deletion is required')) {
                 throw AdminApiException::conflict($error->getMessage());
             }
@@ -214,6 +235,9 @@ final class QuizAdministrationService
             $translations = $this->packs->forTheme($theme)
                 ->readLocalizedQuestionSet($topic, $difficulty, $questionId);
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             if (str_contains($error->getMessage(), ' is missing in locale ')) {
                 throw AdminApiException::notFound($error->getMessage());
             }
@@ -243,6 +267,9 @@ final class QuizAdministrationService
             $ids = $this->packs->forTheme($theme)
                 ->createLocalizedQuestionSets($topic, $difficulty, $questions);
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             if (str_contains($error->getMessage(), 'already exists')) {
                 throw AdminApiException::conflict($error->getMessage());
             }
@@ -272,6 +299,9 @@ final class QuizAdministrationService
         try {
             $scoped->updateManualLocalizedQuestionSet($topic, $difficulty, $questionId, $translations);
         } catch (RuntimeException $error) {
+            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+                throw $error;
+            }
             throw AdminApiException::validation($error->getMessage());
         }
 
@@ -293,6 +323,18 @@ final class QuizAdministrationService
             'id' => $questionId,
             'publication' => $this->publication(),
         ];
+    }
+
+    /** @return array<string,mixed> */
+    public function publicationStatus(): array
+    {
+        return $this->packs->publicationStatus();
+    }
+
+    /** @return array<string,mixed> */
+    public function retryPublication(): array
+    {
+        return $this->packs->retryPublication();
     }
 
     private function locale(string $locale): string
@@ -329,16 +371,13 @@ final class QuizAdministrationService
     }
 
     /** @return list<array<string,mixed>> */
-    private function topicList(QuizPackService $scoped, string $locale): array
+    private function topicList(QuizAuthoringService $scoped, string $locale): array
     {
-        return array_map(
-            fn (array $topic): array => $this->topicView($scoped, $topic, $locale),
-            $scoped->listTopics(),
-        );
+        return $scoped->topicViews($locale);
     }
 
     /** @param array<string,mixed> $topic @return array<string,mixed> */
-    private function topicView(QuizPackService $scoped, array $topic, string $locale): array
+    private function topicView(QuizAuthoringService $scoped, array $topic, string $locale): array
     {
         $key = (string) $topic['key'];
         $localized = $scoped->localizedTopic($locale, $key);
@@ -369,7 +408,7 @@ final class QuizAdministrationService
     }
 
     /** @param array<string,mixed> $translations */
-    private function assertExactLocales(QuizPackService $scoped, array $translations): void
+    private function assertExactLocales(QuizAuthoringService $scoped, array $translations): void
     {
         $provided = array_map('strval', array_keys($translations));
         $expected = $scoped->supportedLocales();
@@ -386,9 +425,6 @@ final class QuizAdministrationService
     /** @return array{apiReloadRequired:bool,reason:string} */
     private function publication(): array
     {
-        return [
-            'apiReloadRequired' => true,
-            'reason' => 'The Quiz API loads quiz content during startup.',
-        ];
+        return $this->packs->publicationInfo();
     }
 }

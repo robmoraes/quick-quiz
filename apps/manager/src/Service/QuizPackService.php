@@ -6,7 +6,7 @@ use App\Storage\ContentStorage;
 use App\Storage\LocalContentStorage;
 use RuntimeException;
 
-final class QuizPackService
+final class QuizPackService implements QuizAuthoringService
 {
     public const RECOMMENDATION_PROMPT_LIMIT = 50;
 
@@ -28,6 +28,24 @@ final class QuizPackService
         $this->contentStorage = $contentStorage ?? new LocalContentStorage($this->contentRoot);
         $this->rules = $rules ?? new QuizContentRules($fallbackLocale, $supportedLocales);
         $this->supportedLocales = $this->rules->supportedLocales();
+    }
+
+    public function publicationInfo(): array
+    {
+        return [
+            'apiReloadRequired' => true,
+            'reason' => 'The Quiz API loads quiz content during startup.',
+        ];
+    }
+
+    public function publicationStatus(): array
+    {
+        return ['provider' => 'legacy', 'status' => 'published', 'apiReloadRequired' => false];
+    }
+
+    public function retryPublication(): array
+    {
+        throw new RuntimeException('Could not retry publication while legacy quiz authoring is selected.');
     }
 
     public function contentRoot(): string
@@ -230,6 +248,26 @@ final class QuizPackService
             $topic['questionCount'] = $counts[$key] ?? 0;
             return $topic;
         }, $central);
+    }
+
+    /** @return list<array<string,mixed>> */
+    public function topicViews(string $locale): array
+    {
+        $this->assertSupportedLocale($locale);
+        return array_map(function (array $topic) use ($locale): array {
+            $key = (string) $topic['key'];
+            $localized = $this->localizedTopic($locale, $key);
+            $counts = [];
+            foreach (array_keys($this->difficulties()) as $difficulty) {
+                $counts[(string) $difficulty] = count($this->listQuestions($this->fallbackLocale(), $key, (int) $difficulty));
+            }
+            return $topic + [
+                'displayLocale' => $locale,
+                'displayName' => trim((string) ($localized['name'] ?? '')) ?: (string) ($topic['name'] ?? ''),
+                'displayDescription' => trim((string) ($localized['description'] ?? '')) ?: (string) ($topic['description'] ?? ''),
+                'questionCounts' => $counts,
+            ];
+        }, $this->listTopics());
     }
 
     /** @return array<string,mixed>|null */

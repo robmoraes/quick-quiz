@@ -3,6 +3,9 @@
 namespace App\Controller;
 
 use App\Exception\AdminApiException;
+use App\Exception\QuizPublicationException;
+use App\Exception\QuizDatabaseException;
+use PDOException;
 use App\Service\QuizAdministrationService;
 use JsonException;
 use Psr\Log\LoggerInterface;
@@ -28,6 +31,19 @@ final class QuizAdminController extends AbstractController
         return $this->query(fn (): array => $this->administration->catalog(
             (string) $request->query->get('locale', ''),
         ));
+    }
+
+    #[Route('/publication', name: 'publication', methods: ['GET'])]
+    public function publication(): JsonResponse
+    {
+        return $this->query(fn (): array => ['publication' => $this->administration->publicationStatus()]);
+    }
+
+    #[Route('/publication', name: 'publication_retry', methods: ['POST'])]
+    public function retryPublication(Request $request): JsonResponse
+    {
+        return $this->mutation($request, 'retry', 'publication',
+            fn (): array => ['publication' => $this->administration->retryPublication()]);
     }
 
     #[Route('/themes', name: 'themes', methods: ['GET'])]
@@ -275,6 +291,26 @@ final class QuizAdminController extends AbstractController
 
     private function runtimeProblem(RuntimeException $error): JsonResponse
     {
+        if ($error instanceof QuizPublicationException) {
+            return new JsonResponse([
+                'error' => [
+                    'code' => 'publication_failed',
+                    'message' => $error->getMessage(),
+                ],
+                'publication' => [
+                    'revision' => $error->revision,
+                    'status' => 'failed',
+                    'apiReloadRequired' => false,
+                ],
+            ], 503);
+        }
+        if ($error instanceof QuizDatabaseException || $error instanceof PDOException) {
+            return $this->problem(new AdminApiException('database_error', 'Quiz database is unavailable.', 503));
+        }
+        if ($error->getMessage() === 'Could not retry publication while legacy quiz authoring is selected.') {
+            return $this->problem(new AdminApiException('publication_unavailable',
+                'Publication retry requires PostgreSQL quiz authoring.', 503));
+        }
         if (str_starts_with($error->getMessage(), 'Could not ')) {
             return $this->problem(new AdminApiException('storage_error', 'Content storage is unavailable.', 503));
         }

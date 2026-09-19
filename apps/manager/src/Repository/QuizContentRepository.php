@@ -237,6 +237,166 @@ final class QuizContentRepository
         return $counts;
     }
 
+    /** @return list<array{topic:string,difficulty:int,locale:string,questions:int,correctAnswers:int,wrongAnswers:int}> */
+    public function statisticGroups(string $theme): array
+    {
+        $statement = $this->database->connection()->prepare(
+            'SELECT question.topic_key, question.difficulty, translation.locale,
+                COUNT(DISTINCT translation.question_id) AS question_count,
+                COUNT(answer.answer_position) FILTER (WHERE answer.kind = \'correct\') AS correct_count,
+                COUNT(answer.answer_position) FILTER (WHERE answer.kind = \'wrong\') AS wrong_count
+             FROM quiz_questions question
+             INNER JOIN quiz_question_translations translation
+               ON translation.theme_id = question.theme_id
+              AND translation.topic_key = question.topic_key
+              AND translation.difficulty = question.difficulty
+              AND translation.question_id = question.question_id
+             LEFT JOIN quiz_answers answer
+               ON answer.theme_id = translation.theme_id
+              AND answer.topic_key = translation.topic_key
+              AND answer.difficulty = translation.difficulty
+              AND answer.question_id = translation.question_id
+              AND answer.locale = translation.locale
+             WHERE question.theme_id = :theme
+             GROUP BY question.topic_key, question.difficulty, translation.locale
+             ORDER BY question.topic_key, question.difficulty, translation.locale',
+        );
+        $statement->execute(['theme' => trim($theme)]);
+
+        return array_map(static fn (array $row): array => [
+            'topic' => (string) $row['topic_key'],
+            'difficulty' => (int) $row['difficulty'],
+            'locale' => (string) $row['locale'],
+            'questions' => (int) $row['question_count'],
+            'correctAnswers' => (int) $row['correct_count'],
+            'wrongAnswers' => (int) $row['wrong_count'],
+        ], $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** @param list<string> $locales @return list<string> */
+    public function localeParityIssues(string $theme, string $fallbackLocale, array $locales): array
+    {
+        $statement = $this->database->connection()->prepare(
+            'SELECT locale_list.locale, question.topic_key, question.difficulty, question.question_id
+             FROM quiz_questions question
+             INNER JOIN quiz_topics topic
+               ON topic.theme_id = question.theme_id AND topic.topic_key = question.topic_key
+             CROSS JOIN unnest(string_to_array(:locales, \',\')) AS locale_list(locale)
+             INNER JOIN quiz_question_translations canonical
+               ON canonical.theme_id = question.theme_id
+              AND canonical.topic_key = question.topic_key
+              AND canonical.difficulty = question.difficulty
+              AND canonical.question_id = question.question_id
+              AND canonical.locale = :fallback
+             LEFT JOIN quiz_question_translations localized
+               ON localized.theme_id = question.theme_id
+              AND localized.topic_key = question.topic_key
+              AND localized.difficulty = question.difficulty
+              AND localized.question_id = question.question_id
+              AND localized.locale = locale_list.locale
+             WHERE question.theme_id = :theme AND topic.active = TRUE
+               AND locale_list.locale <> :fallback_again AND localized.locale IS NULL
+             ORDER BY locale_list.locale, question.topic_key, question.difficulty, question.question_id',
+        );
+        $statement->execute([
+            'theme' => trim($theme),
+            'fallback' => $fallbackLocale,
+            'fallback_again' => $fallbackLocale,
+            'locales' => implode(',', $locales),
+        ]);
+        $issues = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $issues[] = sprintf('Locale %s is missing fallback question package %s/%d/%s.',
+                $row['locale'], $row['topic_key'], $row['difficulty'], $row['question_id']);
+        }
+
+        $statement = $this->database->connection()->prepare(
+            'SELECT localized.locale, localized.topic_key, localized.difficulty, localized.question_id
+             FROM quiz_question_translations localized
+             INNER JOIN quiz_topics topic
+               ON topic.theme_id = localized.theme_id AND topic.topic_key = localized.topic_key
+             LEFT JOIN quiz_question_translations canonical
+               ON canonical.theme_id = localized.theme_id
+              AND canonical.topic_key = localized.topic_key
+              AND canonical.difficulty = localized.difficulty
+              AND canonical.question_id = localized.question_id
+              AND canonical.locale = :fallback
+             WHERE localized.theme_id = :theme AND topic.active = TRUE
+               AND localized.locale <> :fallback_again
+               AND localized.locale = ANY(string_to_array(:locales, \',\'))
+               AND canonical.locale IS NULL
+             ORDER BY localized.locale, localized.topic_key, localized.difficulty, localized.question_id',
+        );
+        $statement->execute([
+            'theme' => trim($theme),
+            'fallback' => $fallbackLocale,
+            'fallback_again' => $fallbackLocale,
+            'locales' => implode(',', $locales),
+        ]);
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $issues[] = sprintf('Locale %s has question package not defined by fallback: %s/%d/%s.',
+                $row['locale'], $row['topic_key'], $row['difficulty'], $row['question_id']);
+        }
+        return $issues;
+    }
+
+    /** @return array<string,array<int,int>> */
+    public function topicDifficultyCounts(string $theme, string $fallbackLocale): array
+    {
+        $statement = $this->database->connection()->prepare(
+            'SELECT question.topic_key, question.difficulty, COUNT(*) AS question_count
+             FROM quiz_questions question
+             INNER JOIN quiz_question_translations canonical
+               ON canonical.theme_id = question.theme_id
+              AND canonical.topic_key = question.topic_key
+              AND canonical.difficulty = question.difficulty
+              AND canonical.question_id = question.question_id
+              AND canonical.locale = :fallback
+             WHERE question.theme_id = :theme
+             GROUP BY question.topic_key, question.difficulty',
+        );
+        $statement->execute(['theme' => $theme, 'fallback' => $fallbackLocale]);
+        $counts = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $counts[(string) $row['topic_key']][(int) $row['difficulty']] = (int) $row['question_count'];
+        }
+        return $counts;
+    }
+
+    /** @return list<array{key:string,name:string,description:string}> */
+    public function localizedTopics(string $theme, string $locale): array
+    {
+        $statement = $this->database->connection()->prepare(
+            'SELECT translation.topic_key, translation.name, translation.description
+             FROM quiz_topic_translations translation
+             INNER JOIN quiz_topics topic
+               ON topic.theme_id = translation.theme_id
+              AND topic.topic_key = translation.topic_key
+             WHERE translation.theme_id = :theme AND translation.locale = :locale
+             ORDER BY topic.weight, translation.topic_key',
+        );
+        $statement->execute(['theme' => trim($theme), 'locale' => trim($locale)]);
+        return array_map(static fn (array $row): array => [
+            'key' => (string) $row['topic_key'],
+            'name' => (string) $row['name'],
+            'description' => (string) $row['description'],
+        ], $statement->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    /** @return list<string> */
+    public function questionIds(string $theme, string $topic, int $difficulty): array
+    {
+        $statement = $this->database->connection()->prepare(
+            'SELECT question_id FROM quiz_questions
+             WHERE theme_id = :theme AND topic_key = :topic AND difficulty = :difficulty
+             ORDER BY question_id',
+        );
+        $statement->execute([
+            'theme' => trim($theme), 'topic' => trim($topic), 'difficulty' => $difficulty,
+        ]);
+        return $statement->fetchAll(PDO::FETCH_COLUMN);
+    }
+
     /** @param array<string,mixed> $row @return array{id:string,name:string,description:string,weight:int,createdAt:string,active:bool} */
     private function themeRow(array $row): array
     {

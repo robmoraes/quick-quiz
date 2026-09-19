@@ -5,6 +5,8 @@ namespace App\Tests\Repository;
 use App\Repository\ManagerDatabase;
 use App\Repository\MigrationRunner;
 use App\Repository\QuizContentRepository;
+use App\Service\QuizContentRules;
+use App\Service\QuizContentStatistics;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
@@ -104,6 +106,26 @@ final class QuizContentRepositoryIntegrationTest extends TestCase
         );
     }
 
+    public function testQuestionReadsAndStatisticsCoverEveryDifficulty(): void
+    {
+        $this->question(3, 'php-3-001', [
+            'en-US' => ['Hard?', ['A'], ['B', 'C', 'D', 'E', 'F', 'G']],
+            'pt-BR' => ['Difícil?', ['A'], ['B', 'C', 'D', 'E', 'F', 'G']],
+        ]);
+        $this->question(4, 'php-4-001', [
+            'en-US' => ['Hardcore?', ['A'], ['B', 'C', 'D', 'E', 'F', 'G']],
+            'pt-BR' => ['Muito difícil?', ['A'], ['B', 'C', 'D', 'E', 'F', 'G']],
+        ]);
+        self::assertSame(['php-3-001'], array_column($this->repository->questions($this->theme, 'php', 'en-US', 3), 'id'));
+        self::assertSame(['php-4-001'], array_column($this->repository->questions($this->theme, 'php', 'en-US', 4), 'id'));
+        $statistics = new QuizContentStatistics($this->repository,
+            new QuizContentRules('en-US', 'en-US,pt-BR'), 10);
+        $stats = $statistics->forTheme($this->theme);
+        self::assertSame(4, $stats['totals']['canonicalQuestions']);
+        self::assertSame([1 => 1, 2 => 1, 3 => 1, 4 => 1], $stats['byTopic']['php']['difficultyQuestions']);
+        self::assertSame(2, $stats['byDifficulty'][4]['questions']);
+    }
+
     public function testThemeDeletionCascadesThroughQuestionsAndAnswers(): void
     {
         $statement = $this->database->connection()->prepare('DELETE FROM quiz_themes WHERE id = :theme');
@@ -114,6 +136,39 @@ final class QuizContentRepositoryIntegrationTest extends TestCase
             $statement->execute(['theme' => $this->theme]);
             self::assertSame(0, (int) $statement->fetchColumn(), $table);
         }
+    }
+
+    public function testContentStatisticsUseGroupedRowsAndReportLocaleParity(): void
+    {
+        $statistics = new QuizContentStatistics(
+            $this->repository,
+            new QuizContentRules('en-US', 'en-US,pt-BR'),
+            2,
+        );
+        $stats = $statistics->forTheme($this->theme);
+        self::assertSame(4, $stats['totals']['questions']);
+        self::assertSame(2, $stats['totals']['canonicalQuestions']);
+        self::assertSame(4, $stats['totals']['correctAnswers']);
+        self::assertSame(12, $stats['totals']['wrongAnswers']);
+        self::assertSame(1, $stats['totals']['activeTopics']);
+        self::assertSame(1, $stats['totals']['inactiveTopics']);
+        self::assertSame(2, $stats['totals']['activeTopicQuestions']);
+        self::assertSame(1, $stats['runCapacity']['total']);
+        self::assertSame([1 => 1, 2 => 1, 3 => 0, 4 => 0], $stats['byTopic']['php']['difficultyQuestions']);
+        self::assertSame(['go'], $stats['zeroQuestionTopics']);
+        self::assertSame([], $stats['localeParityIssues']);
+
+        $statement = $this->database->connection()->prepare(
+            'DELETE FROM quiz_question_translations WHERE theme_id=:theme AND topic_key=:topic
+             AND difficulty=:difficulty AND question_id=:question_id AND locale=:locale',
+        );
+        $statement->execute([
+            'theme' => $this->theme, 'topic' => 'php', 'difficulty' => 2,
+            'question_id' => 'php-2-001', 'locale' => 'pt-BR',
+        ]);
+        $stats = $statistics->forTheme($this->theme);
+        self::assertSame(3, $stats['totals']['questions']);
+        self::assertSame(['Locale pt-BR is missing fallback question package php/2/php-2-001.'], $stats['localeParityIssues']);
     }
 
     private function seedCatalog(): void

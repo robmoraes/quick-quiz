@@ -62,7 +62,7 @@ final class FaultInjectingContentStorage implements ContentStorage
         $prefix = trim($prefix, '/');
         $keys = array_values(array_filter(
             array_keys($this->objects),
-            static fn (string $key): bool => $key === $prefix || str_starts_with($key, $prefix.'/'),
+            static fn (string $key): bool => $prefix === '' || $key === $prefix || str_starts_with($key, $prefix.'/'),
         ));
         sort($keys);
 

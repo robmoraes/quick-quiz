@@ -78,6 +78,23 @@ final class QuizAdminControllerTest extends TestCase
         self::assertSame('invalid_difficulty', $body['error']['code']);
     }
 
+    public function testPublicationStatusEndpointReportsLegacyProvider(): void
+    {
+        $response = $this->controller->publication();
+        $body = json_decode((string) $response->getContent(), true);
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('legacy', $body['publication']['provider']);
+        self::assertSame('published', $body['publication']['status']);
+    }
+
+    public function testLegacyPublicationRetryIsUnavailable(): void
+    {
+        $response = $this->controller->retryPublication(Request::create('/api/admin/quiz/publication', 'POST'));
+        $body = json_decode((string) $response->getContent(), true);
+        self::assertSame(503, $response->getStatusCode());
+        self::assertSame('publication_unavailable', $body['error']['code']);
+    }
+
     private function removeTree(string $path): void
     {
         if (!is_dir($path)) {

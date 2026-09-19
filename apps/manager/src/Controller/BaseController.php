@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Service\AuthService;
 use App\Service\CsrfService;
 use App\Service\ManagerVersion;
+use App\Service\QuizAuthoringService;
 use App\Service\OpenAiConfiguration;
 use App\Service\ThemeContext;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -23,6 +24,7 @@ abstract class BaseController
         protected readonly ThemeContext $themeContext,
         protected readonly OpenAiConfiguration $openAi,
         protected readonly ManagerVersion $managerVersion,
+        protected readonly QuizAuthoringService $quizAuthoring,
         protected readonly RequestStack $requestStack,
     ) {
     }
@@ -53,6 +55,7 @@ abstract class BaseController
         $context['openAiModel'] = $this->openAi->model();
         $context['openAiModels'] = $this->openAi->availableModels();
         $context['managerVersion'] = $this->managerVersion->value();
+        $context['quizPublication'] = $context['adminEmail'] ? $this->quizAuthoring->publicationStatus() : null;
         $request = $this->requestStack->getCurrentRequest();
         $context['currentPath'] = $request === null ? '/' : $request->getRequestUri();
         return new Response($this->twig->render($template, $context));

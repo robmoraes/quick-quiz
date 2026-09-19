@@ -86,6 +86,15 @@
     {% endif %}
     {% block ai_help %}{% endblock %}
     <main class="container-fluid app-shell manager-main {% if adminEmail %}manager-main-with-sidebar{% endif %} py-4">
+      {% if quizPublication and quizPublication.provider == 'postgres' and (quizPublication.currentRevision > quizPublication.publishedRevision or quizPublication.status != 'published') %}
+        <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-3" role="alert">
+          <span>Quiz revision {{ quizPublication.currentRevision }} has publication status {{ quizPublication.status }}. Last published revision: {{ quizPublication.publishedRevision }}. {{ quizPublication.failureSummary ?? '' }}</span>
+          <form method="post" action="{{ path('quiz_publication_retry') }}">
+            <input type="hidden" name="_csrf" value="{{ csrf }}">
+            <button class="btn btn-warning btn-sm" type="submit">Retry publication</button>
+          </form>
+        </div>
+      {% endif %}
       {% block body %}{% endblock %}
     </main>
     <footer class="manager-status-footer fixed-bottom border-top">

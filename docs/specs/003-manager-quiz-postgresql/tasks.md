@@ -24,14 +24,14 @@
 
 ## PostgreSQL Persistence
 
-4. Implement PostgreSQL theme and topic reads.
+4. [x] Implement PostgreSQL theme and topic reads.
    - Add repository queries for ordered themes, canonical topics, localized
      topic metadata, and grouped canonical question counts.
    - Ensure query count is bounded independently of question count.
    - Validation: PostgreSQL integration tests cover empty and populated data,
      ordering, localization fallback, active flags, and aggregates.
 
-5. Implement PostgreSQL question reads and statistics.
+5. [x] Implement PostgreSQL question reads and statistics.
    - List summaries by theme, topic, locale, and optional difficulty.
    - Read complete localized question sets with ordered correct and wrong
      answers.
@@ -39,7 +39,7 @@
    - Validation: integration tests cover every difficulty, missing content,
      locale parity, answer order, and current statistics fields.
 
-6. Implement transactional PostgreSQL mutations.
+6. [x] Implement transactional PostgreSQL mutations.
    - Add theme and topic create, replace, and guarded recursive deletion.
    - Add localized question-set create, replace, and deletion.
    - Allocate automatic question IDs safely under concurrent requests.
@@ -51,7 +51,7 @@
 
 ## Import and Projection
 
-7. Implement the legacy-content importer and dry-run report.
+7. [x] Implement the legacy-content importer and dry-run report.
    - Read through `ContentStorage` and validate the complete source before any
      database write.
    - Map themes, topics, translations, questions, prompts, and ordered answers.
@@ -59,14 +59,14 @@
    - Validation: automated fixture tests cover valid import, malformed paths,
      invalid JSON, duplicate keys, unsupported locales, and answer-count drift.
 
-8. Make imports idempotent and comparable.
+8. [x] Make imports idempotent and comparable.
    - Fail closed on non-identical conflicts without `--replace`.
    - Roll back the complete import on any write failure.
    - Produce sanitized aggregate reports without content or credentials.
    - Validation: importing identical content twice creates no duplicates;
      conflict and injected-failure tests leave the prior database unchanged.
 
-9. Implement deterministic JSON projection rendering.
+9. [x] Implement deterministic JSON projection rendering.
    - Render `themes.json`, central and localized topic indexes, and localized
      question files from repository snapshots.
    - Preserve existing paths, fields, array ordering, timestamps, and JSON
@@ -75,7 +75,7 @@
    - Validation: round-trip fixtures compare logically equal to current JSON;
      missing, extra, and changed objects are reported precisely.
 
-10. Implement compensated publication and retry.
+10. [x] Implement compensated publication and retry.
     - Publish only affected objects for normal mutations and support full
       publication for migration and recovery.
     - Capture previous object state and compensate partial writes or deletes.
@@ -87,7 +87,7 @@
 
 ## Application Integration
 
-11. Add the persistence-provider boundary.
+11. [x] Add the persistence-provider boundary.
     - Define `QuizAuthoringService` from the operations consumed by controllers
       and `QuizAdministrationService`.
     - Make the existing `QuizPackService` the legacy implementation.
@@ -98,14 +98,14 @@
     - Validation: the same contract suite passes against legacy and PostgreSQL
       implementations where behavior is shared.
 
-12. Switch Manager read paths to the authoring contract.
+12. [x] Switch Manager read paths to the authoring contract.
     - Update theme, catalog, question, stats, and administration services to
       depend on the interface.
     - Keep route parameters, templates, filters, sorting, and response shapes.
     - Validation: controller tests cover both provider selections, and a storage
       spy proves PostgreSQL reads make zero `ContentStorage` calls.
 
-13. Switch Manager mutations to transactional PostgreSQL plus publication.
+13. [x] Switch Manager mutations to transactional PostgreSQL plus publication.
     - Route all UI and administrative CRUD through the authoring contract.
     - Serialize mutation/publication, preserve CSRF and auth checks, and surface
       publication status.
@@ -114,7 +114,7 @@
     - Validation: controller and service tests cover success, database failure,
       S3 failure, unpublished state, and retry.
 
-14. Add publication status and retry interfaces.
+14. [x] Add publication status and retry interfaces.
     - Add protected `GET` and `POST /api/admin/quiz/publication` endpoints.
     - Add a Manager warning and authenticated retry action for unpublished
       revisions.
@@ -124,7 +124,7 @@
 
 ## Configuration, Performance, and Operations
 
-15. Update Compose and runtime configuration.
+15. [x] Update Compose and runtime configuration.
     - Add the persistence-provider variable to local and cloud Compose.
     - Preserve database and AWS `NAME`/`NAME__FILE` secret handling.
     - Keep migrations as an explicit release command.
@@ -132,7 +132,7 @@
     - Validation: local and cloud `docker compose config` pass without exposing
       secret values.
 
-16. Add bounded-query and production-sized automated checks.
+16. [x] Add bounded-query and production-sized automated checks.
     - Build a deterministic fixture representing at least the current catalog
       volume.
     - Assert bounded query counts and zero storage calls for navigation.
@@ -140,14 +140,14 @@
     - Validation: PostgreSQL reads satisfy the plan's query bounds and the
       controlled server-time target without separate human test-case artifacts.
 
-17. Update migration and rollback runbooks.
+17. [x] Update migration and rollback runbooks.
     - Document backup, migration, dry run, import, comparison, provider switch,
       publication, Quiz API restart, verification, and rollback commands.
     - Include unpublished-revision diagnosis and publication retry.
     - Validation: command examples match implemented Symfony and Compose
       interfaces and contain no real credentials.
 
-18. Run the complete pre-merge verification suite.
+18. [x] Run the complete pre-merge verification suite.
     - Run Manager PHPUnit with PostgreSQL integration tests.
     - Run migration twice against a clean database.
     - Run import, comparison, publication, and retry tests.

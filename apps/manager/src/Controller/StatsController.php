@@ -2,14 +2,14 @@
 
 namespace App\Controller;
 
-use App\Service\QuizPackService;
+use App\Service\QuizAuthoringService;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class StatsController extends BaseController
 {
     #[Route('/stats', name: 'stats', methods: ['GET'])]
-    public function index(QuizPackService $packs): Response
+    public function index(QuizAuthoringService $packs): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;

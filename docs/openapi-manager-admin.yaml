@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: QuickQuiz Manager Administration API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     Protected API for discovering and maintaining QuickQuiz themes, topics,
     and complete localized question sets. Every operation requires an
@@ -16,6 +16,7 @@ tags:
   - name: Themes
   - name: Topics
   - name: Questions
+  - name: Publication
 paths:
   /api/admin/quiz/catalog:
     get:
@@ -39,6 +40,46 @@ paths:
           $ref: "#/components/responses/Unavailable"
         "500":
           $ref: "#/components/responses/InternalError"
+
+  /api/admin/quiz/publication:
+    get:
+      tags: [Publication]
+      summary: Returns current and published quiz revisions.
+      operationId: getQuizPublication
+      responses:
+        "200":
+          description: Publication status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [publication]
+                properties:
+                  publication:
+                    $ref: "#/components/schemas/PublicationStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+    post:
+      tags: [Publication]
+      summary: Retries publication of the current PostgreSQL quiz revision.
+      operationId: retryQuizPublication
+      responses:
+        "200":
+          description: Current revision published or already up to date.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [publication]
+                properties:
+                  publication:
+                    $ref: "#/components/schemas/PublicationStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/Unavailable"
 
   /api/admin/quiz/themes:
     get:
@@ -579,11 +620,13 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     Unavailable:
-      description: Administrative token is not configured or content storage is unavailable.
+      description: Administrative token is not configured, storage is unavailable, or a committed revision could not be published.
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            oneOf:
+              - $ref: "#/components/schemas/ErrorResponse"
+              - $ref: "#/components/schemas/PublicationFailure"
     InternalError:
       description: Unexpected internal failure.
       content:
@@ -868,11 +911,92 @@ components:
       type: object
       required: [apiReloadRequired, reason]
       properties:
+        revision:
+          type: integer
+          minimum: 0
+          description: Present when PostgreSQL authoring is active.
+        status:
+          type: string
+          enum: [published]
+          description: Present when PostgreSQL authoring is active.
+        checksum:
+          type: string
+          nullable: true
+        objectCount:
+          type: integer
+          nullable: true
+        durationMs:
+          type: integer
+          nullable: true
         apiReloadRequired:
           type: boolean
           enum: [true]
         reason:
           type: string
+    PublicationStatus:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum: [legacy, postgres]
+        currentRevision:
+          type: integer
+          minimum: 0
+        publishedRevision:
+          type: integer
+          minimum: 0
+        revision:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [pending, published, failed]
+        checksum:
+          type: string
+          nullable: true
+        objectCount:
+          type: integer
+          nullable: true
+        failureSummary:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          nullable: true
+        finishedAt:
+          type: string
+          nullable: true
+        durationMs:
+          type: integer
+          nullable: true
+        apiReloadRequired:
+          type: boolean
+    PublicationFailure:
+      type: object
+      required: [error, publication]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [publication_failed]
+            message:
+              type: string
+        publication:
+          type: object
+          required: [revision, status, apiReloadRequired]
+          properties:
+            revision:
+              type: integer
+              minimum: 1
+            status:
+              type: string
+              enum: [failed]
+            apiReloadRequired:
+              type: boolean
+              enum: [false]
     ThemeMutation:
       type: object
       required: [theme, publication]
