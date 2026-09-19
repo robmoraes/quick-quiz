@@ -107,9 +107,6 @@ final class QuizSourceCatalog
                     ];
                 }
                 unset($entry);
-                if (count($seen) !== count($topicIds)) {
-                    throw new RuntimeException(sprintf('%s: localized topics must contain every central topic.', $localizedPath));
-                }
                 usort($localized, static function (array $a, array $b) use ($entries): int {
                     $weights = array_column($entries, 'weight', 'key');
                     return [$weights[$a['key']], $a['key']] <=> [$weights[$b['key']], $b['key']];

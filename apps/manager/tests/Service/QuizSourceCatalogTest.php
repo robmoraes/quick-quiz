@@ -65,11 +65,14 @@ final class QuizSourceCatalogTest extends TestCase
         self::assertArrayNotHasKey('dev/ai-prompts/question-solution-prompt.txt', $snapshot['objects']);
     }
 
-    public function testRejectsMissingLocalizedTopic(): void
+    public function testPreservesMissingLocalizedTopicMetadata(): void
     {
         $this->write('dev/pt-BR/index.json', ['topics' => []]);
-        $this->expectExceptionMessage('dev/pt-BR/index.json: localized topics must contain every central topic');
-        $this->source->load();
+        $snapshot = $this->source->load();
+        self::assertSame([], $snapshot['localizedTopics']['dev']['pt-BR']);
+        self::assertSame(['topics' => []], $snapshot['objects']['dev/pt-BR/index.json']);
+        self::assertSame(1, $snapshot['counts']['topicTranslations']);
+        self::assertSame(2, $snapshot['counts']['questionTranslations']);
     }
 
     public function testRejectsNonStringMetadataWithLogicalPath(): void
@@ -95,6 +98,14 @@ final class QuizSourceCatalogTest extends TestCase
         $this->storage->write('dev/pt-BR/php/1/php-1-001.json', '{invalid');
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('dev/pt-BR/php/1/php-1-001.json: invalid JSON');
+        $this->source->load();
+    }
+
+    public function testRejectsQuestionWhoseTopicIsNotInCentralCatalog(): void
+    {
+        $path = 'dev/en-US/orphan/1/orphan-1-001.json';
+        $this->write($path, ['prompt' => 'Question?', 'correctOptions' => ['A'], 'wrongOptions' => ['B', 'C']]);
+        $this->expectExceptionMessage($path.': theme or topic is not defined');
         $this->source->load();
     }
 

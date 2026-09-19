@@ -37,7 +37,10 @@ docker compose --env-file .env exec manager-fpm php bin/console manager:quiz:com
 ```
 
 The importer validates the complete JSON catalog before writing and reports
-aggregate counts without prompts or answers. It ignores `ads/ads.json` and
+aggregate counts without prompts or answers. Localized topic indexes may omit
+metadata translations: the existing canonical metadata fallback is preserved,
+and the importer does not invent translation rows. Question translations must
+still exist for every supported locale. It ignores `ads/ads.json` and
 `<theme>/ai-prompts/*`. Identical re-imports are no-ops. A conflicting import
 fails unless the operator explicitly runs `--apply --replace`; replacement is
 intended only during a controlled migration window. `manager:quiz:compare`
