@@ -5,7 +5,7 @@ namespace App\Controller;
 use App\Service\QuestionLocalizer;
 use App\Service\QuestionRecommender;
 use App\Service\OpenAiConfiguration;
-use App\Service\QuizPackService;
+use App\Service\QuizAuthoringService;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class QuestionController extends BaseController
 {
     #[Route('/questions', name: 'questions', methods: ['GET'])]
-    public function index(QuizPackService $packs, OpenAiConfiguration $openAi, Request $request): Response
+    public function index(QuizAuthoringService $packs, OpenAiConfiguration $openAi, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -49,7 +49,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/manual/new', name: 'question_manual_new', methods: ['GET'])]
-    public function manualNew(QuizPackService $packs, Request $request): Response
+    public function manualNew(QuizAuthoringService $packs, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -75,7 +75,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/manual/create', name: 'question_manual_create', methods: ['POST'])]
-    public function manualCreate(QuizPackService $packs, Request $request): Response
+    public function manualCreate(QuizAuthoringService $packs, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -110,7 +110,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/manual/edit', name: 'question_manual_edit', methods: ['GET'])]
-    public function manualEdit(QuizPackService $packs, Request $request): Response
+    public function manualEdit(QuizAuthoringService $packs, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -136,7 +136,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/manual/update', name: 'question_manual_update', methods: ['POST'])]
-    public function manualUpdate(QuizPackService $packs, Request $request): Response
+    public function manualUpdate(QuizAuthoringService $packs, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -170,7 +170,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/ai/new', name: 'question_ai_new', methods: ['GET'])]
-    public function aiNew(QuizPackService $packs, OpenAiConfiguration $openAi, Request $request): Response
+    public function aiNew(QuizAuthoringService $packs, OpenAiConfiguration $openAi, Request $request): Response
     {
         if ($redirect = $this->requireAiConfigured($openAi)) {
             return $redirect;
@@ -198,7 +198,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/ai/edit', name: 'question_ai_edit', methods: ['GET'])]
-    public function aiEdit(QuizPackService $packs, OpenAiConfiguration $openAi, Request $request): Response
+    public function aiEdit(QuizAuthoringService $packs, OpenAiConfiguration $openAi, Request $request): Response
     {
         if ($redirect = $this->requireAiConfigured($openAi)) {
             return $redirect;
@@ -228,7 +228,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/ai/recommend', name: 'question_ai_recommend', methods: ['POST'])]
-    public function aiRecommend(QuizPackService $packs, QuestionRecommender $recommender, OpenAiConfiguration $openAi, Request $request): Response
+    public function aiRecommend(QuizAuthoringService $packs, QuestionRecommender $recommender, OpenAiConfiguration $openAi, Request $request): Response
     {
         if ($redirect = $this->requireAiConfigured($openAi)) {
             return $redirect;
@@ -237,7 +237,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/ai/suggest-answers', name: 'question_ai_suggest_answers', methods: ['POST'])]
-    public function aiSuggestAnswers(QuizPackService $packs, QuestionRecommender $recommender, OpenAiConfiguration $openAi, Request $request): Response
+    public function aiSuggestAnswers(QuizAuthoringService $packs, QuestionRecommender $recommender, OpenAiConfiguration $openAi, Request $request): Response
     {
         if ($redirect = $this->requireAiConfigured($openAi)) {
             return $redirect;
@@ -246,7 +246,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/ai/save', name: 'question_ai_save', methods: ['POST'])]
-    public function aiSave(QuizPackService $packs, QuestionLocalizer $localizer, OpenAiConfiguration $openAi, Request $request): Response
+    public function aiSave(QuizAuthoringService $packs, QuestionLocalizer $localizer, OpenAiConfiguration $openAi, Request $request): Response
     {
         if ($redirect = $this->requireAiConfigured($openAi)) {
             return $redirect;
@@ -295,7 +295,7 @@ final class QuestionController extends BaseController
     }
 
     #[Route('/questions/delete', name: 'question_delete', methods: ['POST'])]
-    public function delete(QuizPackService $packs, Request $request): Response
+    public function delete(QuizAuthoringService $packs, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -321,7 +321,7 @@ final class QuestionController extends BaseController
         ]);
     }
 
-    private function handleAiRecommendation(QuizPackService $packs, QuestionRecommender $recommender, Request $request, bool $answersOnly): Response
+    private function handleAiRecommendation(QuizAuthoringService $packs, QuestionRecommender $recommender, Request $request, bool $answersOnly): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -383,7 +383,7 @@ final class QuestionController extends BaseController
      * @param list<array{id:string,path:string,prompt:string,correctCount:int,wrongCount:int}> $questions
      * @param array{questionId:string, deletedLocales:int, missingLocales:int}|null $deleteResult
      */
-    private function renderQuestionIndex(QuizPackService $packs, string $locale, string $topic, int $difficulty, array $questions, string $error = '', bool $aiAvailable = false, ?array $deleteResult = null): Response
+    private function renderQuestionIndex(QuizAuthoringService $packs, string $locale, string $topic, int $difficulty, array $questions, string $error = '', bool $aiAvailable = false, ?array $deleteResult = null): Response
     {
         return $this->render('question/index.html.twig', [
             'locales' => $packs->supportedLocales(),
@@ -408,7 +408,7 @@ final class QuestionController extends BaseController
     }
 
     /** @param array<string,mixed> $context */
-    private function renderManualForm(QuizPackService $packs, array $context): Response
+    private function renderManualForm(QuizAuthoringService $packs, array $context): Response
     {
         return $this->render('question/manual_form.html.twig', array_merge([
             'locales' => $packs->supportedLocales(),
@@ -419,7 +419,7 @@ final class QuestionController extends BaseController
     }
 
     /** @param array<string,mixed> $context */
-    private function renderAiForm(QuizPackService $packs, array $context): Response
+    private function renderAiForm(QuizAuthoringService $packs, array $context): Response
     {
         return $this->render('question/ai_form.html.twig', array_merge([
             'topics' => $packs->topicChoices(),

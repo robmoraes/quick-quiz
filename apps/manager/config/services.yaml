@@ -1,11 +1,12 @@
 parameters:
   openai.empty: ''
-  manager.default_version: '0.10.0'
+  manager.default_version: '0.11.0'
   manager.default_api_base_url: 'http://127.0.0.1:8080'
   manager.default_api_timeout: 3
   manager.default_ads_api_base_url: 'http://127.0.0.1:8084'
   manager.default_ads_api_timeout: 5
   manager.default_content_storage_provider: 'local'
+  manager.default_quiz_persistence_provider: 'legacy'
   manager.default_aws_region: 'us-east-1'
   manager.default_s3_prefix: 'questions'
   manager.default_s3_force_path_style: false
@@ -22,6 +23,7 @@ parameters:
   manager.ads_api_base_url: '%env(default:manager.default_ads_api_base_url:QUICKQUIZ_ADS_API_BASE_URL)%'
   manager.ads_api_timeout: '%env(int:default:manager.default_ads_api_timeout:QUICKQUIZ_ADS_API_TIMEOUT)%'
   manager.content_storage_provider: '%env(default:manager.default_content_storage_provider:MANAGER_CONTENT_STORAGE_PROVIDER)%'
+  manager.quiz_persistence_provider: '%env(default:manager.default_quiz_persistence_provider:MANAGER_QUIZ_PERSISTENCE_PROVIDER)%'
   manager.aws_region: '%env(default:manager.default_aws_region:AWS_REGION)%'
   manager.s3_bucket: '%env(default:openai.empty:S3_BUCKET)%'
   manager.s3_prefix: '%env(default:manager.default_s3_prefix:S3_PREFIX)%'
@@ -98,6 +100,15 @@ services:
     arguments:
       $fallbackLocale: '%manager.fallback_locale%'
       $supportedLocales: '%manager.supported_locales%'
+
+  App\Service\QuizContentStatistics:
+    arguments:
+      $runQuestionLimit: '%manager.run_question_limit%'
+
+  App\Service\QuizAuthoringService:
+    factory: ['App\Service\QuizAuthoringServiceFactory', 'create']
+    arguments:
+      $provider: '%manager.quiz_persistence_provider%'
 
   App\Service\QuizPackService:
     arguments:

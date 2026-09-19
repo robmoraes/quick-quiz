@@ -4,7 +4,7 @@ namespace App\Controller;
 
 use App\Service\CatalogAssistant;
 use App\Service\OpenAiConfiguration;
-use App\Service\QuizPackService;
+use App\Service\QuizAuthoringService;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,7 +19,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog', name: 'catalog', methods: ['GET'])]
-    public function catalog(QuizPackService $packs, Request $request): Response
+    public function catalog(QuizAuthoringService $packs, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -63,7 +63,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog/{key}', name: 'catalog_edit', methods: ['GET'])]
-    public function edit(QuizPackService $packs, string $key): Response
+    public function edit(QuizAuthoringService $packs, string $key): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -82,7 +82,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog/save', name: 'catalog_save', methods: ['POST'])]
-    public function save(QuizPackService $packs, Request $request): Response
+    public function save(QuizAuthoringService $packs, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -105,7 +105,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog/ai/suggest-description', name: 'catalog_ai_suggest_description', methods: ['POST'])]
-    public function suggestDescription(QuizPackService $packs, CatalogAssistant $assistant, OpenAiConfiguration $openAi, Request $request): Response
+    public function suggestDescription(QuizAuthoringService $packs, CatalogAssistant $assistant, OpenAiConfiguration $openAi, Request $request): Response
     {
         if ($redirect = $this->requireAiConfigured($openAi)) {
             return $redirect;
@@ -137,7 +137,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog/ai/save', name: 'catalog_ai_save', methods: ['POST'])]
-    public function saveWithAi(QuizPackService $packs, CatalogAssistant $assistant, OpenAiConfiguration $openAi, Request $request): Response
+    public function saveWithAi(QuizAuthoringService $packs, CatalogAssistant $assistant, OpenAiConfiguration $openAi, Request $request): Response
     {
         if ($redirect = $this->requireAiConfigured($openAi)) {
             return $redirect;
@@ -156,19 +156,19 @@ final class CatalogController extends BaseController
             $canonical = $assistant->canonicalize($packs->fallbackLocale(), (string) ($topic['name'] ?? ''), (string) ($topic['description'] ?? ''));
             $topic['name'] = $canonical['name'];
             $topic['description'] = $canonical['description'];
-            $packs->saveTopic($topic);
+            $localizations = [];
             foreach ($packs->supportedLocales() as $locale) {
                 if ($locale === $packs->fallbackLocale()) {
                     continue;
                 }
 
                 $translated = $assistant->translate($locale, $canonical['name'], $canonical['description']);
-                $packs->saveLocalizedTopic($locale, [
-                    'key' => (string) ($topic['key'] ?? ''),
+                $localizations[$locale] = [
                     'name' => $translated['name'],
                     'description' => $translated['description'],
-                ]);
+                ];
             }
+            $packs->saveTopicSet($topic, $localizations);
 
             return $this->redirect('catalog');
         } catch (RuntimeException $error) {
@@ -181,7 +181,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog/{key}/delete', name: 'catalog_delete', methods: ['POST'])]
-    public function delete(QuizPackService $packs, Request $request, string $key): Response
+    public function delete(QuizAuthoringService $packs, Request $request, string $key): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -196,7 +196,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog/{locale}/{key}/localization', name: 'catalog_localization', methods: ['GET'])]
-    public function localization(QuizPackService $packs, string $locale, string $key): Response
+    public function localization(QuizAuthoringService $packs, string $locale, string $key): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -227,7 +227,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog/{locale}/{key}/localization', name: 'catalog_localization_save', methods: ['POST'])]
-    public function saveLocalization(QuizPackService $packs, Request $request, string $locale, string $key): Response
+    public function saveLocalization(QuizAuthoringService $packs, Request $request, string $locale, string $key): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -252,7 +252,7 @@ final class CatalogController extends BaseController
     }
 
     #[Route('/catalog/{locale}/{key}/localization/ai-save', name: 'catalog_localization_ai_save', methods: ['POST'])]
-    public function saveLocalizationWithAi(QuizPackService $packs, CatalogAssistant $assistant, OpenAiConfiguration $openAi, Request $request, string $locale, string $key): Response
+    public function saveLocalizationWithAi(QuizAuthoringService $packs, CatalogAssistant $assistant, OpenAiConfiguration $openAi, Request $request, string $locale, string $key): Response
     {
         if ($redirect = $this->requireAiConfigured($openAi)) {
             return $redirect;
@@ -292,7 +292,7 @@ final class CatalogController extends BaseController
     }
 
     /** @return array<string,mixed> */
-    private function fallbackTopic(QuizPackService $packs, string $key): array
+    private function fallbackTopic(QuizAuthoringService $packs, string $key): array
     {
         foreach ($packs->listTopics() as $topic) {
             if (($topic['key'] ?? '') === $key) {

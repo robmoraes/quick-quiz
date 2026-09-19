@@ -64,6 +64,18 @@ final class AdminApiAuthenticationSubscriberTest extends TestCase
         self::assertFalse($event->hasResponse());
     }
 
+    public function testPublicationReadAndRetryRequireBearerToken(): void
+    {
+        $subscriber = new AdminApiAuthenticationSubscriber(
+            new AdminApiTokenAuthenticator(str_repeat('a', 32)),
+        );
+        foreach (['GET', 'POST'] as $method) {
+            $event = $this->event(Request::create('/api/admin/quiz/publication', $method));
+            $subscriber($event);
+            self::assertSame(401, $event->getResponse()?->getStatusCode());
+        }
+    }
+
     private function event(Request $request): RequestEvent
     {
         return new RequestEvent(

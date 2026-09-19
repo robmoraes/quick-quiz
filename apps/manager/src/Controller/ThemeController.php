@@ -2,7 +2,7 @@
 
 namespace App\Controller;
 
-use App\Service\QuizPackService;
+use App\Service\QuizAuthoringService;
 use App\Service\ThemeContext;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class ThemeController extends BaseController
 {
     #[Route('/themes', name: 'themes', methods: ['GET'])]
-    public function index(QuizPackService $packs): Response
+    public function index(QuizAuthoringService $packs): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -24,7 +24,7 @@ final class ThemeController extends BaseController
     }
 
     #[Route('/themes/select', name: 'theme_select', methods: ['POST'])]
-    public function select(QuizPackService $packs, ThemeContext $themeContext, Request $request): Response
+    public function select(QuizAuthoringService $packs, ThemeContext $themeContext, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -60,7 +60,7 @@ final class ThemeController extends BaseController
     }
 
     #[Route('/themes/{id}/edit', name: 'theme_edit', methods: ['GET'])]
-    public function edit(QuizPackService $packs, string $id): Response
+    public function edit(QuizAuthoringService $packs, string $id): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;
@@ -78,7 +78,7 @@ final class ThemeController extends BaseController
     }
 
     #[Route('/themes/save', name: 'theme_save', methods: ['POST'])]
-    public function save(QuizPackService $packs, ThemeContext $themeContext, Request $request): Response
+    public function save(QuizAuthoringService $packs, ThemeContext $themeContext, Request $request): Response
     {
         if ($redirect = $this->requireAuth()) {
             return $redirect;

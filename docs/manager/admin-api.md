@@ -2,8 +2,10 @@
 
 The Manager exposes a JSON API for trusted automation clients, including a
 Codex session running on the operator's computer. It discovers themes and
-topics and persists complete localized question sets through the same local or
-S3-compatible storage used by the Manager.
+topics and persists complete localized question sets. In the `legacy` mode it
+writes the configured local or S3-compatible content store directly. In the
+`postgres` mode it writes PostgreSQL transactionally and publishes the same
+JSON layout to that content store.
 
 The contract is [docs/openapi-manager-admin.yaml](../openapi-manager-admin.yaml).
 
@@ -142,3 +144,11 @@ the locales reported by the catalog.
 Every successful mutation returns `publication.apiReloadRequired=true`. The
 Manager writes the content immediately, but the Quiz API reads it at startup;
 restart only the Quiz API after finishing a publication batch.
+
+In PostgreSQL mode, successful mutations include `publication.revision` and
+`publication.status=published`. A committed revision whose storage publication
+fails returns HTTP 503 with `error.code=publication_failed` and
+`publication.apiReloadRequired=false`. Check `GET /api/admin/quiz/publication`
+and retry with `POST /api/admin/quiz/publication` after fixing the storage
+failure. Both endpoints require the same administrative Bearer token. Restart
+only the Quiz API after publication succeeds.

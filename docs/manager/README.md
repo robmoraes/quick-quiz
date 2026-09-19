@@ -67,3 +67,5 @@ Read before changing manager content code:
 - [Quiz Pack Contract](../quiz-pack-contract.md)
 - [Data Documentation](../data/README.md)
 - Service README: [apps/manager/README.md](../../apps/manager/README.md)
+
+Quiz authoring can use PostgreSQL after a verified import. See the [PostgreSQL quiz cutover runbook](postgresql-quiz-cutover.md) for migrations, comparison, publication, and rollback.
