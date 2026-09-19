@@ -42,8 +42,9 @@ final class QuizAuthoringKernelTest extends TestCase
             'MANAGER_ADMIN_API_TOKEN' => 'kernel-regression-token-0123456789abcdef',
             'FALLBACK_LOCALE' => 'en-US',
             'SUPPORTED_LOCALES' => 'en-US,pt-BR',
-            'OPENAI_API_KEY' => '',
-            'OPENAI_MODEL' => '',
+            'OPENAI_API_KEY' => 'kernel-test-key',
+            'OPENAI_MODEL' => 'gpt-5-test',
+            'OPENAI_BASE_URL' => 'http://127.0.0.1:9/v1',
         ];
         foreach (array_keys($environment) as $name) {
             $environment[$name.'__FILE'] = null;
@@ -72,15 +73,30 @@ final class QuizAuthoringKernelTest extends TestCase
             self::assertSame($provider, json_decode((string) $response->getContent(), true)['publication']['provider']);
             $kernel->terminate($request, $response);
 
+            $anonymous = new Session(new MockArraySessionStorage());
+            $login = $this->form($kernel, $anonymous, '/login');
+            self::assertStringContainsString('name="password"', $login);
+            self::assertStringContainsString('QuickQuiz Manager · v', $login);
+            self::assertStringNotContainsString('id="openai-model"', $login);
+            self::assertStringNotContainsString('gpt-5-test', $login);
+            self::assertStringNotContainsString('AI inactive', $login);
+            self::assertFalse($anonymous->has('openai.available_models'), 'Login must not load or cache AI models.');
+            $failedLogin = $this->form($kernel, $anonymous, '/login', ['_csrf' => 'invalid']);
+            self::assertStringContainsString('Invalid CSRF token.', $failedLogin);
+            self::assertStringNotContainsString('id="openai-model"', $failedLogin);
+            self::assertFalse($anonymous->has('openai.available_models'));
+
             $session = new Session(new MockArraySessionStorage());
             $session->set('admin_id', 1);
             $session->set('admin_email', 'kernel-test@example.invalid');
-            $session->set('openai.available_models', []);
+            $session->set('openai.available_models', ['gpt-5-test', 'gpt-5-test-mini']);
             $request = Request::create('/themes');
             $request->setSession($session);
             $response = $kernel->handle($request);
             self::assertSame(200, $response->getStatusCode(), (string) $response->getContent());
             self::assertStringContainsString('<html', (string) $response->getContent());
+            self::assertStringContainsString('id="openai-model"', (string) $response->getContent());
+            self::assertStringContainsString('gpt-5-test-mini', (string) $response->getContent());
             $kernel->terminate($request, $response);
             $this->assertTopicTags($kernel, $session, $provider, $theme);
         } finally {

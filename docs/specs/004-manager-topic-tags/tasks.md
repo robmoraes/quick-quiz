@@ -68,10 +68,12 @@ Status: Implementation and local verification complete; production rollout is pe
 
 Verified with PHP 8.3.33, PostgreSQL 17, and PHPUnit 11.5.55 in Docker:
 
-- Full Manager suite: **198 tests, 726 assertions**, all passing.
+- Full Manager suite: **198 tests, 752 assertions**, all passing.
 - Compiled-kernel tests cover both providers, authenticated administrative CRUD,
   topic form creation/editing/clearing, escaped errors, CSRF, and the 50-character
   boundary. AI controller tests preserve unsaved tags and validate before calls.
+  Login rendering (including an error) does not discover or expose AI models;
+  the authenticated footer retains the configured model selector.
 - Separate-process concurrent replacements keep complete tag sets. Injected
   SQL/storage failures verify rollback and publication isolation. Import tests
   preserve surviving associations and restore them on failed replacement.
@@ -87,7 +89,8 @@ Verified with PHP 8.3.33, PostgreSQL 17, and PHPUnit 11.5.55 in Docker:
 - Docker context allowlists now include versioned Manager migrations.
 - Screenshots captured from the built image using synthetic data:
   [topic form](screenshots/topic-tags-form.png) and
-  [catalog badges](screenshots/topic-tags-catalog.png).
+  [catalog badges](screenshots/topic-tags-catalog.png), and
+  [login without AI controls](screenshots/manager-login.png).
 
 No production migration, image publication, or deployment was performed.
 See the [Manager tag rollout guide](../../manager/topic-tags.md).

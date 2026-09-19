@@ -31,6 +31,11 @@ format.
   instead of writing the ads file directly from the manager.
 - Moved the manager navigation into a left drawer/sidebar layout.
 
+### Fixed
+
+- Hide AI footer controls before authentication and defer model discovery until
+  an authenticated Manager page is rendered.
+
 ## [0.6.0] - 2026-06-17
 
 ### Added
