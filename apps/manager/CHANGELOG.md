@@ -11,6 +11,11 @@ format.
 
 ### Added
 
+- PostgreSQL topic tags for Manager Web and the protected administration API
+  (Manager 0.12.0): normalized shared tags, atomic replacement, omission/clearing
+  semantics, and replacement-import preservation. Tags-only edits do not access
+  content storage or change publication revisions. Migration 0002 is required.
+
 - Token-protected administration API for catalog discovery and theme, topic,
   and complete localized question-set CRUD through local or S3 storage.
 - Added a QuickQuiz API session monitor screen backed by the open active-session

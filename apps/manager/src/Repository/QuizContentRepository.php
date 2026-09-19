@@ -41,7 +41,7 @@ final class QuizContentRepository
     /**
      * @return list<array{
      *   key:string,name:string,description:string,weight:int,created_at:string,
-     *   active:bool,questionCount:int,localizedName:string,localizedDescription:string
+     *   active:bool,tags:list<string>,questionCount:int,localizedName:string,localizedDescription:string
      * }>
      */
     public function topics(string $theme, string $locale, string $fallbackLocale): array
@@ -54,10 +54,16 @@ final class QuizContentRepository
                 topic.weight,
                 topic.active,
                 topic.created_at,
+                topic_tags.tags,
                 localized.name AS localized_name,
                 localized.description AS localized_description,
                 COALESCE(question_counts.question_count, 0) AS question_count
              FROM quiz_topics topic
+             LEFT JOIN (
+                SELECT theme_id, topic_key, json_agg(tag_slug ORDER BY tag_slug COLLATE "C") AS tags
+                FROM quiz_topic_tags
+                GROUP BY theme_id, topic_key
+             ) topic_tags ON topic_tags.theme_id = topic.theme_id AND topic_tags.topic_key = topic.topic_key
              LEFT JOIN quiz_topic_translations localized
                ON localized.theme_id = topic.theme_id
               AND localized.topic_key = topic.topic_key
@@ -92,6 +98,7 @@ final class QuizContentRepository
                 'weight' => (int) $row['weight'],
                 'created_at' => $this->utcTimestamp((string) $row['created_at']),
                 'active' => $this->boolean($row['active']),
+                'tags' => json_decode((string) ($row['tags'] ?? '[]'), true, flags: JSON_THROW_ON_ERROR),
                 'questionCount' => (int) $row['question_count'],
                 'localizedName' => (string) ($row['localized_name'] ?? ''),
                 'localizedDescription' => (string) ($row['localized_description'] ?? ''),

@@ -97,6 +97,11 @@
           <td>
             <strong>{{ topic.name|default(topic.key) }}</strong>
             <div class="text-muted small">{{ topic.description|default('') }}</div>
+            {% if topic.tags|default([]) %}
+              <div class="d-flex flex-wrap gap-1 mt-1" aria-label="Tags">
+                {% for tag in topic.tags %}<span class="badge text-bg-secondary">{{ tag }}</span>{% endfor %}
+              </div>
+            {% endif %}
           </td>
           <td>{{ topic.weight }}</td>
           <td data-manager-created-at-display="{{ topic.created_at|default('') }}">{{ topic.created_at|default('') }}</td>

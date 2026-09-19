@@ -23,6 +23,11 @@ constraints, and planned work before implementation.
 - `003-manager-quiz-postgresql/plan.md`: technical architecture and staged migration plan.
 - `003-manager-quiz-postgresql/tasks.md`: implementation, automation, and production cutover tasks.
 
+- `004-manager-topic-tags/spec.md`: PostgreSQL-only topic tags in Manager Web
+  and the administrative API, excluded from published JSON and player services.
+- `004-manager-topic-tags/plan.md`: persistence, compatibility, and publication isolation.
+- `004-manager-topic-tags/tasks.md`: implementation and automated verification tasks.
+
 ## Archive
 
 Current implemented and historical specs live under `archive/`, preserving

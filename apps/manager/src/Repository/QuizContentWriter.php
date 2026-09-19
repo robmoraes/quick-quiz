@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Exception\QuizDatabaseException;
 use App\Service\QuizContentRules;
+use App\Service\TopicTags;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
@@ -62,8 +63,12 @@ final class QuizContentWriter
         return ['deletedObjects' => $deletedObjects, 'revision' => $revision];
     }
 
-    /** @param array<string,mixed> $input @param array<string,array<string,mixed>> $localizations */
-    public function saveTopicSet(string $theme, array $input, array $localizations = []): int
+    /**
+     * @param array<string,mixed> $input
+     * @param array<string,array<string,mixed>> $localizations
+     * @return array{revision:?int,publicationRequired:bool}
+     */
+    public function saveTopicSet(string $theme, array $input, array $localizations = []): array
     {
         $theme = $this->rules->normalizeIdentifier($theme, 'theme ID');
         $key = $this->rules->normalizeIdentifier((string) ($input['key'] ?? ''), 'topic key');
@@ -71,45 +76,82 @@ final class QuizContentWriter
         if ($name === '') {
             throw new RuntimeException('Topic name is required.');
         }
+        $tags = array_key_exists('tags', $input) ? TopicTags::normalize($input['tags']) : null;
         foreach ($localizations as $locale => $localized) {
             $this->rules->assertSupportedLocale((string) $locale);
             if (!is_array($localized) || trim((string) ($localized['name'] ?? '')) === '') {
                 throw new RuntimeException(sprintf('Localization %s must contain a name.', $locale));
             }
         }
-        return $this->mutate($theme, function (PDO $db) use ($theme, $key, $name, $input, $localizations): void {
+        return $this->lockedTransaction(function (PDO $db) use ($theme, $key, $name, $input, $localizations, $tags): array {
             $this->requireTheme($db, $theme);
-            $old = $this->one($db, 'SELECT created_at FROM quiz_topics WHERE theme_id=:theme AND topic_key=:key', ['theme' => $theme, 'key' => $key]);
-            $this->sql($db, 'INSERT INTO quiz_topics
-                    (theme_id,topic_key,name,description,weight,active,created_at,updated_at)
-                VALUES (:theme,:key,:name,:description,:weight,:active,:created_at,:updated_at)
-                ON CONFLICT (theme_id,topic_key) DO UPDATE SET name=EXCLUDED.name,
-                    description=EXCLUDED.description, weight=EXCLUDED.weight, active=EXCLUDED.active,
-                    created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at', [
-                'theme' => $theme,
-                'key' => $key,
+            $identity = ['theme' => $theme, 'key' => $key];
+            $old = $this->one($db, 'SELECT name,description,weight,active,created_at FROM quiz_topics
+                WHERE theme_id=:theme AND topic_key=:key', $identity);
+            $fields = [
                 'name' => $name,
                 'description' => trim((string) ($input['description'] ?? '')),
                 'weight' => (int) ($input['weight'] ?? 0),
                 'active' => $this->bool($input['active'] ?? false),
                 'created_at' => $this->createdAt($input['created_at'] ?? null, $old['created_at'] ?? null),
-                'updated_at' => $this->now(),
-            ]);
+            ];
+            $unchanged = $old !== null && $fields === [
+                'name' => (string) $old['name'],
+                'description' => (string) $old['description'],
+                'weight' => (int) $old['weight'],
+                'active' => $this->bool(in_array($old['active'], [true, 1, '1', 't', 'true'], true)),
+                'created_at' => $this->createdAt(null, $old['created_at']),
+            ];
+            if ($tags !== null && $unchanged) {
+                foreach ($localizations as $locale => $localized) {
+                    $previous = $this->one($db, 'SELECT name,description FROM quiz_topic_translations
+                        WHERE theme_id=:theme AND topic_key=:key AND locale=:locale', $identity + ['locale' => $locale]);
+                    if ($previous === null || $previous['name'] !== trim((string) $localized['name'])
+                        || $previous['description'] !== trim((string) ($localized['description'] ?? ''))) {
+                        $unchanged = false;
+                        break;
+                    }
+                }
+                if ($unchanged) {
+                    $this->replaceTopicTags($db, $identity, $tags);
+                    return ['revision' => null, 'publicationRequired' => false];
+                }
+            }
+            $this->sql($db, 'INSERT INTO quiz_topics
+                    (theme_id,topic_key,name,description,weight,active,created_at,updated_at)
+                VALUES (:theme,:key,:name,:description,:weight,:active,:created_at,:updated_at)
+                ON CONFLICT (theme_id,topic_key) DO UPDATE SET name=EXCLUDED.name,
+                    description=EXCLUDED.description, weight=EXCLUDED.weight, active=EXCLUDED.active,
+                    created_at=EXCLUDED.created_at, updated_at=EXCLUDED.updated_at',
+                $identity + $fields + ['updated_at' => $this->now()]);
             foreach ($localizations as $locale => $localized) {
                 $this->sql($db, 'INSERT INTO quiz_topic_translations
                         (theme_id,topic_key,locale,name,description,updated_at)
                     VALUES (:theme,:key,:locale,:name,:description,:updated_at)
                     ON CONFLICT (theme_id,topic_key,locale) DO UPDATE SET name=EXCLUDED.name,
-                        description=EXCLUDED.description, updated_at=EXCLUDED.updated_at', [
-                    'theme' => $theme,
-                    'key' => $key,
+                        description=EXCLUDED.description, updated_at=EXCLUDED.updated_at', $identity + [
                     'locale' => (string) $locale,
                     'name' => trim((string) $localized['name']),
                     'description' => trim((string) ($localized['description'] ?? '')),
                     'updated_at' => $this->now(),
                 ]);
             }
+            if ($tags !== null) {
+                $this->replaceTopicTags($db, $identity, $tags);
+            }
+            return ['revision' => $this->recordRevision($db, $theme), 'publicationRequired' => true];
         });
+    }
+
+    /** @param array{theme:string,key:string} $identity @param list<string> $tags */
+    private function replaceTopicTags(PDO $db, array $identity, array $tags): void
+    {
+        $this->sql($db, 'DELETE FROM quiz_topic_tags WHERE theme_id=:theme AND topic_key=:key', $identity);
+        foreach ($tags as $tag) {
+            $this->sql($db, 'INSERT INTO quiz_tags (slug) VALUES (:tag) ON CONFLICT DO NOTHING', ['tag' => $tag]);
+            $this->sql($db, 'INSERT INTO quiz_topic_tags (theme_id,topic_key,tag_slug) VALUES (:theme,:key,:tag)',
+                $identity + ['tag' => $tag]);
+        }
     }
 
     /** @return array{deletedQuestionFiles:int,revision:int} */
@@ -277,16 +319,29 @@ final class QuizContentWriter
     /** @param callable(PDO):void $operation */
     private function mutate(?string $theme, callable $operation): int
     {
-        try {
-            return $this->database->transactional(function (PDO $db) use ($theme, $operation): int {
-            QuizCatalogLock::transaction($db);
-            $db->query('SELECT current_revision FROM quiz_catalog_state WHERE singleton=1 FOR UPDATE')->fetchColumn();
+        return $this->lockedTransaction(function (PDO $db) use ($theme, $operation): int {
             $operation($db);
-            $revision = (int) $db->query('UPDATE quiz_catalog_state SET current_revision=current_revision+1, updated_at=CURRENT_TIMESTAMP WHERE singleton=1 RETURNING current_revision')->fetchColumn();
-            $this->sql($db, 'INSERT INTO quiz_publications (revision,affected_theme_id,status) VALUES (:revision,:theme,:status)', [
-                'revision' => $revision, 'theme' => $theme, 'status' => 'pending',
-            ]);
-            return $revision;
+            return $this->recordRevision($db, $theme);
+        });
+    }
+
+    private function recordRevision(PDO $db, ?string $theme): int
+    {
+        $revision = (int) $db->query('UPDATE quiz_catalog_state SET current_revision=current_revision+1,
+            updated_at=CURRENT_TIMESTAMP WHERE singleton=1 RETURNING current_revision')->fetchColumn();
+        $this->sql($db, 'INSERT INTO quiz_publications (revision,affected_theme_id,status) VALUES (:revision,:theme,:status)', [
+            'revision' => $revision, 'theme' => $theme, 'status' => 'pending',
+        ]);
+        return $revision;
+    }
+
+    private function lockedTransaction(callable $operation): mixed
+    {
+        try {
+            return $this->database->transactional(function (PDO $db) use ($operation): mixed {
+                QuizCatalogLock::transaction($db);
+                $db->query('SELECT current_revision FROM quiz_catalog_state WHERE singleton=1 FOR UPDATE')->fetchColumn();
+                return $operation($db);
             });
         } catch (PDOException) {
             throw new QuizDatabaseException();

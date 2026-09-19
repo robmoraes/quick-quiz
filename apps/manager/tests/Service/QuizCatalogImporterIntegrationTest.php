@@ -4,6 +4,8 @@ namespace App\Tests\Service;
 
 use App\Repository\ManagerDatabase;
 use App\Repository\MigrationRunner;
+use App\Repository\QuizContentWriter;
+use App\Repository\QuizContentRepository;
 use App\Service\QuizCatalogImporter;
 use App\Service\QuizContentComparator;
 use App\Service\QuizContentRules;
@@ -104,6 +106,10 @@ final class QuizCatalogImporterIntegrationTest extends TestCase
     public function testConflictingImportRequiresExplicitReplace(): void
     {
         $this->importer->run(true);
+        $this->tagTopic();
+        self::assertFalse($this->importer->run(true)['applied']);
+        $writer = new QuizContentWriter($this->database, new QuizContentRules('en-US', 'en-US,pt-BR'));
+        $writer->saveTopicSet($this->theme, ['key' => 'removed', 'name' => 'Removed', 'tags' => ['aws']]);
         $path = $this->theme.'/en-US/php/1/php-1-001.json';
         $this->write($path, ['prompt' => 'Updated?', 'correctOptions' => ['A'], 'wrongOptions' => ['B', 'C']]);
         $before = $this->revision();
@@ -118,11 +124,16 @@ final class QuizCatalogImporterIntegrationTest extends TestCase
         $report = $this->importer->run(true, true);
         self::assertTrue($report['comparison']['equal']);
         self::assertSame('Updated?', $this->renderer->render()[$path]['prompt']);
+        self::assertSame(['aws', 'php'], $this->topicTags());
+        $statement = $this->database->connection()->prepare('SELECT topic_key FROM quiz_topic_tags WHERE theme_id=:theme ORDER BY tag_slug');
+        $statement->execute(['theme' => $this->theme]);
+        self::assertSame(['php', 'php'], $statement->fetchAll(\PDO::FETCH_COLUMN));
     }
 
     public function testDatabaseWriteFailureLeavesPriorCatalogAndRevisionUnchanged(): void
     {
         $this->importer->run(true);
+        $this->tagTopic();
         $before = $this->renderer->render();
         $revision = $this->revision();
         $path = $this->theme.'/pt-BR/php/1/php-1-001.json';
@@ -143,6 +154,7 @@ final class QuizCatalogImporterIntegrationTest extends TestCase
         }
         self::assertSame($revision, $this->revision());
         self::assertSame($before, $this->renderer->render());
+        self::assertSame(['aws', 'php'], $this->topicTags());
     }
 
     public function testInvalidSourceFailsBeforeAnyDatabaseWrite(): void
@@ -158,6 +170,19 @@ final class QuizCatalogImporterIntegrationTest extends TestCase
             self::assertSame($before, $this->revision());
             self::assertSame([], $this->database->connection()->query('SELECT id FROM quiz_themes')->fetchAll());
         }
+    }
+
+    private function tagTopic(): void
+    {
+        $topic = (new QuizContentRepository($this->database))->topics($this->theme, 'en-US', 'en-US')[0];
+        $topic['tags'] = ['aws', 'php'];
+        (new QuizContentWriter($this->database, new QuizContentRules('en-US', 'en-US,pt-BR')))->saveTopicSet($this->theme, $topic);
+    }
+
+    /** @return list<string> */
+    private function topicTags(): array
+    {
+        return (new QuizContentRepository($this->database))->topics($this->theme, 'en-US', 'en-US')[0]['tags'];
     }
 
     private function fixture(): void

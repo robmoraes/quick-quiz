@@ -24,8 +24,14 @@ interface QuizAuthoringService
     public function listTopics(): array;
     public function topicViews(string $locale): array;
     public function topic(string $key): ?array;
-    public function saveTopic(array $input): void;
-    public function saveTopicSet(array $input, array $localizations = []): void;
+    /** @param array<string,mixed> $input @return array<string,mixed> Per-operation publication outcome. */
+    public function saveTopic(array $input): array;
+    /**
+     * @param array<string,mixed> $input
+     * @param array<string,array<string,mixed>> $localizations
+     * @return array<string,mixed> Per-operation publication outcome.
+     */
+    public function saveTopicSet(array $input, array $localizations = []): array;
     public function deleteTopic(string $key): void;
     public function saveLocalizedTopic(string $locale, array $input): void;
     public function localizedTopic(string $locale, string $key): ?array;
