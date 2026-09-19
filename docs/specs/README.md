@@ -18,6 +18,10 @@ constraints, and planned work before implementation.
 - `002-quiz-admin-api/spec.md`: token-protected quiz administration API behavior.
 - `002-quiz-admin-api/plan.md`: Manager-owned API architecture and verification plan.
 - `002-quiz-admin-api/tasks.md`: implementation and validation task list.
+- `003-manager-quiz-postgresql/spec.md`: PostgreSQL-backed Manager quiz
+  authoring, legacy content import, and S3 publication behavior.
+- `003-manager-quiz-postgresql/plan.md`: technical architecture and staged migration plan.
+- `003-manager-quiz-postgresql/tasks.md`: implementation, automation, and production cutover tasks.
 
 ## Archive
 
