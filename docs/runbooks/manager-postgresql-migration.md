@@ -11,8 +11,9 @@ Both Manager FPM and web images were published for `linux/amd64` and
 The production cutover is pending. Manager FPM/web remain on `v0.10.0`, and
 the Quiz API remains on `v0.7.0`. Their health checks passed after preflight.
 The additive migration `0001_quiz_authoring_schema.sql` was applied; quiz
-content tables remain empty and both catalog revisions remain zero. No S3
-content was changed and the API was not restarted.
+content tables remain empty and both catalog revisions remain zero. The two
+orphan demo files were archived with explicit operator approval as recorded
+below. The API was not restarted.
 
 ## Backup and staged files
 
@@ -22,6 +23,7 @@ content was changed and the API was not restarted.
   output is stored as `dump-manifest.txt`.
 - Prior Compose configuration: `compose/`; image references: `manager-images.txt`.
 - S3 version manifest: `s3-versions-before.json`; bucket versioning is enabled.
+- Archive/rollback version manifest: `orphan-archive-manifest.json`.
 - Staged release: `/opt/quickquiz/releases/manager-v0.11.0-20260919`.
 
 The initial S3 manifest contains 877 current objects totaling 645,909 bytes.
@@ -45,8 +47,18 @@ dev/pt-BR/quickquiz/1/quickquiz-1-001.json
 ```
 
 Their S3 ETags match the byte hashes of the corresponding versioned demo files
-in `deploy/content-demo`. They have not been archived or removed. The importer
-continues to reject questions whose theme or topic is absent from the catalog.
+in `deploy/content-demo`. With explicit operator approval, both were copied to:
+
+```text
+s3://quickquiz-beta-content-379197597050-us-east-1/migration-archive/manager-postgres-20260919/orphan-questions/
+```
+
+The archive preserves each original relative path. Copies were verified by
+ETag and size before conditional deletion from the active `questions/` prefix.
+Deletion created recoverable S3 delete markers; the original version IDs remain
+readable and were verified afterward. The archive manifest records source,
+archive, and delete-marker version IDs. The importer continues to reject
+questions whose theme or topic is absent from the catalog.
 
 A read-only audit excluding exactly those two files passed the remaining
 source validation and reported:
@@ -61,18 +73,24 @@ source validation and reported:
 | Correct answers | 1,334 |
 | Wrong answers | 7,678 |
 
-This filtered audit is not an import and does not replace the final full
-source comparison required for cutover.
+After the authorized archive, an unfiltered `manager:quiz:import --dry-run`
+using the same corrected importer as PR #41 passed with the counts above.
+The corrected source file was mounted read-only into an ephemeral `0.11.0`
+container; the active Manager application was not changed. The report is stored
+in the staged release as `import-dry-run-after-archive.json`.
+
+The source checksum is
+`33e8c21173d05e1ac817e33ff6a4cec1d04cc33faad90c9ddf7e3ab655cd6c54`.
+`applied=false` confirms that this did not import data. `comparison.equal=false`
+is expected because the PostgreSQL quiz tables are still empty; the full
+post-import comparison remains required before cutover.
 
 ## Resume
 
 1. Merge the importer compatibility fix and publish `manager/v0.11.1`.
-2. Resolve the two orphan demo files with explicit operator approval: either
-   restore their topic metadata or archive them outside the active `questions/`
-   prefix, preserving recoverable S3 versions.
-3. Update the staged Manager image references and version to `0.11.1`.
-4. Refresh the database backup and S3 version manifest after pausing editing.
-5. Follow the [cutover runbook](../manager/postgresql-quiz-cutover.md), starting
+2. Update the staged Manager image references and version to `0.11.1`.
+3. Refresh the database backup and S3 version manifest after pausing editing.
+4. Follow the [cutover runbook](../manager/postgresql-quiz-cutover.md), starting
    with a complete dry run, import, and projection comparison.
-6. Switch the Manager provider to `postgres` only after those checks pass;
+5. Switch the Manager provider to `postgres` only after those checks pass;
    publish and restart only the Quiz API after successful verification.
