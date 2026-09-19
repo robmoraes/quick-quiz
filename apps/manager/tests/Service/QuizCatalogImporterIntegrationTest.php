@@ -83,6 +83,24 @@ final class QuizCatalogImporterIntegrationTest extends TestCase
         self::assertSame($before + 1, $this->revision());
     }
 
+    public function testPartialTopicLocalizationsRoundTripWithoutInventingTranslations(): void
+    {
+        $path = $this->theme.'/pt-BR/index.json';
+        $this->write($path, ['topics' => []]);
+
+        $report = $this->importer->run(true);
+
+        self::assertTrue($report['comparison']['equal']);
+        self::assertSame(1, $report['counts']['topicTranslations']);
+        self::assertSame(['topics' => []], $this->renderer->render()[$path]);
+        self::assertSame($this->source->load()['objects'], $this->renderer->render());
+        $repository = new \App\Repository\QuizContentRepository($this->database);
+        $topic = $repository->topics($this->theme, 'pt-BR', 'en-US')[0];
+        self::assertSame('PHP', $topic['name']);
+        self::assertSame('', $topic['localizedName']);
+        self::assertFalse($this->importer->run(true)['applied']);
+    }
+
     public function testConflictingImportRequiresExplicitReplace(): void
     {
         $this->importer->run(true);
