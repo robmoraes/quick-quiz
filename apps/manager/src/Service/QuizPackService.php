@@ -4,24 +4,16 @@ namespace App\Service;
 
 use App\Storage\ContentStorage;
 use App\Storage\LocalContentStorage;
-use DateTimeImmutable;
-use DateTimeZone;
 use RuntimeException;
 
 final class QuizPackService
 {
     public const RECOMMENDATION_PROMPT_LIMIT = 50;
 
-    private const DIFFICULTIES = [
-        1 => ['label' => 'easy', 'optionCount' => 3, 'wrongRequired' => 2],
-        2 => ['label' => 'normal', 'optionCount' => 5, 'wrongRequired' => 4],
-        3 => ['label' => 'hard', 'optionCount' => 7, 'wrongRequired' => 6],
-        4 => ['label' => 'hardcore', 'optionCount' => 7, 'wrongRequired' => 6],
-    ];
-
     /** @var list<string> */
     private array $supportedLocales;
     private readonly ContentStorage $contentStorage;
+    private readonly QuizContentRules $rules;
 
     public function __construct(
         private readonly string $contentRoot,
@@ -31,9 +23,11 @@ final class QuizPackService
         private readonly ?string $fixedTheme = null,
         private readonly int $runQuestionLimit = 10,
         ?ContentStorage $contentStorage = null,
+        ?QuizContentRules $rules = null,
     ) {
         $this->contentStorage = $contentStorage ?? new LocalContentStorage($this->contentRoot);
-        $this->supportedLocales = $this->parseSupportedLocales($supportedLocales, $fallbackLocale);
+        $this->rules = $rules ?? new QuizContentRules($fallbackLocale, $supportedLocales);
+        $this->supportedLocales = $this->rules->supportedLocales();
     }
 
     public function contentRoot(): string
@@ -53,6 +47,7 @@ final class QuizPackService
             fixedTheme: $theme,
             runQuestionLimit: $this->runQuestionLimit,
             contentStorage: $this->contentStorage,
+            rules: $this->rules,
         );
     }
 
@@ -183,7 +178,7 @@ final class QuizPackService
     /** @return array<int, array{label:string, optionCount:int, wrongRequired:int}> */
     public function difficulties(): array
     {
-        return self::DIFFICULTIES;
+        return $this->rules->difficulties();
     }
 
     /** @return array{topics:list<array<string,mixed>>} */
@@ -548,15 +543,15 @@ final class QuizPackService
                 'difficultyQuestions' => [],
             ];
         }
-        foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+        foreach (array_keys($this->rules->difficulties()) as $difficulty) {
             $stats['byDifficulty'][$difficulty] = $this->emptyStatsBucket() + [
-                'label' => self::DIFFICULTIES[$difficulty]['label'],
+                'label' => $this->rules->difficulties()[$difficulty]['label'],
             ];
         }
 
         foreach ($this->supportedLocales as $locale) {
             foreach ($topicKeys as $topic) {
-                foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+                foreach (array_keys($this->rules->difficulties()) as $difficulty) {
                     $questions = $this->listQuestions($locale, $topic, (int) $difficulty);
                     foreach ($questions as $question) {
                         $this->addQuestionStats($stats['totals'], $question);
@@ -569,7 +564,7 @@ final class QuizPackService
         }
 
         foreach ($topicKeys as $topic) {
-            foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+            foreach (array_keys($this->rules->difficulties()) as $difficulty) {
                 $canonicalQuestions = count($this->listQuestions($this->fallbackLocale, $topic, (int) $difficulty));
                 $stats['totals']['canonicalQuestions'] += $canonicalQuestions;
                 $stats['byTopic'][$topic]['canonicalQuestions'] += $canonicalQuestions;
@@ -620,23 +615,12 @@ final class QuizPackService
     public function nextQuestionId(string $topic, int $difficulty): string
     {
         $this->assertCentralTopicExists($topic);
-        $this->assertDifficulty($difficulty);
+        $ids = array_map(
+            static fn (array $question): string => $question['id'],
+            $this->listQuestions($this->fallbackLocale, $topic, $difficulty),
+        );
 
-        $topic = $this->normalizeKey($topic);
-        $highest = 0;
-        foreach ($this->listQuestions($this->fallbackLocale, $topic, $difficulty) as $question) {
-            $id = $question['id'];
-            $prefix = sprintf('%s-%d-', $topic, $difficulty);
-            if (!str_starts_with($id, $prefix)) {
-                continue;
-            }
-            $suffix = substr($id, strlen($prefix));
-            if (ctype_digit($suffix)) {
-                $highest = max($highest, (int) $suffix);
-            }
-        }
-
-        return sprintf('%s-%d-%03d', $topic, $difficulty, $highest + 1);
+        return $this->rules->nextQuestionId($topic, $difficulty, $ids);
     }
 
     /** @param array<string,mixed> $input */
@@ -1048,19 +1032,6 @@ final class QuizPackService
         return $choices;
     }
 
-    /** @return list<string> */
-    private function parseSupportedLocales(string $supportedLocales, string $fallbackLocale): array
-    {
-        $locales = [$fallbackLocale];
-        foreach (explode(',', $supportedLocales) as $locale) {
-            $locale = trim($locale);
-            if ($locale !== '') {
-                $locales[] = $locale;
-            }
-        }
-        return array_values(array_unique($locales));
-    }
-
     /** @param array<string,mixed> $input @return array<string,mixed> */
     private function topicPayload(array $input, string $key): array
     {
@@ -1076,21 +1047,7 @@ final class QuizPackService
 
     private function normalizeTopicCreatedAtUtc(string $createdAt): string
     {
-        $createdAt = trim($createdAt);
-        if ($createdAt === '') {
-            return '';
-        }
-        if (!preg_match('/(?:Z|[+-]\d{2}:?\d{2})$/', $createdAt)) {
-            throw new RuntimeException('Created at must be a valid datetime with timezone.');
-        }
-
-        try {
-            return (new DateTimeImmutable($createdAt))
-                ->setTimezone(new DateTimeZone('UTC'))
-                ->format('Y-m-d\TH:i:sP');
-        } catch (\Exception) {
-            throw new RuntimeException('Created at must be a valid datetime with timezone.');
-        }
+        return $this->rules->normalizeCreatedAtUtc($createdAt);
     }
 
     /** @return array{questions:int, correctAnswers:int, wrongAnswers:int} */
@@ -1144,7 +1101,7 @@ final class QuizPackService
         $counts = [];
         $locale = $this->fallbackLocale;
         foreach ($this->activeTopicKeys() as $topic) {
-            foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+            foreach (array_keys($this->rules->difficulties()) as $difficulty) {
                 $counts[$topic] = ($counts[$topic] ?? 0) + count($this->listQuestions($locale, $topic, (int) $difficulty));
             }
         }
@@ -1230,7 +1187,7 @@ final class QuizPackService
 
             foreach (array_keys($difficultyDirectories) as $difficultyDirectory) {
                 $difficultyDirectory = (string) $difficultyDirectory;
-                if (!ctype_digit($difficultyDirectory) || !isset(self::DIFFICULTIES[(int) $difficultyDirectory])) {
+                if (!ctype_digit($difficultyDirectory) || !array_key_exists((int) $difficultyDirectory, $this->rules->difficulties())) {
                     $errors[] = sprintf(
                         'Invalid difficulty directory: %s',
                         $this->contentStorage->location($this->join($topicPrefix, $difficultyDirectory)),
@@ -1277,7 +1234,7 @@ final class QuizPackService
     {
         $packages = [];
         foreach ($this->activeTopicKeys() as $topic) {
-            foreach (array_keys(self::DIFFICULTIES) as $difficulty) {
+            foreach (array_keys($this->rules->difficulties()) as $difficulty) {
                 foreach ($this->listQuestions($locale, $topic, (int) $difficulty) as $question) {
                     $packages[sprintf('%s/%d/%s', $topic, $difficulty, $question['id'])] = true;
                 }
@@ -1289,58 +1246,19 @@ final class QuizPackService
     /** @param array<string,mixed> $question @return list<string> */
     private function validateQuestionPayload(array $question, int $difficulty): array
     {
-        $errors = [];
-        if (trim($question['prompt'] ?? '') === '') {
-            $errors[] = 'prompt is required.';
-        }
-        if (($question['correctOptions'] ?? []) === []) {
-            $errors[] = 'correctOptions must contain at least one option.';
-        }
-        $wrongRequired = self::DIFFICULTIES[$difficulty]['wrongRequired'];
-        if (count($question['wrongOptions'] ?? []) < $wrongRequired) {
-            $errors[] = sprintf('wrongOptions must contain at least %d options for difficulty %d.', $wrongRequired, $difficulty);
-        }
-        return $errors;
+        return $this->rules->questionPayloadErrors($question, $difficulty);
     }
 
     /** @param array<string,mixed> $input @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} */
     private function validatedQuestionPayload(array $input, int $difficulty): array
     {
-        $question = $this->normalizeQuestionPayload($input);
-        $errors = $this->validateQuestionPayload($question, $difficulty);
-        if ($errors !== []) {
-            throw new RuntimeException(implode(' ', $errors));
-        }
-        return $question;
+        return $this->rules->questionPayload($input, $difficulty);
     }
 
     /** @param array<string,mixed> $input @return array{prompt:string, correctOptions:list<string>, wrongOptions:list<string>} */
     private function normalizeQuestionPayload(array $input): array
     {
-        return [
-            'prompt' => trim((string) ($input['prompt'] ?? '')),
-            'correctOptions' => $this->normalizeOptions($input['correctOptions'] ?? []),
-            'wrongOptions' => $this->normalizeOptions($input['wrongOptions'] ?? []),
-        ];
-    }
-
-    /** @param mixed $options @return list<string> */
-    private function normalizeOptions(mixed $options): array
-    {
-        if (is_string($options)) {
-            $options = preg_split('/\R/', $options) ?: [];
-        }
-        if (!is_array($options)) {
-            return [];
-        }
-        $normalized = [];
-        foreach ($options as $option) {
-            $option = trim((string) $option);
-            if ($option !== '') {
-                $normalized[] = $option;
-            }
-        }
-        return array_values(array_unique($normalized));
+        return $this->rules->normalizeQuestionPayload($input);
     }
 
     private function assertQuestionPackageAllowed(string $locale, string $topic, int $difficulty, string $questionId, bool $allowMissingFallback = true): void
@@ -1387,9 +1305,7 @@ final class QuizPackService
 
     private function assertSupportedLocale(string $locale): void
     {
-        if (!in_array($locale, $this->supportedLocales, true)) {
-            throw new RuntimeException(sprintf('Unsupported locale "%s".', $locale));
-        }
+        $this->rules->assertSupportedLocale($locale);
     }
 
     private function assertCentralTopicExists(string $key): void
@@ -1405,16 +1321,12 @@ final class QuizPackService
 
     private function assertDifficulty(int $difficulty): void
     {
-        if (!isset(self::DIFFICULTIES[$difficulty])) {
-            throw new RuntimeException(sprintf('Invalid difficulty "%d".', $difficulty));
-        }
+        $this->rules->assertDifficulty($difficulty);
     }
 
     private function assertSafeIdentifier(string $value, string $label): void
     {
-        if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/', $value)) {
-            throw new RuntimeException(sprintf('Invalid %s.', $label));
-        }
+        $this->rules->normalizeIdentifier($value, $label);
     }
 
     private function normalizeKey(string $key): string

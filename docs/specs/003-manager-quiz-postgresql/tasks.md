@@ -2,12 +2,12 @@
 
 ## Documentation and Foundation
 
-1. Record and link the persistence decision.
+1. [x] Record and link the persistence decision.
    - Add ADR 002 for PostgreSQL authoring and S3 publication.
    - Link the spec, plan, ADR 001, and Manager administration documentation.
    - Validation: Markdown links resolve and `git diff --check` passes.
 
-2. Add versioned PostgreSQL migrations.
+2. [x] Add versioned PostgreSQL migrations.
    - Add the migration ledger and the quiz theme, topic, translation, question,
      answer, catalog-state, and publication tables.
    - Include primary keys, foreign keys, checks, cascades, and query indexes.
@@ -15,7 +15,7 @@
    - Validation: an empty PostgreSQL database migrates successfully; a second
      run is a no-op; a modified applied migration is rejected.
 
-3. Add shared database and domain foundations.
+3. [x] Add shared database and domain foundations.
    - Add a lazy shared `ManagerDatabase` connection/transaction service.
    - Extract persistence-independent identifier, locale, difficulty, payload,
      timestamp, and question-ID rules from `QuizPackService`.

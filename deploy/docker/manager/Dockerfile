@@ -32,6 +32,7 @@ RUN --mount=type=cache,target=/tmp/composer-cache \
 
 COPY apps/manager/bin ./bin
 COPY apps/manager/config ./config
+COPY apps/manager/migrations ./migrations
 COPY apps/manager/public ./public
 COPY apps/manager/src ./src
 COPY apps/manager/templates ./templates
