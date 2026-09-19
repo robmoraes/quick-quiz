@@ -101,13 +101,20 @@ Store content once and make the Go API query PostgreSQL for quiz operations.
 Adopt Option B.
 
 PostgreSQL is the authoritative authoring store for themes, topics, localized
-questions, and ordered answers. S3 is a derived publication store. Only the
+questions, ordered answers, and Manager-only topic tags. S3 is a derived publication store. Only the
 Manager publisher and migration tooling write quiz content to S3 after cutover.
 
 The Manager UI and protected administration API query and mutate PostgreSQL.
 Successful publication preserves the current JSON paths and payloads. The Quiz
 API continues loading those objects into memory and does not receive PostgreSQL
 credentials.
+
+Topic tags are authoring-only metadata: changing only tags creates no playable
+catalog revision, performs no content-storage I/O, and leaves publication
+status/checksum unchanged. Topic metadata changes still follow the publication
+flow. Tags are excluded from every JSON projection; PostgreSQL backups are
+required to recover them. Replacement imports preserve associations only for
+surviving theme/topic identities (Manager 0.12.0+).
 
 The migration is feature-flagged so legacy JSON reads remain available during
 import, comparison, rollout, and application rollback.
@@ -141,6 +148,9 @@ import, comparison, rollout, and application rollback.
   aggregate comparison, publication verification, and a Quiz API restart.
 - Publication failures must be observable and retryable without claiming that
   an unpublished revision is live.
+- The additive topic-tag migration needs only a Manager release; tags-only edits
+  do not require S3 publication or a Quiz API restart. Retain the new tables on
+  application rollback and avoid replacement imports with a pre-tags Manager.
 - Moving PostgreSQL to a managed or separate node remains an infrastructure
   decision outside this ADR.
 

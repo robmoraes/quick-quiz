@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Service\CatalogAssistant;
 use App\Service\OpenAiConfiguration;
 use App\Service\QuizAuthoringService;
+use App\Service\TopicTags;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -93,12 +94,12 @@ final class CatalogController extends BaseController
 
         try {
             $this->csrf->assertValid($request);
-            $packs->saveTopic($request->request->all());
+            $packs->saveTopic($this->topicInput($request->request->all()));
             return $this->redirect('catalog');
         } catch (RuntimeException $error) {
             return $this->render('catalog/form.html.twig', [
                 'topic' => $request->request->all(),
-                'isNew' => false,
+                'isNew' => $request->request->get('isNew') === '1',
                 'error' => $error->getMessage(),
             ]);
         }
@@ -153,6 +154,7 @@ final class CatalogController extends BaseController
         $isNew = trim((string) ($topic['isNew'] ?? '')) === '1';
         try {
             $this->csrf->assertValid($request);
+            $this->topicInput($topic);
             $canonical = $assistant->canonicalize($packs->fallbackLocale(), (string) ($topic['name'] ?? ''), (string) ($topic['description'] ?? ''));
             $topic['name'] = $canonical['name'];
             $topic['description'] = $canonical['description'];
@@ -168,7 +170,7 @@ final class CatalogController extends BaseController
                     'description' => $translated['description'],
                 ];
             }
-            $packs->saveTopicSet($topic, $localizations);
+            $packs->saveTopicSet($this->topicInput($topic), $localizations);
 
             return $this->redirect('catalog');
         } catch (RuntimeException $error) {
@@ -385,5 +387,14 @@ final class CatalogController extends BaseController
         } catch (\Exception) {
             return null;
         }
+    }
+
+    /** @param array<string,mixed> $input @return array<string,mixed> */
+    private function topicInput(array $input): array
+    {
+        if (array_key_exists('tags', $input)) {
+            $input['tags'] = TopicTags::fromForm($input['tags']);
+        }
+        return $input;
     }
 }

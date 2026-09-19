@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Exception\TopicTagsUnavailableException;
 use App\Storage\ContentStorage;
 use App\Storage\LocalContentStorage;
 use RuntimeException;
@@ -284,8 +285,11 @@ final class QuizPackService implements QuizAuthoringService
     }
 
     /** @param array<string,mixed> $input */
-    public function saveTopic(array $input): void
+    public function saveTopic(array $input): array
     {
+        if (array_key_exists('tags', $input)) {
+            throw new TopicTagsUnavailableException();
+        }
         $key = $this->normalizeKey((string) ($input['key'] ?? ''));
         if ($key === '') {
             throw new RuntimeException('Topic key is required.');
@@ -311,14 +315,18 @@ final class QuizPackService implements QuizAuthoringService
         $catalog['topics'] = $this->sortTopics($topics);
         $this->validateCentralCatalog($catalog);
         $this->writeJson($this->join($this->themeRoot(), 'index.json'), $catalog);
+        return $this->publicationInfo();
     }
 
     /**
      * @param array<string,mixed> $input
      * @param array<string,array<string,mixed>> $localizations
      */
-    public function saveTopicSet(array $input, array $localizations = []): void
+    public function saveTopicSet(array $input, array $localizations = []): array
     {
+        if (array_key_exists('tags', $input)) {
+            throw new TopicTagsUnavailableException();
+        }
         $key = $this->normalizeKey((string) ($input['key'] ?? ''));
         if ($key === '') {
             throw new RuntimeException('Topic key is required.');
@@ -379,6 +387,7 @@ final class QuizPackService implements QuizAuthoringService
         }
 
         $this->writeJsonSet($writes);
+        return $this->publicationInfo();
     }
 
     public function deleteTopic(string $key): void

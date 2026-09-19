@@ -28,6 +28,11 @@ final class QuizPublicationService
         return $this->locked(function () use ($mutation, $scope): array {
             $previous = $this->status();
             $result = $mutation();
+            if (is_array($result) && ($result['publicationRequired'] ?? true) === false) {
+                return ['result' => $result, 'publication' => [
+                    'apiReloadRequired' => false, 'reason' => 'topic_tags_only',
+                ]];
+            }
             $revision = is_array($result) ? (int) ($result['revision'] ?? 0) : (int) $result;
             if ($revision <= $previous['currentRevision']) {
                 throw new RuntimeException('Quiz mutation did not create a new revision.');

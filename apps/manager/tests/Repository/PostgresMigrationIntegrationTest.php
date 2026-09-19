@@ -25,7 +25,9 @@ final class PostgresMigrationIntegrationTest extends TestCase
                 'quiz_publications',
                 'quiz_question_translations',
                 'quiz_questions',
+                'quiz_tags',
                 'quiz_themes',
+                'quiz_topic_tags',
                 'quiz_topic_translations',
                 'quiz_topics',
             ],
@@ -54,6 +56,36 @@ final class PostgresMigrationIntegrationTest extends TestCase
         } finally {
             unlink($temporaryDirectory.'/'.$name);
             rmdir($temporaryDirectory);
+        }
+    }
+
+    public function testTagConstraintsRejectInvalidSlugsAndDanglingAssociations(): void
+    {
+        $database = $this->postgresDatabase();
+        (new MigrationRunner($database, $this->migrationDirectory()))->migrate();
+        $db = $database->connection();
+        $db->beginTransaction();
+        try {
+            foreach (['', 'UPPER', 'two words', '-aws', "aws\n", str_repeat('a', 51)] as $slug) {
+                $db->exec('SAVEPOINT tag_constraint');
+                try {
+                    $db->prepare('INSERT INTO quiz_tags (slug) VALUES (?)')->execute([$slug]);
+                    self::fail('Expected a slug constraint violation.');
+                } catch (\PDOException $error) {
+                    self::assertSame('23514', $error->getCode());
+                    $db->exec('ROLLBACK TO SAVEPOINT tag_constraint');
+                }
+            }
+            $db->exec('SAVEPOINT tag_constraint');
+            try {
+                $db->exec("INSERT INTO quiz_topic_tags (theme_id,topic_key,tag_slug) VALUES ('missing','missing','missing')");
+                self::fail('Expected a foreign-key violation.');
+            } catch (\PDOException $error) {
+                self::assertSame('23503', $error->getCode());
+                $db->exec('ROLLBACK TO SAVEPOINT tag_constraint');
+            }
+        } finally {
+            $db->rollBack();
         }
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Exception\TopicTagsUnavailableException;
 use App\Exception\AdminApiException;
 use App\Exception\QuizPublicationException;
 use App\Exception\QuizDatabaseException;
@@ -145,9 +146,9 @@ final class QuizAdministrationService
         $input['created_at'] ??= gmdate('c');
         $localizations = $this->localizations($input);
         try {
-            $scoped->saveTopicSet($input, $localizations);
+            $publication = $scoped->saveTopicSet($input, $localizations);
         } catch (RuntimeException $error) {
-            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+            if ($error instanceof TopicTagsUnavailableException || $error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
                 throw $error;
             }
             throw AdminApiException::validation($error->getMessage());
@@ -155,7 +156,7 @@ final class QuizAdministrationService
 
         return [
             'topic' => $this->topic($theme, $key),
-            'publication' => $this->publication(),
+            'publication' => $publication,
         ];
     }
 
@@ -166,9 +167,9 @@ final class QuizAdministrationService
         $scoped = $this->packs->forTheme($theme);
         $input['key'] = $topic;
         try {
-            $scoped->saveTopicSet($input, $this->localizations($input));
+            $publication = $scoped->saveTopicSet($input, $this->localizations($input));
         } catch (RuntimeException $error) {
-            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+            if ($error instanceof TopicTagsUnavailableException || $error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
                 throw $error;
             }
             throw AdminApiException::validation($error->getMessage());
@@ -176,7 +177,7 @@ final class QuizAdministrationService
 
         return [
             'topic' => $this->topic($theme, $topic),
-            'publication' => $this->publication(),
+            'publication' => $publication,
         ];
     }
 

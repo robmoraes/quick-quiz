@@ -55,7 +55,7 @@ final class QuizContentWriterIntegrationTest extends TestCase
         $topicRevision = $this->writer->saveTopicSet($this->theme, [
             'key' => 'php', 'name' => 'PHP', 'description' => 'Concepts',
             'weight' => 20, 'active' => true, 'created_at' => '2026-09-18T13:00:00Z',
-        ], ['pt-BR' => ['name' => 'PHP em Português', 'description' => 'Conceitos']]);
+        ], ['pt-BR' => ['name' => 'PHP em Português', 'description' => 'Conceitos']])['revision'];
         self::assertSame($themeRevision + 1, $topicRevision);
         self::assertSame('PHP em Português', $this->reader->topics($this->theme, 'pt-BR', 'en-US')[0]['localizedName']);
         self::assertSame('2026-09-18T13:00:00+00:00', $this->reader->topics($this->theme, 'pt-BR', 'en-US')[0]['created_at']);
@@ -170,6 +170,47 @@ final class QuizContentWriterIntegrationTest extends TestCase
             sort($ids);
             self::assertSame(['php-1-001', 'php-1-002'], $ids);
             self::assertCount(2, $this->reader->questions($this->theme, 'php', 'en-US'));
+        } finally {
+            unlink($barrier);
+        }
+    }
+
+    public function testConcurrentTagReplacementNeverMergesOrLosesPartOfASet(): void
+    {
+        if (!function_exists('proc_open')) {
+            self::markTestSkipped('proc_open is unavailable.');
+        }
+        $this->seedTopic();
+        $revision = $this->currentRevision();
+        $barrier = sys_get_temp_dir().'/quiz-id-barrier-'.bin2hex(random_bytes(6));
+        $command = [PHP_BINARY, dirname(__DIR__).'/Support/replace_topic_tags_concurrently.php',
+            $this->theme, 'php', $barrier];
+        $descriptors = [
+            0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w'],
+        ];
+        $first = proc_open([...$command, 'first'], $descriptors, $firstPipes);
+        $second = proc_open([...$command, 'second'], $descriptors, $secondPipes);
+        self::assertIsResource($first);
+        self::assertIsResource($second);
+        file_put_contents($barrier, 'go');
+        try {
+            $firstId = trim((string) stream_get_contents($firstPipes[1]));
+            $secondId = trim((string) stream_get_contents($secondPipes[1]));
+            $firstError = stream_get_contents($firstPipes[2]);
+            $secondError = stream_get_contents($secondPipes[2]);
+            foreach ([$firstPipes, $secondPipes] as $pipes) {
+                foreach ($pipes as $pipe) {
+                    fclose($pipe);
+                }
+            }
+            self::assertSame(0, proc_close($first), $firstError);
+            self::assertSame(0, proc_close($second), $secondError);
+            $expected = ['revision' => null, 'publicationRequired' => false];
+            self::assertSame($expected, json_decode($firstId, true));
+            self::assertSame($expected, json_decode($secondId, true));
+            $tags = $this->reader->topics($this->theme, 'en-US', 'en-US')[0]['tags'];
+            self::assertContains($tags, [['first-one', 'first-two'], ['second-one', 'second-two']]);
+            self::assertSame($revision, $this->currentRevision());
         } finally {
             unlink($barrier);
         }

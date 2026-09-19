@@ -141,14 +141,45 @@ Question creation accepts up to 50 sets. Omitting `id` allocates the next
 `<topic>-<difficulty>-<sequence>` value. Every question must include exactly
 the locales reported by the catalog.
 
-Every successful mutation returns `publication.apiReloadRequired=true`. The
+Successful playable-content mutations return `publication.apiReloadRequired=true`. The
 Manager writes the content immediately, but the Quiz API reads it at startup;
 restart only the Quiz API after finishing a publication batch.
 
-In PostgreSQL mode, successful mutations include `publication.revision` and
+In PostgreSQL mode, successful playable-content mutations include `publication.revision` and
 `publication.status=published`. A committed revision whose storage publication
 fails returns HTTP 503 with `error.code=publication_failed` and
 `publication.apiReloadRequired=false`. Check `GET /api/admin/quiz/publication`
 and retry with `POST /api/admin/quiz/publication` after fixing the storage
 failure. Both endpoints require the same administrative Bearer token. Restart
 only the Quiz API after publication succeeds.
+
+## Topic tags (PostgreSQL)
+
+Topic reads, topic lists, and catalog discovery include `tags`, shared across
+locales. Create/replace accepts an optional string array such as
+`"tags": ["AWS", "redes"]`; reads return `["aws", "redes"]`. Use up to 20 entries
+of at most 50 characters each. Surrounding ASCII whitespace is trimmed; letters
+are lowercased, duplicates removed, and results sorted. Slugs permit ASCII
+letters, digits, and single internal hyphens. Invalid values, including `null`
+and objects, return `422 validation_failed` without persisting changes.
+
+Omission means no tags on creation and preservation on replacement. Send `[]`
+to clear a topic's tags. `PUT` still uses the complete required topic metadata;
+it is not a partial update. Copy `name`, `description`, `weight`, `created_at`,
+and `active` from the current topic, then supply the desired `tags` array.
+
+When only tags change, the response contains the updated `topic` and exactly:
+
+```json
+{"apiReloadRequired": false, "reason": "topic_tags_only"}
+```
+
+This `publication` object describes only that operation. It does not clear or
+retry earlier pending/failed publications. Tags-only saves do not access S3,
+create revisions, change published JSON, or require a Quiz API reload. Changing
+published topic metadata alongside tags follows the ordinary publication flow;
+if it fails, the committed tags remain saved and the existing 503 response applies.
+
+Legacy mode omits tags from reads and rejects any supplied `tags`, including an
+empty array, with `409 topic_tags_unavailable`. Existing clients omitting tags
+keep working. See [topic tag operations and recovery](topic-tags.md).

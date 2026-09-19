@@ -163,7 +163,7 @@ final class QuizPublicationServiceIntegrationTest extends TestCase
         ]);
         try {
             $publication->mutate(
-                fn (): int => $this->writer->saveTopicSet($this->theme, ['key' => 'php', 'name' => 'PHP', 'active' => true]),
+                fn (): array => $this->writer->saveTopicSet($this->theme, ['key' => 'php', 'name' => 'PHP', 'active' => true]),
                 fn (): array => ['keys' => [$this->theme.'/index.json']],
             );
             self::fail('Expected publication revision to change.');
@@ -222,7 +222,7 @@ final class QuizPublicationServiceIntegrationTest extends TestCase
         $this->storage->failOnMutation(1);
         try {
             $this->publication->mutate(
-                fn (): int => $this->writer->saveTopicSet($this->theme, ['key' => 'php', 'name' => 'PHP', 'active' => true]),
+                fn (): array => $this->writer->saveTopicSet($this->theme, ['key' => 'php', 'name' => 'PHP', 'active' => true]),
                 fn (): array => ['keys' => [$this->theme.'/index.json']],
             );
             self::fail('Expected publication failure.');

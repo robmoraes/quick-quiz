@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Exception\TopicTagsUnavailableException;
 use App\Exception\AdminApiException;
 use App\Exception\QuizPublicationException;
 use App\Exception\QuizDatabaseException;
@@ -268,6 +269,10 @@ final class QuizAdminController extends AbstractController
             throw AdminApiException::badRequest('invalid_json', 'The request body must be a valid JSON object.');
         }
 
+        // Preserve JSON arrays versus objects for tag validation ({} is not []).
+        if (array_key_exists('tags', $body)) {
+            $body['tags'] = json_decode($request->getContent(), false, 512, JSON_THROW_ON_ERROR)->tags;
+        }
         return $body;
     }
 
@@ -291,6 +296,9 @@ final class QuizAdminController extends AbstractController
 
     private function runtimeProblem(RuntimeException $error): JsonResponse
     {
+        if ($error instanceof TopicTagsUnavailableException) {
+            return $this->problem(new AdminApiException('topic_tags_unavailable', $error->getMessage(), 409));
+        }
         if ($error instanceof QuizPublicationException) {
             return new JsonResponse([
                 'error' => [

@@ -100,7 +100,7 @@
     <footer class="manager-status-footer fixed-bottom border-top">
       <div class="container-fluid app-shell d-flex align-items-center justify-content-between gap-3 py-2">
         <span class="small manager-muted">QuickQuiz Manager · v{{ managerVersion }}</span>
-        {% if openAiConfigured %}
+        {% if adminEmail and openAiConfigured %}
           <form class="manager-ai-model-form" method="post" action="{{ path('openai_model_select') }}">
             <input type="hidden" name="_csrf" value="{{ csrf }}">
             <input type="hidden" name="returnTo" value="{{ currentPath }}">
@@ -115,7 +115,7 @@
               </select>
             </span>
           </form>
-        {% else %}
+        {% elseif adminEmail %}
           <span class="badge text-bg-secondary">AI inactive</span>
         {% endif %}
       </div>

@@ -48,10 +48,17 @@ final class QuizCatalogImporter
             if ($existing > 0 && !$replace) {
                 throw new RuntimeException('Quiz catalog conflicts with existing PostgreSQL content; use --replace explicitly.');
             }
+            $tags = [];
             if ($replace) {
+                $tags = $db->query('SELECT theme_id,topic_key,tag_slug FROM quiz_topic_tags')->fetchAll(PDO::FETCH_ASSOC);
                 $db->exec('DELETE FROM quiz_themes');
             }
             $this->insertSnapshot($db, $snapshot);
+            $restoreTags = $db->prepare('INSERT INTO quiz_topic_tags (theme_id,topic_key,tag_slug)
+                SELECT theme_id,topic_key,:tag FROM quiz_topics WHERE theme_id=:theme AND topic_key=:topic');
+            foreach ($tags as $tag) {
+                $restoreTags->execute(['theme' => $tag['theme_id'], 'topic' => $tag['topic_key'], 'tag' => $tag['tag_slug']]);
+            }
             $revision = (int) $db->query('UPDATE quiz_catalog_state
                 SET current_revision=current_revision+1, updated_at=CURRENT_TIMESTAMP
                 WHERE singleton=1 RETURNING current_revision')->fetchColumn();

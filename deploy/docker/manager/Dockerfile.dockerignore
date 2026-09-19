@@ -11,6 +11,8 @@
 !apps/manager/bin/**
 !apps/manager/config/
 !apps/manager/config/**
+!apps/manager/migrations/
+!apps/manager/migrations/**
 !apps/manager/public/
 !apps/manager/public/**
 !apps/manager/src/

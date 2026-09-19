@@ -117,7 +117,7 @@ final class PostgresQuizAuthoringService implements QuizAuthoringService
     public function readCentralCatalog(): array
     {
         $topics = array_map(static function (array $topic): array {
-            unset($topic['questionCount']);
+            unset($topic['questionCount'], $topic['tags']);
             return $topic;
         }, $this->listTopics());
         return ['topics' => $topics];
@@ -171,18 +171,19 @@ final class PostgresQuizAuthoringService implements QuizAuthoringService
         return null;
     }
 
-    public function saveTopic(array $input): void
+    public function saveTopic(array $input): array
     {
-        $this->saveTopicSet($input);
+        return $this->saveTopicSet($input);
     }
 
-    public function saveTopicSet(array $input, array $localizations = []): void
+    public function saveTopicSet(array $input, array $localizations = []): array
     {
         $theme = $this->selectedTheme();
-        $this->publication->mutate(
-            fn (): int => $this->writer->saveTopicSet($theme, $input, $localizations),
+        $result = $this->publication->mutate(
+            fn (): array => $this->writer->saveTopicSet($theme, $input, $localizations),
             fn (): array => ['keys' => array_merge([$theme.'/index.json'], $this->localeIndexKeys($theme))],
         );
+        return $result['publication'];
     }
 
     public function deleteTopic(string $key): void
@@ -198,9 +199,10 @@ final class PostgresQuizAuthoringService implements QuizAuthoringService
         if ($topic === null) {
             throw new RuntimeException(sprintf('Topic "%s" is not defined in central catalog.', $key));
         }
+        unset($topic['tags']);
         $theme = $this->selectedTheme();
         $this->publication->mutate(
-            fn (): int => $this->writer->saveTopicSet($theme, $topic, [$locale => $input]),
+            fn (): array => $this->writer->saveTopicSet($theme, $topic, [$locale => $input]),
             fn (): array => ['keys' => [$theme.'/'.$locale.'/index.json']],
         );
     }

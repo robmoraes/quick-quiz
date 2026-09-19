@@ -11,6 +11,11 @@ format.
 
 ### Added
 
+- PostgreSQL topic tags for Manager Web and the protected administration API
+  (Manager 0.12.0): normalized shared tags, atomic replacement, omission/clearing
+  semantics, and replacement-import preservation. Tags-only edits do not access
+  content storage or change publication revisions. Migration 0002 is required.
+
 - Token-protected administration API for catalog discovery and theme, topic,
   and complete localized question-set CRUD through local or S3 storage.
 - Added a QuickQuiz API session monitor screen backed by the open active-session
@@ -25,6 +30,11 @@ format.
 - Advertising management now delegates ad persistence to the dedicated Ads API
   instead of writing the ads file directly from the manager.
 - Moved the manager navigation into a left drawer/sidebar layout.
+
+### Fixed
+
+- Hide AI footer controls before authentication and defer model discovery until
+  an authenticated Manager page is rendered.
 
 ## [0.6.0] - 2026-06-17
 

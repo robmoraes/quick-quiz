@@ -1,6 +1,6 @@
 parameters:
   openai.empty: ''
-  manager.default_version: '0.11.2'
+  manager.default_version: '0.12.0'
   manager.default_api_base_url: 'http://127.0.0.1:8080'
   manager.default_api_timeout: 3
   manager.default_ads_api_base_url: 'http://127.0.0.1:8084'

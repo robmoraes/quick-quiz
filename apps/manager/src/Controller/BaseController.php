@@ -48,12 +48,13 @@ abstract class BaseController
     /** @param array<string,mixed> $context */
     protected function render(string $template, array $context = []): Response
     {
+        $authenticated = $this->auth->isAuthenticated();
         $context['adminEmail'] = $this->auth->adminEmail();
         $context['selectedTheme'] = $this->themeContext->selectedTheme();
         $context['csrf'] = $this->csrf->token();
-        $context['openAiConfigured'] = $this->openAi->isConfigured();
-        $context['openAiModel'] = $this->openAi->model();
-        $context['openAiModels'] = $this->openAi->availableModels();
+        $context['openAiConfigured'] = $authenticated && $this->openAi->isConfigured();
+        $context['openAiModel'] = $authenticated ? $this->openAi->model() : '';
+        $context['openAiModels'] = $authenticated ? $this->openAi->availableModels() : [];
         $context['managerVersion'] = $this->managerVersion->value();
         $context['quizPublication'] = $context['adminEmail'] ? $this->quizAuthoring->publicationStatus() : null;
         $request = $this->requestStack->getCurrentRequest();

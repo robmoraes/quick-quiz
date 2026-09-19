@@ -8,6 +8,8 @@ use App\Repository\QuizContentRepository;
 use App\Service\QuizContentRules;
 use App\Service\QuizContentStatistics;
 use PHPUnit\Framework\TestCase;
+use App\Tests\Support\CountingStatement;
+use PDO;
 
 final class QuizContentVolumeIntegrationTest extends TestCase
 {
@@ -64,14 +66,34 @@ final class QuizContentVolumeIntegrationTest extends TestCase
                     WHERE translation.theme_id=:theme');
                 $statement->execute(['theme' => $theme]);
             }
+            $db->exec("INSERT INTO quiz_tags(slug) VALUES ('aws'),('cloud') ON CONFLICT DO NOTHING");
+            foreach ($themes as [$theme, $topic, $count]) {
+                $db->prepare("INSERT INTO quiz_topic_tags(theme_id,topic_key,tag_slug)
+                    VALUES (:theme,:topic,'aws'),(:theme,:topic,'cloud')")->execute(['theme' => $theme, 'topic' => $topic]);
+            }
             $repository = new QuizContentRepository($database);
             $statistics = new QuizContentStatistics($repository, new QuizContentRules('en-US', 'en-US,pt-BR'), 10);
             $start = hrtime(true);
             foreach ($themes as [$theme, $topic, $count]) {
-                self::assertSame($count, $repository->topics($theme, 'pt-BR', 'en-US')[0]['questionCount']);
+                $topics = $repository->topics($theme, 'pt-BR', 'en-US');
+                self::assertSame($count, $topics[0]['questionCount']);
+                self::assertSame(['aws', 'cloud'], $topics[0]['tags']);
                 self::assertCount($count, $repository->questions($theme, $topic, 'pt-BR', 1));
                 self::assertSame($count, $statistics->forTheme($theme)['totals']['canonicalQuestions']);
             }
+            // Increasing the number of tagged topics must not add a query per topic.
+            $db->prepare("INSERT INTO quiz_topics(theme_id,topic_key,name,description,weight,active,created_at,updated_at)
+                SELECT :theme,'extra-' || n,'Extra','',200,TRUE,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP
+                FROM generate_series(1,100) n")->execute(['theme' => $themes[0][0]]);
+            $db->prepare("INSERT INTO quiz_topic_tags(theme_id,topic_key,tag_slug)
+                SELECT theme_id,topic_key,'aws' FROM quiz_topics WHERE theme_id=:theme AND topic_key LIKE 'extra-%'")
+                ->execute(['theme' => $themes[0][0]]);
+            $db->setAttribute(PDO::ATTR_STATEMENT_CLASS, [CountingStatement::class]);
+            CountingStatement::$executions = 0;
+            $topics = $repository->topics($themes[0][0], 'pt-BR', 'en-US');
+            self::assertSame(1, CountingStatement::$executions);
+            self::assertCount(101, $topics);
+            self::assertSame(['aws'], $topics[100]['tags']);
             $elapsedMs = round((hrtime(true) - $start) / 1_000_000, 2);
             if (getenv('QUIZ_BENCHMARK_OUTPUT') === '1') {
                 fwrite(STDERR, sprintf("409 synthetic canonical questions: %.2f ms for both theme, topic, question, and stats reads.\n", $elapsedMs));

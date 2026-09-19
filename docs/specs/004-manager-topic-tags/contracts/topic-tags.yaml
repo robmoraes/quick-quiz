@@ -1,0 +1,55 @@
+# OpenAPI 3.0 component excerpt for this specification.
+# Canonical contract: docs/openapi-manager-admin.yaml (version 0.3.0).
+components:
+  schemas:
+    TopicTagInput:
+      type: string
+      minLength: 1
+      maxLength: 50
+      pattern: '^[ \t\r\n\f\v]*[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*[ \t\r\n\f\v]*$'
+      description: Trim surrounding ASCII whitespace and lowercase ASCII letters before storage.
+      example: ' AWS '
+    TopicTagsInput:
+      type: array
+      maxItems: 20
+      items:
+        $ref: '#/components/schemas/TopicTagInput'
+      description: >-
+        Optional CreateTopic/ReplaceTopic.tags property. Omission means empty on
+        creation and preservation on replacement. An explicit empty array clears
+        associations. Duplicates are accepted and collapsed after normalization.
+        Null and non-array values are invalid. The existing required topic fields
+        remain required; this does not define a partial-update operation.
+      example: [' AWS ', redes, aws]
+    TopicTag:
+      type: string
+      minLength: 1
+      maxLength: 50
+      pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+      example: aws
+    TopicTags:
+      type: array
+      maxItems: 20
+      uniqueItems: true
+      items:
+        $ref: '#/components/schemas/TopicTag'
+      description: >-
+        Canonical tags in ascending ASCII order. Present on PostgreSQL Topic and
+        TopicView responses, including an empty array. Omitted in legacy mode.
+      example: [aws, redes]
+    TopicTagsOnlyPublication:
+      type: object
+      required: [apiReloadRequired, reason]
+      additionalProperties: false
+      properties:
+        apiReloadRequired:
+          type: boolean
+          enum: [false]
+        reason:
+          type: string
+          enum: [topic_tags_only]
+      description: >-
+        Alternative to Publication only for TopicMutation responses when explicit
+        tags were submitted and no published metadata changed. No S3 operation or
+        catalog revision is created. This does not describe, clear, or retry any
+        earlier pending/failed content publication.

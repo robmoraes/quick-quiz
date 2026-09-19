@@ -7,7 +7,7 @@ installing it on the host.
 ## Responsibilities
 
 - Edit quiz pack JSON files.
-- Manage themes and topic catalogs.
+- Manage themes and topic catalogs, including PostgreSQL topic tags.
 - Manage localized topic metadata.
 - Create and edit question files.
 - Validate content against the quiz pack contract.
@@ -69,3 +69,5 @@ Read before changing manager content code:
 - Service README: [apps/manager/README.md](../../apps/manager/README.md)
 
 Quiz authoring can use PostgreSQL after a verified import. See the [PostgreSQL quiz cutover runbook](postgresql-quiz-cutover.md) for migrations, comparison, publication, and rollback.
+
+[Topic tags](topic-tags.md) documents editing, the additive migration, and backup/rollback requirements.
