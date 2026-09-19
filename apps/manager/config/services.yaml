@@ -86,6 +86,14 @@ services:
     arguments:
       $databaseUrl: '%manager.database_url%'
 
+  App\Repository\ManagerDatabase:
+    arguments:
+      $databaseUrl: '%manager.database_url%'
+
+  App\Repository\MigrationRunner:
+    arguments:
+      $migrationDirectory: '%kernel.project_dir%/migrations'
+
   App\Service\QuizPackService:
     arguments:
       $contentRoot: '%manager.content_root%'
