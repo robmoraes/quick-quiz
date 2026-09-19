@@ -94,6 +94,11 @@ services:
     arguments:
       $migrationDirectory: '%kernel.project_dir%/migrations'
 
+  App\Service\QuizContentRules:
+    arguments:
+      $fallbackLocale: '%manager.fallback_locale%'
+      $supportedLocales: '%manager.supported_locales%'
+
   App\Service\QuizPackService:
     arguments:
       $contentRoot: '%manager.content_root%'

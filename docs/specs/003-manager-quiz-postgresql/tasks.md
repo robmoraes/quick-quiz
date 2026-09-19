@@ -15,7 +15,7 @@
    - Validation: an empty PostgreSQL database migrates successfully; a second
      run is a no-op; a modified applied migration is rejected.
 
-3. Add shared database and domain foundations.
+3. [x] Add shared database and domain foundations.
    - Add a lazy shared `ManagerDatabase` connection/transaction service.
    - Extract persistence-independent identifier, locale, difficulty, payload,
      timestamp, and question-ID rules from `QuizPackService`.
