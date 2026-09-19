@@ -157,17 +157,17 @@
 ## Production Cutover
 
 The [production migration record](../../runbooks/manager-postgresql-migration.md)
-tracks release verification, backups, the completed import/publication, and
-the application rollback pending corrected-image activation.
+records the completed production cutover, backups, release verification, and
+recovery instructions.
 
-19. Prepare production without enabling PostgreSQL quiz reads.
+19. [x] Prepare production without enabling PostgreSQL quiz reads.
     - Build and publish the Manager images.
     - Back up the Manager database and retain current S3 versions.
     - Deploy with provider `legacy` and run database migrations.
     - Run import dry run, apply import, aggregate comparison, and projection
       comparison.
 
-20. Enable and verify PostgreSQL authoring.
+20. [x] Enable and verify PostgreSQL authoring.
     - Set the provider to `postgres` and recreate only Manager FPM/Web as
       required.
     - Verify health, authentication, themes, catalog, question reads, and
@@ -176,7 +176,7 @@ the application rollback pending corrected-image activation.
       content.
     - Verify production navigation server time against the 500 ms target.
 
-21. Activate the published revision in the Quiz API.
+21. [x] Activate the published revision in the Quiz API.
     - Publish the verified current database revision.
     - Restart only the Quiz API.
     - Verify API health, catalog counts, question availability, Redis-backed
