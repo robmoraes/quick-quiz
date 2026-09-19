@@ -13,9 +13,9 @@ variable is required.
 
 ## Manager-only upgrade
 
-These are rollout instructions; this change has not been deployed by the
-implementation work. Use the deployed Compose files and secret overlay already
-in use. Keep `MANAGER_QUIZ_PERSISTENCE_PROVIDER=postgres`.
+The initial deployment completed on 2026-09-19; see the
+[production release record](../runbooks/manager-topic-tags-release.md). For future
+upgrades, use the deployed Compose files and secret overlay already in use. Keep `MANAGER_QUIZ_PERSISTENCE_PROVIDER=postgres`.
 
 1. Back up PostgreSQL and retain the current Manager image tags, following the
    [database backup instructions](postgresql-quiz-cutover.md#prepare-and-back-up).

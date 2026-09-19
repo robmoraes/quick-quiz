@@ -1,6 +1,6 @@
 # Feature: Manager Topic Tags
 
-Status: Approved and implemented locally. Production rollout is pending.
+Status: Implemented and deployed in Manager 0.12.0 on 2026-09-19.
 
 ## Intent
 

@@ -71,3 +71,5 @@ Read before changing manager content code:
 Quiz authoring can use PostgreSQL after a verified import. See the [PostgreSQL quiz cutover runbook](postgresql-quiz-cutover.md) for migrations, comparison, publication, and rollback.
 
 [Topic tags](topic-tags.md) documents editing, the additive migration, and backup/rollback requirements.
+
+The [Manager 0.12.0 production record](../runbooks/manager-topic-tags-release.md) records the deployed images, migration, verification, and backups.
