@@ -1,8 +1,12 @@
 # Manager PostgreSQL migration record
 
-## State on 2026-09-19
+The later [Manager 0.12.0 deployment](manager-topic-tags-release.md) records the
+current image versions and backups after adding topic tags. This document
+retains the original PostgreSQL cutover evidence.
 
-The production cutover is complete. Manager FPM/web run `v0.11.2` with
+## Completed cutover on 2026-09-19
+
+At the completed cutover, Manager FPM/web ran `v0.11.2` with
 `MANAGER_QUIZ_PERSISTENCE_PROVIDER=postgres`. PostgreSQL is now the source for
 quiz authoring; publication still writes JSON to S3. The Quiz API remains on
 `v0.7.0` and was restarted successfully to load the published catalog.
@@ -27,7 +31,7 @@ All three releases published Manager FPM and web images for `linux/amd64` and
 `linux/arm64`. Versions `v0.11.0` and `v0.11.1` have the factory wiring defect
 described below; use `v0.11.2`.
 
-Active multiarch image index digests:
+Multiarch image index digests used at cutover:
 
 ```text
 robmoraes/quick-quiz-manager-fpm:v0.11.2
@@ -58,7 +62,7 @@ The earlier `v0.11.1` pre-import dump SHA-256 is
 It contains the additive quiz schema before content import. Its Compose backup
 was used for the earlier application rollback. The failed `v0.11.1` staging
 `.env` remains historical; the active configuration under `/opt/quickquiz/compose`
-now selects `v0.11.2` and `postgres`.
+selected `v0.11.2` and `postgres` at cutover.
 
 The successful-cutover backup contains:
 
@@ -255,7 +259,8 @@ Use the live Compose secret override for all remote operations:
 
 For another node, provision the underlying infrastructure and secret mounts as
 recorded in the [infrastructure migration runbook](production-stateless-migration.md).
-Use the current image versions and PostgreSQL provider in this record; the older
+Use the latest [Manager deployment versions](manager-topic-tags-release.md)
+and the PostgreSQL provider; the older
 infrastructure runbook's image list describes its original migration date.
 Restore the latest protected PostgreSQL backup into a clean `manager-db` database
 before starting Manager. Retain/recover the matching S3 publication and versions;

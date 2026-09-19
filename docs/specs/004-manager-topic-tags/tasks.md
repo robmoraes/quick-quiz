@@ -1,6 +1,6 @@
 # Tasks: Manager Topic Tags
 
-Status: Implementation and local verification complete; production rollout is pending.
+Status: Implementation, local verification, and production rollout complete (Manager 0.12.0).
 
 1. [x] Implement the tag-set rules and optional-input semantics.
    - Normalize/validate slugs, enforce limits, deduplicate, and sort.
@@ -49,7 +49,7 @@ Status: Implementation and local verification complete; production rollout is pe
    - Validation: only Manager implementation/contracts change; published JSON,
      player API, Ads API, and SPA code/contracts remain unchanged.
 
-9. [ ] Apply the approved Manager-only rollout.
+9. [x] Apply the approved Manager-only rollout.
    - Back up PostgreSQL, apply the additive migration, and deploy Manager images.
    - Verify a reversible topic tag save, API readback, and publication isolation.
    - Record evidence; retain the schema for application rollback.
@@ -92,5 +92,14 @@ Verified with PHP 8.3.33, PostgreSQL 17, and PHPUnit 11.5.55 in Docker:
   [catalog badges](screenshots/topic-tags-catalog.png), and
   [login without AI controls](screenshots/manager-login.png).
 
-No production migration, image publication, or deployment was performed.
-See the [Manager tag rollout guide](../../manager/topic-tags.md).
+## Production Verification
+
+Completed on 2026-09-19 with `manager/v0.12.0`: multiarch images published,
+PostgreSQL backed up before/after, migration 0002 applied, and only Manager
+FPM/Web recreated. HTTPS tag save/read/restore and login checks passed.
+Catalog/publication revision 8 and all 875 S3 object metadata entries remain
+unchanged. Synthetic tag data was removed; other containers were not restarted.
+
+See the [deployment record](../../runbooks/manager-topic-tags-release.md) for
+image digests, backups, verification evidence, and rollback. The
+[Manager tag rollout guide](../../manager/topic-tags.md) describes future upgrades.
