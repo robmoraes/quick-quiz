@@ -29,6 +29,13 @@
           <label class="form-label" for="description">Canonical English description</label>
           <textarea class="form-control" id="description" name="description">{{ theme.description|default('') }}</textarea>
         </div>
+        <div class="mb-3">
+          <label class="form-label" for="tags">Tags</label>
+          <input class="form-control" id="tags" name="tags" aria-describedby="tags-help"
+                 {% if quizPublication.provider|default('legacy') != 'postgres' %}disabled{% endif %}
+                 value="{{ theme.tags is defined and theme.tags is iterable ? theme.tags|join(', ') : theme.tags|default('') }}">
+          <div class="form-text" id="tags-help">Separate tags with commas, for example: dev, cloud. Up to 20 tags, 50 characters each. Use letters, digits, and hyphens. Requires PostgreSQL authoring; publication and API reload apply.</div>
+        </div>
         <div class="row align-items-end">
           <div class="col-md-6 mb-3">
             <label class="form-label" for="createdAt">Created at</label>

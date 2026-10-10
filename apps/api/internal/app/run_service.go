@@ -31,6 +31,7 @@ var (
 
 type QuestionRepository interface {
 	Theme(ctx context.Context, theme string) (domain.Theme, error)
+	ListThemes(ctx context.Context) ([]domain.Theme, error)
 	ListByThemeLocaleTopicAndDifficulty(ctx context.Context, theme, locale, topic string, difficulty domain.Difficulty) ([]domain.Question, error)
 	ListMetadata(ctx context.Context, theme, locale, fallbackLocale string) (domain.CatalogMetadata, error)
 }

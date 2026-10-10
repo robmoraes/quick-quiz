@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Exception\TopicTagsUnavailableException;
+use App\Exception\ThemeTagsUnavailableException;
 use App\Exception\AdminApiException;
 use App\Exception\QuizPublicationException;
 use App\Exception\QuizDatabaseException;
@@ -296,6 +297,9 @@ final class QuizAdminController extends AbstractController
 
     private function runtimeProblem(RuntimeException $error): JsonResponse
     {
+        if ($error instanceof ThemeTagsUnavailableException) {
+            return $this->problem(new AdminApiException('theme_tags_unavailable', $error->getMessage(), 409));
+        }
         if ($error instanceof TopicTagsUnavailableException) {
             return $this->problem(new AdminApiException('topic_tags_unavailable', $error->getMessage(), 409));
         }

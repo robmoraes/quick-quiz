@@ -2,13 +2,11 @@
 
 This document defines the canonical quiz pack contract for QuickQuiz Dev.
 
-Quiz packs are JSON files. JSON is the source of truth for quiz content by
-default and for an indefinite period. A database migration for quiz content is
-not planned and should be considered only if a concrete future limitation of
-the JSON format justifies it.
-
-The manager is a tool for editing and validating quiz pack JSON files. The Go
-API is a consumer of valid quiz packs.
+Quiz packs are the published JSON projection consumed by the Go API.
+PostgreSQL is the Manager's authoring source of truth; Manager validates and
+publishes content to local or S3 storage. Legacy file-based authoring remains
+available for compatibility. The Go API loads the published snapshot at startup
+and does not query PostgreSQL for content.
 
 ## Roles
 
@@ -19,7 +17,7 @@ Producer:
 
 Manager:
 
-- reads and writes quiz pack JSON files;
+- edits canonical content in PostgreSQL and publishes quiz pack JSON files;
 - validates paths, metadata, locales, and question bodies before saving;
 - must preserve the canonical file contract.
 
@@ -31,7 +29,8 @@ Consumer:
 
 ## Content Root
 
-The content root is configured by `QUESTION_SOURCE`.
+For local storage, the content root is configured by `QUESTION_SOURCE`. For S3,
+use `QUESTION_STORAGE_PROVIDER=s3`, `S3_BUCKET`, and `S3_PREFIX`.
 
 For local development, the default root is:
 
@@ -75,8 +74,10 @@ apps/api/.local/
 ## Theme Rules
 
 Themes identify product/content domains such as `dev`, `math`, or `history`.
-The API is theme-agnostic, while each frontend distribution chooses exactly one
-theme through the required `X-QuickQuiz-Theme` header.
+The API is theme-agnostic. Quiz requests select exactly one theme through the
+required `X-QuickQuiz-Theme` header. SPA Dev discovers eligible themes by an
+environment-configured tag and keeps each session within one selected theme.
+SPA DSLab retains its fixed theme.
 
 Global theme metadata is required:
 
@@ -95,7 +96,8 @@ Schema:
       "description": "Programming and software engineering quizzes.",
       "weight": 100,
       "createdAt": "2026-06-07T00:00:00-03:00",
-      "active": true
+      "active": true,
+      "tags": ["dev"]
     }
   ]
 }
@@ -104,6 +106,24 @@ Schema:
 Only `active: true` themes are loaded by the Go API. Unknown, missing, or
 inactive themes are rejected at the API boundary before catalog, session, or run
 logic is executed.
+
+Theme tags are canonical lowercase ASCII slugs, unique and sorted, with at most
+20 tags of at most 50 characters each. Slugs match `[a-z0-9]+(-[a-z0-9]+)*`.
+Historical theme entries without `tags` mean `[]`; the new Manager publisher
+always includes the array. Explicit null, non-array, or noncanonical tag sets
+are invalid. Topic tags remain PostgreSQL-only and are not published in topic
+indexes or question files.
+
+`GET /api/themes` lists all active themes without a theme/session header.
+`GET /api/themes?tag=dev` performs exact tag matching after input normalization.
+Both use the API's loaded snapshot. Tag edits require successful publication
+and an API reload, just like other published theme metadata. Adding eligible
+themes does not require a new SPA Dev build.
+
+Import `--replace` treats source theme tags as authoritative: missing tags clear
+existing theme associations. The import dry run reports `themeTagChanges` so
+operators can review additions/removals before replacement. PostgreSQL-only
+topic tags on surviving topics retain their existing preservation behavior.
 
 ## Locale Rules
 

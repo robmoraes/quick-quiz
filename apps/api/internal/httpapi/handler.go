@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"quickquiz/api/internal/app"
@@ -27,6 +28,26 @@ func NewHandler(runs *app.RunService, solutions *app.SolutionService, logger *sl
 
 func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (h *Handler) Themes(w http.ResponseWriter, r *http.Request) {
+	query, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil || len(query["tag"]) > 1 {
+		writeError(w, http.StatusBadRequest, "invalid_tag", "Invalid tag")
+		return
+	}
+	var tag *string
+	if values, ok := query["tag"]; ok {
+		tag = &values[0]
+	}
+	themes, err := h.runs.Themes(r.Context(), tag)
+	if err != nil {
+		h.writeAppError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		Themes []domain.Theme `json:"themes"`
+	}{Themes: themes})
 }
 
 func (h *Handler) Catalog(w http.ResponseWriter, r *http.Request) {
@@ -181,6 +202,8 @@ func (h *Handler) QuestionSolution(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) writeAppError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, domain.ErrInvalidTag):
+		writeError(w, http.StatusBadRequest, "invalid_tag", "Invalid tag")
 	case errors.Is(err, app.ErrThemeRequired):
 		writeError(w, http.StatusBadRequest, "theme_required", "Theme is required")
 	case errors.Is(err, app.ErrThemeNotFound):

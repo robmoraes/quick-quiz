@@ -4,7 +4,7 @@ namespace App\Repository;
 
 use App\Exception\QuizDatabaseException;
 use App\Service\QuizContentRules;
-use App\Service\TopicTags;
+use App\Service\QuizTags;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
@@ -26,7 +26,8 @@ final class QuizContentWriter
         if ($name === '') {
             throw new RuntimeException('Theme name is required.');
         }
-        return $this->mutate($id, function (PDO $db) use ($id, $name, $input): void {
+        $tags = array_key_exists('tags', $input) ? QuizTags::normalize($input['tags']) : null;
+        return $this->mutate($id, function (PDO $db) use ($id, $name, $input, $tags): void {
             $old = $this->one($db, 'SELECT created_at FROM quiz_themes WHERE id = :id', ['id' => $id]);
             $this->sql($db, 'INSERT INTO quiz_themes (id,name,description,weight,active,created_at,updated_at)
                 VALUES (:id,:name,:description,:weight,:active,:created_at,:updated_at)
@@ -41,6 +42,14 @@ final class QuizContentWriter
                 'created_at' => $this->createdAt($input['createdAt'] ?? null, $old['created_at'] ?? null),
                 'updated_at' => $this->now(),
             ]);
+            if ($tags !== null) {
+                $this->sql($db, 'DELETE FROM quiz_theme_tags WHERE theme_id=:theme', ['theme' => $id]);
+                foreach ($tags as $tag) {
+                    $this->sql($db, 'INSERT INTO quiz_tags (slug) VALUES (:tag) ON CONFLICT DO NOTHING', ['tag' => $tag]);
+                    $this->sql($db, 'INSERT INTO quiz_theme_tags (theme_id,tag_slug) VALUES (:theme,:tag)',
+                        ['theme' => $id, 'tag' => $tag]);
+                }
+            }
         });
     }
 
@@ -76,7 +85,7 @@ final class QuizContentWriter
         if ($name === '') {
             throw new RuntimeException('Topic name is required.');
         }
-        $tags = array_key_exists('tags', $input) ? TopicTags::normalize($input['tags']) : null;
+        $tags = array_key_exists('tags', $input) ? QuizTags::normalize($input['tags']) : null;
         foreach ($localizations as $locale => $localized) {
             $this->rules->assertSupportedLocale((string) $locale);
             if (!is_array($localized) || trim((string) ($localized['name'] ?? '')) === '') {

@@ -53,6 +53,32 @@ docker compose --env-file deploy/compose.local/.env -f deploy/compose.local/dock
 
 The PHP-FPM container runs with `QUICKQUIZ_RUNTIME_UID` and `QUICKQUIZ_RUNTIME_GID`. Adjust these values if your local user is not `1000:1000`.
 
+## SPA Dev Theme Audience
+
+`SPA_DEV_THEME_TAG=dev` in the Compose environment becomes `SPA_THEME_TAG` in
+the Dev container and `themeTag` in `/runtime-config.js`. An absent variable
+defaults to `dev`; an explicitly blank or invalid tag prevents startup. Change
+the value by recreating the Dev container with the same image. The browser URL
+does not override this setting. SPA DSLab keeps its existing configuration.
+
+To expose Kubernetes on the Dev site, create/activate that theme in PostgreSQL
+Manager, assign its `dev` tag, publish successfully, and reload the Quiz API.
+Confirm `GET /api/themes?tag=dev` includes it. No SPA rebuild is needed. Existing
+topic deep links use the hash router, for example `/#/?topic=git`, and apply
+within the initially selected theme.
+
+For the first release, back up PostgreSQL and published content, apply migration
+`0003_theme_tags.sql` through the existing Manager migration command, release
+Manager/API support, and tag the existing Dev theme before deploying the new
+SPA Dev image. Local Compose still defaults to legacy authoring; the demo JSON
+already includes the `dev` tag. To edit theme tags through Manager, use its
+existing PostgreSQL authoring/import setup.
+
+Rollback SPA Dev before returning the API to a version without `/api/themes`.
+Keep additive tag tables. Pause publication if Manager is rolled back to a
+publisher that omits theme tags. The full sequence is in
+[spec 005's plan](../docs/specs/005-tagged-theme-selection/plan.md).
+
 ## File-backed secrets
 
 Runtime secrets support `NAME__FILE`. The referenced file takes priority over

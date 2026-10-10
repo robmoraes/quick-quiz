@@ -9,7 +9,14 @@ format.
 
 ## [Unreleased]
 
+Next planned release: `manager/v0.13.0`.
+
 ### Added
+
+- PostgreSQL theme tags in Manager Web and the protected administration API,
+  with atomic replacement, omission/clearing semantics, and migration 0003.
+- Theme tag publication and validated import/export round trips, including
+  explicit replacement additions/removals in dry-run reports.
 
 - PostgreSQL topic tags for Manager Web and the protected administration API
   (Manager 0.12.0): normalized shared tags, atomic replacement, omission/clearing
@@ -135,7 +142,7 @@ format.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.6.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.12.0...HEAD
 [0.6.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.5.0...manager%2Fv0.6.0
 [0.5.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.4.0...manager%2Fv0.5.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.3.0...manager%2Fv0.4.0

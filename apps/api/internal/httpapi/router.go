@@ -17,6 +17,7 @@ func NewRouter(runs *app.RunService, solutions *app.SolutionService, logger *slo
 
 	mux.HandleFunc("GET /healthz", handler.Health)
 	mux.HandleFunc("GET /api/catalog", handler.Catalog)
+	mux.HandleFunc("GET /api/themes", handler.Themes)
 	mux.HandleFunc("GET /api/session/topics", handler.SessionTopics)
 	mux.HandleFunc("GET /api/session/difficulties", handler.SessionDifficulties)
 	mux.HandleFunc("POST /api/session/reset", handler.ResetSession)

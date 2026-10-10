@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: QuickQuiz Manager Administration API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Protected API for discovering and maintaining QuickQuiz themes, topics,
     and complete localized question sets. Every operation requires an
@@ -616,7 +616,7 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
     Conflict:
-      description: Resource already exists, recursive deletion is required, or topic tags are unavailable in legacy mode (topic_tags_unavailable).
+      description: Resource already exists, recursive deletion is required, or theme/topic tags are unavailable in legacy mode (theme_tags_unavailable or topic_tags_unavailable).
       content:
         application/json:
           schema:
@@ -643,13 +643,48 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
 
   schemas:
+    ThemeTagInput:
+      type: string
+      minLength: 1
+      maxLength: 50
+      pattern: '^[ \t\r\n\f\v]*[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*[ \t\r\n\f\v]*$'
+      description: >-
+        At most 50 ASCII bytes including surrounding whitespace. Trim ASCII
+        whitespace, lowercase ASCII letters, and require a whole-value slug.
+    ThemeTagsInput:
+      type: array
+      maxItems: 20
+      items:
+        $ref: '#/components/schemas/ThemeTagInput'
+      description: >-
+        Omission creates an empty set on POST and preserves the existing set on
+        PUT. An empty array clears associations. Normalize, deduplicate, and
+        sort; null is invalid. Existing required theme fields remain required.
+        Explicit tags require PostgreSQL authoring; legacy mode returns HTTP 409
+        with theme_tags_unavailable. Invalid values return HTTP 422 with the
+        existing validation_failed envelope and no mutation side effects.
+      example: [' Dev ', cloud, dev]
+    ThemeTags:
+      type: array
+      maxItems: 20
+      uniqueItems: true
+      items:
+        type: string
+        minLength: 1
+        maxLength: 50
+        pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*(?![\s\S])'
+      description: Canonical tag slugs sorted in ascending ASCII order.
+      example: [cloud, dev]
     SafeId:
       type: string
       pattern: "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"
     Theme:
       type: object
+      description: PostgreSQL responses always include tags; legacy may omit them. Theme tags are published metadata.
       required: [id, name, description, weight, createdAt, active]
       properties:
+        tags:
+          $ref: "#/components/schemas/ThemeTags"
         id:
           $ref: "#/components/schemas/SafeId"
         name:
@@ -666,6 +701,8 @@ components:
       type: object
       required: [id, name, description]
       properties:
+        tags:
+          $ref: "#/components/schemas/ThemeTagsInput"
         id:
           $ref: "#/components/schemas/SafeId"
         name:
@@ -685,6 +722,8 @@ components:
       type: object
       required: [name, description, weight, createdAt, active]
       properties:
+        tags:
+          $ref: "#/components/schemas/ThemeTagsInput"
         name:
           type: string
         description:

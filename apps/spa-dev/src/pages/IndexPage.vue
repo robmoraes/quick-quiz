@@ -1,5 +1,12 @@
 <template>
   <q-page class="quiz-page" :class="{ 'quiz-page--ad-interstitial': screen === 'fatalLoss' }">
+    <div
+      v-if="!welcomePanelVisible && screen !== 'start' && selectedThemeMetadata"
+      class="text-caption text-cyan-3 q-mb-sm"
+      aria-live="polite"
+    >
+      {{ t('themes.selected', { name: selectedThemeMetadata.name }) }}
+    </div>
     <WelcomePanel v-if="welcomePanelVisible" @advance="advanceFromWelcomePanel" />
 
     <TopicPanel
@@ -23,7 +30,35 @@
       @open-rules="rulesOpen = true"
       @next="goToDifficulty"
       @end-session="confirmEndSession"
-    />
+    >
+      <template #theme>
+        <ThemeSelector
+          :themes="themes"
+          :selected-theme="selectedTheme"
+          :loading="loadingThemes"
+          :error="themeError"
+          :locked="themeSelectionLocked"
+          @select="changeTheme"
+          @retry="initializeThemes"
+        />
+        <p
+          v-if="catalogReady && !loadingCatalog && !quizCatalog.catalog.value.topics.length"
+          class="text-grey-4"
+          role="status"
+        >
+          {{ t('themes.noTopics') }}
+        </p>
+        <q-btn
+          v-if="errorMessage && !sessionOpen"
+          flat
+          color="cyan-3"
+          icon="refresh"
+          :label="t('themes.retry')"
+          :disable="themeSelectionLocked"
+          @click="initializeCatalog"
+        />
+      </template>
+    </TopicPanel>
 
     <DifficultyPanel
       v-else-if="screen === 'difficulty'"
@@ -120,8 +155,11 @@ import QuestionPanel from 'src/components/quiz/QuestionPanel.vue';
 import ResultPanel from 'src/components/quiz/ResultPanel.vue';
 import RulesModal from 'src/components/quiz/RulesModal.vue';
 import SettingsDialog from 'src/components/quiz/SettingsDialog.vue';
+import ThemeSelector from 'src/components/quiz/ThemeSelector.vue';
 import TopicPanel from 'src/components/quiz/TopicPanel.vue';
 import WelcomePanel from 'src/components/quiz/WelcomePanel.vue';
+import { useThemeSelection } from 'src/composables/useThemeSelection';
+import { advertisingTheme } from 'src/services/theme-config';
 import { useQuizCatalog } from 'src/composables/useQuizCatalog';
 import { useLayoutAds } from 'src/composables/useLayoutAds';
 import { useQuizPreferences } from 'src/composables/useQuizPreferences';
@@ -132,7 +170,8 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-const quizCatalog = useQuizCatalog();
+const selectedTheme = ref('');
+const quizCatalog = useQuizCatalog(selectedTheme);
 const { setLayoutAdsTopic, refreshLayoutAds } = useLayoutAds();
 const {
   selectedTopic,
@@ -165,6 +204,7 @@ const {
   screen,
   currentQuestion,
   sessionCompleted,
+  sessionOpen,
   busy,
   errorMessage,
   feedback,
@@ -183,6 +223,18 @@ const {
   handleResultEndSession,
   newSession,
 } = useQuizRun({ catalog: quizCatalog });
+
+const themeSelectionLocked = computed(
+  () =>
+    sessionOpen.value ||
+    busy.value ||
+    screen.value !== 'start' ||
+    loadingCatalog.value ||
+    quizCatalog.loadingSessionTopics.value ||
+    quizCatalog.loadingSessionDifficulties.value,
+);
+const { themes, loadingThemes, themeError, selectedThemeMetadata, loadThemes, selectTheme } =
+  useThemeSelection(selectedTheme, themeSelectionLocked);
 
 const {
   locale,
@@ -222,12 +274,12 @@ watch(
 
 watch(selectedTopic, (topic) => {
   syncTopicQuery(topic);
-  updateAdsTopic(topic);
 });
+watch([selectedTheme, selectedTopic], ([, topic]) => updateAdsTopic(topic));
 
 onMounted(() => {
   initializeSession();
-  void initializeCatalog();
+  void initializeThemes();
 });
 
 function actionLabel(key: string, compactOnXs = false) {
@@ -236,7 +288,7 @@ function actionLabel(key: string, compactOnXs = false) {
 
 async function saveSettings() {
   savePreferences();
-  if (screen.value === 'start' || screen.value === 'difficulty') {
+  if (selectedTheme.value && (screen.value === 'start' || screen.value === 'difficulty')) {
     await loadCatalog();
     if (screen.value === 'start') {
       await refreshTopicAvailability();
@@ -249,8 +301,21 @@ async function saveSettings() {
   }
 }
 
+async function initializeThemes() {
+  if (await loadThemes()) await initializeCatalog();
+}
+
+async function changeTheme(id: string) {
+  if (!selectTheme(id)) return;
+  catalogReady.value = false;
+  quizCatalog.resetForTheme();
+  syncTopicQuery('');
+  updateAdsTopic('');
+  await initializeCatalog();
+}
+
 async function initializeCatalog() {
-  await loadCatalog();
+  if (!(await loadCatalog())) return;
   catalogReady.value = true;
   await restoreSessionAvailability();
 }
@@ -273,7 +338,7 @@ function handleClearSelectedTopic() {
 }
 
 function updateAdsTopic(topic: string) {
-  setLayoutAdsTopic(topic);
+  setLayoutAdsTopic(selectedTheme.value === advertisingTheme ? topic : '');
   void refreshLayoutAds();
 }
 

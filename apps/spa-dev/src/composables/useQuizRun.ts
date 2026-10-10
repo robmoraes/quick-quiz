@@ -50,6 +50,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
 
   const screen = ref<QuizScreen>('start');
   const runId = ref('');
+  const runTheme = ref('');
   const currentQuestion = ref<PublicQuestion | null>(null);
   const result = ref<RunResult | null>(null);
   const sessionResult = ref<ResultSnapshot | null>(null);
@@ -108,6 +109,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
 
   const canAdvance = computed(() =>
     Boolean(
+      catalog.theme.value &&
       catalog.selectedTopic.value &&
       catalog.selectedTopicAvailable.value &&
       !catalog.loadingCatalog.value &&
@@ -118,9 +120,11 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
 
   const canStart = computed(() =>
     Boolean(
+      catalog.theme.value &&
       catalog.selectedTopic.value &&
       catalog.selectedDifficultyInfo.value &&
       catalog.selectedDifficultyAvailable.value &&
+      !catalog.loadingCatalog.value &&
       !catalog.loadingSessionDifficulties.value &&
       !busy.value,
     ),
@@ -163,6 +167,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   }
 
   async function goToDifficulty() {
+    if (!canAdvance.value) return;
     playQuizSound('actionNext');
     sessionOpen.value = true;
     sessionResult.value = null;
@@ -190,6 +195,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   }
 
   async function startRun() {
+    if (!canStart.value) return;
     if (catalog.selectedDifficulty.value === Difficulty.Hardcore) {
       confirmHardcoreRun();
       return;
@@ -226,6 +232,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
 
     try {
       const response = await createRun(
+        catalog.theme.value,
         catalog.selectedTopic.value,
         catalog.selectedDifficulty.value,
       );
@@ -234,6 +241,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       catalog.sessionTopics.value = null;
       catalog.sessionDifficulties.value = null;
       sessionOpen.value = true;
+      runTheme.value = response.theme;
       runId.value = response.runId;
       currentQuestion.value = response.question;
       result.value = null;
@@ -286,7 +294,12 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
 
     try {
       const answeredQuestion = currentQuestion.value;
-      const response = await answerQuestion(runId.value, currentQuestion.value.id, optionId);
+      const response = await answerQuestion(
+        runTheme.value,
+        runId.value,
+        currentQuestion.value.id,
+        optionId,
+      );
       const fatalLoss = response.finishReason === 'hardcore_wrong_answer';
       feedback.value = response.correct ? 'correct' : 'wrong';
       if (!fatalLoss) {
@@ -384,10 +397,18 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
   }
 
   async function loadRunResult(showResult: boolean): Promise<boolean> {
+    const expectedRunId = runId.value;
+    const expectedTheme = runTheme.value;
+    const isCurrent = () =>
+      runId.value === expectedRunId &&
+      runTheme.value === expectedTheme &&
+      catalog.theme.value === expectedTheme;
     let runResult: RunResult;
     try {
-      runResult = await getResult(runId.value);
+      runResult = await getResult(expectedTheme, expectedRunId);
+      if (!isCurrent()) return false;
     } catch (error) {
+      if (!isCurrent()) return false;
       if (handleRunNotFound(error, 'result')) {
         return false;
       }
@@ -417,8 +438,14 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     });
 
     if (showResult) {
-      sessionCompleted.value = await catalog.refreshSessionCompletion();
-      showRunResult();
+      const completed = await catalog.refreshSessionCompletion();
+      if (!isCurrent()) return false;
+      sessionCompleted.value = completed;
+      if (completed) {
+        await closeSessionWithResults();
+      } else {
+        showRunResult();
+      }
     }
 
     return true;
@@ -464,7 +491,7 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       recoverExpiredRun('localState');
       return;
     }
-    if (!currentQuestion.value) {
+    if (!currentQuestion.value && result.value?.runId !== runId.value) {
       void reconcileActiveRunState('localState');
     }
   }
@@ -512,16 +539,27 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
     }
 
     const checkedRunId = runId.value;
+    const checkedTheme = runTheme.value;
     runStateCheckInFlight = true;
 
     try {
-      const state = await getRunState(checkedRunId);
-      if (runId.value !== checkedRunId || screen.value !== 'question') {
+      const state = await getRunState(checkedTheme, checkedRunId);
+      if (
+        runId.value !== checkedRunId ||
+        runTheme.value !== checkedTheme ||
+        screen.value !== 'question'
+      ) {
         return;
       }
       runStateCheckErrorNotified = false;
       await applyRunState(state, operation);
     } catch (error) {
+      if (
+        runId.value !== checkedRunId ||
+        runTheme.value !== checkedTheme ||
+        screen.value !== 'question'
+      )
+        return;
       if (handleRunNotFound(error, operation)) {
         return;
       }
@@ -699,20 +737,38 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
             difficulty: catalog.selectedDifficulty.value,
           },
         });
-        await finishRun(runId.value);
+        await finishRun(runTheme.value, runId.value);
         const loaded = await loadRunResult(false);
         if (!loaded) {
           return;
         }
       }
 
+      await closeSessionWithResults();
+    } catch (error) {
+      if (handleRunNotFound(error, 'endSession')) {
+        return;
+      }
+      errorMessage.value = t('errors.endSession');
+    } finally {
+      busy.value = false;
+    }
+  }
+
+  async function closeSessionWithResults() {
+    const wasBusy = busy.value;
+    busy.value = true;
+    try {
       const nextSessionResult = buildSessionResultFromRuns(sessionRuns.value, sessionEvents.value);
       recordSessionEvent({
         event: 'session.result_requested',
         severity: 'info',
         sessionId: getSessionId(),
-        message: 'Session result requested',
+        message: sessionCompleted.value
+          ? 'Exhausted session completed automatically'
+          : 'Session result requested',
         fields: {
+          automatic: sessionCompleted.value,
           runs: sessionRuns.value.length,
           answered: nextSessionResult.stats.answered,
           passed: nextSessionResult.stats.correct,
@@ -732,29 +788,26 @@ export function useQuizRun({ catalog }: UseQuizRunOptions) {
       sessionOpen.value = false;
 
       try {
-        await resetSession();
+        await resetSession(runTheme.value || catalog.theme.value);
         catalog.clearSessionAvailability();
         sessionCompleted.value = false;
       } catch {
         errorMessage.value = t('errors.endSession');
       }
-    } catch (error) {
-      if (handleRunNotFound(error, 'endSession')) {
-        return;
-      }
-      errorMessage.value = t('errors.endSession');
     } finally {
-      busy.value = false;
+      busy.value = wasBusy;
     }
   }
 
   function newSession() {
+    if (busy.value) return;
     clearSessionState();
   }
 
   function clearSessionState() {
     resetResultViewCount();
     runId.value = '';
+    runTheme.value = '';
     currentQuestion.value = null;
     result.value = null;
     sessionResult.value = null;
@@ -895,6 +948,7 @@ function resultAnswers(run: RunResult): ResultAnswer[] {
   return run.answers.map((answer) => ({
     ...answer,
     runId: run.runId,
+    theme: run.theme,
     topic: run.topic,
     difficulty: run.difficulty,
     locale: run.locale,

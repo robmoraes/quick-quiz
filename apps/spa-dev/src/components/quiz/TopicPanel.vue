@@ -25,6 +25,8 @@
       />
     </div>
 
+    <slot name="theme" />
+
     <div class="selectors">
       <q-select
         v-model="selectedTopicModel"

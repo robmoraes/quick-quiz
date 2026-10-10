@@ -28,6 +28,17 @@ export default {
       'Uma resposta errada reinicia toda a sessão atual. Não haverá tela de resultado para a run perdida.',
     hardcoreConfirm: 'Aceitar risco fatal',
   },
+  themes: {
+    loading: 'Carregando temas',
+    label: 'Escolha o tema',
+    selected: 'Tema: {name}',
+    empty: 'Ainda não há temas disponíveis neste site.',
+    loadError: 'Não foi possível carregar os temas. Tente novamente.',
+    configurationError: 'A seleção de temas não está configurada corretamente neste site.',
+    retry: 'Tentar novamente',
+    locked: 'O tema permanece o mesmo até o encerramento desta sessão.',
+    noTopics: 'Este tema ainda não tem tópicos disponíveis para jogar. Escolha outro tema.',
+  },
   form: {
     topic: 'Escolha o Tópico',
   },
@@ -88,7 +99,8 @@ export default {
     correct: 'Tests Passed',
     wrong: 'Tests Failed',
     runSynchronized: 'Estado da run sincronizado. Continue pela pergunta atual.',
-    runStateCheckFailed: 'Nao foi possivel conferir o estado da run. Continue se a pergunta estiver visivel.',
+    runStateCheckFailed:
+      'Nao foi possivel conferir o estado da run. Continue se a pergunta estiver visivel.',
   },
   devtools: {
     welcome: 'Ora ora, parece que temos um hacker aqui. Seja bem vindo ao Quick Quiz Dev',

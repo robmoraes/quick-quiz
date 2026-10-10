@@ -1,0 +1,74 @@
+# Feature components for spec 005, incorporated into docs/openapi-manager-admin.yaml.
+# Existing paths, required fields, and envelopes are retained.
+# Deployment is tracked separately from implementation.
+components:
+  schemas:
+    ThemeTagInput:
+      type: string
+      minLength: 1
+      maxLength: 50
+      pattern: '^[ \t\r\n\f\v]*[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*[ \t\r\n\f\v]*$'
+      description: >-
+        At most 50 ASCII bytes including surrounding whitespace. Trim ASCII
+        whitespace, lowercase ASCII letters, and require a whole-value slug.
+    ThemeTagsInput:
+      type: array
+      maxItems: 20
+      items:
+        $ref: '#/components/schemas/ThemeTagInput'
+      description: >-
+        Omission creates an empty set on POST and preserves the existing set on
+        PUT. An empty array clears associations. Normalize, deduplicate, and
+        sort; null is invalid. Existing required theme fields remain required.
+        Explicit tags require PostgreSQL authoring; legacy mode returns HTTP 409
+        with theme_tags_unavailable. Invalid values return HTTP 422 with the
+        existing validation_failed envelope and no mutation side effects.
+      example: [' Dev ', cloud, dev]
+    ThemeTags:
+      type: array
+      maxItems: 20
+      uniqueItems: true
+      items:
+        type: string
+        minLength: 1
+        maxLength: 50
+        pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*(?![\s\S])'
+      description: Canonical tag slugs sorted in ascending ASCII order.
+      example: [cloud, dev]
+    CreateThemeWithTags:
+      allOf:
+        - $ref: '../../../openapi-manager-admin.yaml#/components/schemas/CreateTheme'
+        - type: object
+          properties:
+            tags:
+              $ref: '#/components/schemas/ThemeTagsInput'
+    ReplaceThemeWithTags:
+      allOf:
+        - $ref: '../../../openapi-manager-admin.yaml#/components/schemas/ReplaceTheme'
+        - type: object
+          properties:
+            tags:
+              $ref: '#/components/schemas/ThemeTagsInput'
+    PostgresThemeWithTags:
+      description: >-
+        PostgreSQL theme reads, lists, catalog entries, and mutation results
+        always include tags, including an empty array. Legacy reads may omit
+        tags when absent in their source; serialized tags must be preserved.
+      allOf:
+        - $ref: '../../../openapi-manager-admin.yaml#/components/schemas/Theme'
+        - type: object
+          required: [tags]
+          properties:
+            tags:
+              $ref: '#/components/schemas/ThemeTags'
+    PostgresThemeMutationWithTags:
+      description: >-
+        Keep the existing publication envelope. Theme tag changes use normal
+        revision/publication processing and require API reload. They never use
+        the topic_tags_only publication alternative.
+      allOf:
+        - $ref: '../../../openapi-manager-admin.yaml#/components/schemas/ThemeMutation'
+        - type: object
+          properties:
+            theme:
+              $ref: '#/components/schemas/PostgresThemeWithTags'

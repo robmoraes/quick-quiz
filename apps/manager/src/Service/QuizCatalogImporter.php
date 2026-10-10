@@ -30,6 +30,7 @@ final class QuizCatalogImporter
             'breakdown' => $snapshot['breakdown'],
             'sourceChecksum' => $this->comparator->checksum($sourceObjects),
             'comparison' => $comparison,
+            'themeTagChanges' => $this->themeTagChanges($snapshot['themes'], $current['themes.json']['themes'] ?? []),
             'applied' => false,
             'revision' => null,
         ];
@@ -87,6 +88,11 @@ final class QuizCatalogImporter
                 'created_at' => $theme['createdAt'], 'updated_at' => $now,
             ]);
             $themeId = $theme['id'];
+            foreach ($theme['tags'] as $tag) {
+                $this->insert($db, 'INSERT INTO quiz_tags (slug) VALUES (:tag) ON CONFLICT DO NOTHING', ['tag' => $tag]);
+                $this->insert($db, 'INSERT INTO quiz_theme_tags (theme_id,tag_slug) VALUES (:theme,:tag)',
+                    ['theme' => $themeId, 'tag' => $tag]);
+            }
             foreach ($snapshot['topics'][$themeId] as $topic) {
                 $this->insert($db, 'INSERT INTO quiz_topics
                     (theme_id,topic_key,name,description,weight,active,created_at,updated_at)
@@ -142,6 +148,23 @@ final class QuizCatalogImporter
                 }
             }
         }
+    }
+
+    /** @return array<string,array{added:list<string>,removed:list<string>}> */
+    private function themeTagChanges(array $source, array $current): array
+    {
+        $source = array_column($source, 'tags', 'id');
+        $current = array_column($current, 'tags', 'id');
+        $changes = [];
+        foreach (array_unique(array_merge(array_keys($source), array_keys($current))) as $theme) {
+            $added = array_values(array_diff($source[$theme] ?? [], $current[$theme] ?? []));
+            $removed = array_values(array_diff($current[$theme] ?? [], $source[$theme] ?? []));
+            if ($added !== [] || $removed !== []) {
+                $changes[$theme] = compact('added', 'removed');
+            }
+        }
+        ksort($changes);
+        return $changes;
     }
 
     /** @param array<string,mixed> $params */

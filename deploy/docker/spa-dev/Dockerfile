@@ -19,7 +19,7 @@ RUN npm run build
 FROM nginx:${NGINX_VERSION}-alpine
 
 COPY deploy/docker/spa-dev/nginx.conf /etc/nginx/nginx.conf
-COPY --chmod=755 deploy/docker/spa-entrypoint.sh /usr/local/bin/spa-entrypoint
+COPY --chmod=755 deploy/docker/spa-dev/entrypoint.sh /usr/local/bin/spa-entrypoint
 COPY --from=build /app/dist/spa /usr/share/nginx/html
 
 RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/run

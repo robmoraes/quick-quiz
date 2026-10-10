@@ -6,16 +6,16 @@ QuickQuiz Dev contains multiple services plus an externalized data structure.
 
 Path: `apps/manager/`
 
-The manager is a Symfony webapp for maintaining quiz pack files. It is the
+The manager is a Symfony webapp for authoring quiz content in PostgreSQL. It is the
 safest place to edit content because it understands the path contract,
 localized catalogs, supported locales, and publication flags.
 
 Responsibilities:
 
-- create and edit themes;
+- create and edit themes and their published tags;
 - create and edit topic catalogs;
 - create and edit localized topic metadata;
-- create and edit question files;
+- create and edit questions and publish the JSON projection;
 - create and edit advertising entries through the Ads API;
 - validate quiz pack structure before saving;
 - optionally use OpenAI-assisted question recommendation and localization.
@@ -32,7 +32,7 @@ content from local files or S3-compatible storage. Run/session state and generat
 
 Responsibilities:
 
-- expose catalog and session availability endpoints;
+- expose active theme discovery with optional tag filtering, catalog, and session availability endpoints;
 - start quiz runs;
 - select questions and answer options;
 - validate answers;
@@ -62,13 +62,16 @@ Responsibilities:
 Path: `apps/spa-dev/`
 
 The SPAs are Quasar/Vue applications for theme-specific players. The current
-apps are `apps/spa-dev/` and `apps/spa-dslab/`. Each SPA is configured for one
-theme and talks to the Quiz API with the current theme, session ID, and locale.
-Advertising requests use the Ads API base URL.
+apps are `apps/spa-dev/` and `apps/spa-dslab/`. SPA Dev discovers themes using
+`SPA_THEME_TAG` (default `dev`) from runtime configuration. Players choose a
+theme before their session; URL parameters cannot override the site audience.
+SPA DSLab retains its existing fixed theme. Quiz requests carry the selected
+theme, session ID, and locale. Dev advertising keeps its `dev` theme and omits
+the topic filter when playing another theme.
 
 Responsibilities:
 
-- render topic and difficulty selection;
+- render theme (Dev), topic, and difficulty selection;
 - render active questions and answer options;
 - submit answers;
 - show run and session results;

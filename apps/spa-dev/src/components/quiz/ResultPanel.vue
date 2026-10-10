@@ -236,6 +236,7 @@
           icon="add_circle"
           :label="newSessionActionLabel"
           :aria-label="t('actions.newSession')"
+          :disable="busy"
           class="full-width"
           @click="emit('new-session')"
         />
@@ -284,14 +285,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import logoUrl from 'src/assets/logo-large.svg';
-import {
-  getQuestionSolution,
-  isApiErrorCode,
-  type QuestionSolution,
-} from 'src/services/api';
+import { getQuestionSolution, isApiErrorCode, type QuestionSolution } from 'src/services/api';
 import type { ResultAnswer, ResultPanelEmit, ResultPanelProps } from './contracts';
 import {
   syslogPrompt,
@@ -302,7 +299,7 @@ import QuizMarkdown from './QuizMarkdown.vue';
 import SyslogEventLine from './SyslogEventLine.vue';
 import LayoutAds from './LayoutAds.vue';
 
-defineProps<ResultPanelProps>();
+const props = defineProps<ResultPanelProps>();
 const emit = defineEmits<ResultPanelEmit>();
 const { t } = useI18n();
 
@@ -315,6 +312,14 @@ const solutionLoading = ref(false);
 const solutionError = ref('');
 const readSolutionKeys = ref(new Set<string>());
 let solutionRequestId = 0;
+watch(
+  () => props.result,
+  () => {
+    closeSolution();
+    readSolutionKeys.value = new Set();
+  },
+);
+onUnmounted(closeSolution);
 
 function focusTerminalPrompt() {
   terminalInput.value?.focus();
@@ -339,7 +344,7 @@ async function openSolution(answer: ResultAnswer) {
   solutionLoading.value = true;
 
   try {
-    const loaded = await getQuestionSolution(answer.runId, answer.questionId);
+    const loaded = await getQuestionSolution(answer.theme, answer.runId, answer.questionId);
     if (requestId !== solutionRequestId) {
       return;
     }
@@ -378,6 +383,6 @@ function markSolutionRead(answer: ResultAnswer) {
 }
 
 function solutionReadKey(answer: ResultAnswer) {
-  return `${answer.runId}:${answer.questionId}`;
+  return `${answer.theme}:${answer.runId}:${answer.questionId}`;
 }
 </script>

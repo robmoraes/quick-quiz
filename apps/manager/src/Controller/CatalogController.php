@@ -5,7 +5,7 @@ namespace App\Controller;
 use App\Service\CatalogAssistant;
 use App\Service\OpenAiConfiguration;
 use App\Service\QuizAuthoringService;
-use App\Service\TopicTags;
+use App\Service\QuizTags;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -393,7 +393,7 @@ final class CatalogController extends BaseController
     private function topicInput(array $input): array
     {
         if (array_key_exists('tags', $input)) {
-            $input['tags'] = TopicTags::fromForm($input['tags']);
+            $input['tags'] = QuizTags::fromForm($input['tags']);
         }
         return $input;
     }

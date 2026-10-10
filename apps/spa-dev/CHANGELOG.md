@@ -9,7 +9,22 @@ format.
 
 ## [Unreleased]
 
+Next planned release: `spa-dev/v0.9.0`.
+
+### Added
+
+- Theme selection scoped by the runtime audience tag, defaulting to `dev`,
+  with translated loading, empty/error states, and session-bound selection.
+- Automated frontend tests included in the SPA Dev release pipeline.
+
 ### Changed
+
+- Exhausted sessions close automatically and show the consolidated session
+  result directly, preserving every completed run and answer.
+- Quiz requests keep their selected theme while advertising retains Dev scope;
+  stale responses cannot overwrite a new theme or session.
+- Synchronize package and lockfile versions with the release sequence after
+  `spa-dev/v0.8.0`.
 
 - Ad requests now use the dedicated Ads API base URL configured through
   `VITE_ADS_API_BASE_URL`.
@@ -131,7 +146,7 @@ format.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.6.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.8.0...HEAD
 [0.6.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.1...spa-dev%2Fv0.6.0
 [0.5.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.0...spa-dev%2Fv0.5.1
 [0.5.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.4.0...spa-dev%2Fv0.5.0

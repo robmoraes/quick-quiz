@@ -55,6 +55,22 @@ final class QuizSourceCatalogTest extends TestCase
         self::assertSame(['B', 'C'], $snapshot['questions']['dev']['php'][1]['php-1-001']['en-US']['wrongOptions']);
     }
 
+    public function testRejectsNoncanonicalPublishedThemeTagsIncludingJsonObjects(): void
+    {
+        $original = json_decode($this->storage->read('themes.json'), true, flags: JSON_THROW_ON_ERROR);
+        foreach ([null, (object) [], 'dev', ['Dev'], ['dev', 'cloud'], ['dev', 'dev'], ['dev' . "\n"]] as $tags) {
+            $source = $original;
+            $source['themes'][0]['tags'] = $tags;
+            $this->write('themes.json', $source);
+            try {
+                $this->source->load();
+                self::fail('Expected invalid published theme tags to fail validation.');
+            } catch (RuntimeException $error) {
+                self::assertNotSame('', $error->getMessage());
+            }
+        }
+    }
+
     public function testIgnoresAdvertisingAndAiPromptObjectsInSharedStorage(): void
     {
         $this->storage->write('ads/ads.json', '{"ads":[]}');

@@ -31,5 +31,6 @@ interface Window {
   __QUICKQUIZ_CONFIG__?: {
     apiBaseUrl?: string;
     adsApiBaseUrl?: string;
+    themeTag?: string;
   };
 }

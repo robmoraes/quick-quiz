@@ -6,6 +6,23 @@ QuickQuiz Dev.
 Specs are part of the public project history. They explain decisions,
 constraints, and planned work before implementation.
 
+## Standard and Scope
+
+QuickQuiz already uses the engineering playbook's
+[spec-driven development standard](https://github.com/robmoraes/engineering-playbook/blob/main/architecture/spec-driven-development.md).
+The standard is shared across projects; [standard.md](standard.md) is the
+reference copy maintained in this repository.
+
+Feature specifications live here, alongside the code they govern. The numbered
+sequence applies to the whole QuickQuiz repository, including features that
+cross service boundaries. It is not a separate sequence for each application.
+The service-based directories under `archive/` preserve the older organization.
+
+Use `spec.md` for behavior, `plan.md` for design, `tasks.md` for ordered work,
+and `contracts/` for machine-readable interfaces when applicable. Consequential
+architecture decisions belong in `docs/architecture/adr/`. This convention does
+not require installing Spec Kit or a shared specification service.
+
 ## Active Specs
 
 - `standard.md`: spec-driven development standard used for new specs.
@@ -27,6 +44,13 @@ constraints, and planned work before implementation.
   and the administrative API, excluded from published JSON and player services.
 - `004-manager-topic-tags/plan.md`: persistence, compatibility, and publication isolation.
 - `004-manager-topic-tags/tasks.md`: implementation and automated verification tasks.
+- [005-tagged-theme-selection/spec.md](005-tagged-theme-selection/spec.md):
+  implemented theme tags, public theme discovery, and environment-scoped theme
+  selection in SPA Dev; SPA DSLab remains unchanged.
+- [005-tagged-theme-selection/plan.md](005-tagged-theme-selection/plan.md):
+  storage, publication, API compatibility, frontend state, and rollout design.
+- [005-tagged-theme-selection/tasks.md](005-tagged-theme-selection/tasks.md):
+  implementation checklist and local automated verification evidence.
 
 ## Archive
 

@@ -29,6 +29,22 @@ final class QuizAdminControllerTest extends TestCase
         $this->removeTree($this->root);
     }
 
+    public function testLegacyThemeEditsPreserveSerializedTagsAndExplicitTagWritesConflict(): void
+    {
+        $theme = ['id' => 'dev', 'name' => 'Dev', 'description' => '', 'weight' => 10,
+            'createdAt' => '2026-10-10T00:00:00Z', 'active' => true, 'tags' => ['dev']];
+        file_put_contents($this->root.'/themes.json', json_encode(['themes' => [$theme]], JSON_THROW_ON_ERROR));
+        unset($theme['tags']);
+        $theme['name'] = 'Renamed';
+        $response = $this->controller->replaceTheme(Request::create('/', 'PUT', content: json_encode($theme)), 'dev');
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(['dev'], json_decode((string) $response->getContent(), true)['theme']['tags']);
+        $theme['tags'] = [];
+        $response = $this->controller->replaceTheme(Request::create('/', 'PUT', content: json_encode($theme)), 'dev');
+        self::assertSame(409, $response->getStatusCode());
+        self::assertSame('theme_tags_unavailable', json_decode((string) $response->getContent(), true)['error']['code']);
+    }
+
     public function testReturnsStableJsonErrorForMalformedBody(): void
     {
         $request = Request::create('/api/admin/quiz/themes', 'POST', server: [

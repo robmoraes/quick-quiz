@@ -26,6 +26,7 @@ final class PostgresMigrationIntegrationTest extends TestCase
                 'quiz_question_translations',
                 'quiz_questions',
                 'quiz_tags',
+                'quiz_theme_tags',
                 'quiz_themes',
                 'quiz_topic_tags',
                 'quiz_topic_translations',

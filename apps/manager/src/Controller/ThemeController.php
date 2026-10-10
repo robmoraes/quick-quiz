@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Service\QuizAuthoringService;
 use App\Service\ThemeContext;
+use App\Service\QuizTags;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -86,7 +87,11 @@ final class ThemeController extends BaseController
 
         try {
             $this->csrf->assertValid($request);
-            $packs->saveTheme($request->request->all());
+            $input = $request->request->all();
+            if (array_key_exists('tags', $input)) {
+                $input['tags'] = QuizTags::fromForm($input['tags']);
+            }
+            $packs->saveTheme($input);
             $selected = $themeContext->selectedTheme();
             if ($selected === '') {
                 $themeContext->selectTheme((string) $request->request->get('id', ''));

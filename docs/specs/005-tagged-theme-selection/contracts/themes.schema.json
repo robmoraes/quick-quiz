@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Published theme index with optional theme tags",
+  "description": "Spec 005. Readers accept historical entries without tags as an empty set. The new publisher always emits canonical tags. Topic and question files are outside this schema.",
+  "type": "object",
+  "required": ["themes"],
+  "properties": {
+    "themes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "weight", "active"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "weight": { "type": "integer" },
+          "createdAt": { "type": "string" },
+          "active": { "type": "boolean" },
+          "tags": {
+            "type": "array",
+            "default": [],
+            "maxItems": 20,
+            "uniqueItems": true,
+            "description": "Canonical slugs in ascending ASCII order. Array ordering must also be checked by producer/reader validation; JSON Schema does not express that constraint here.",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*(?![\\s\\S])"
+            }
+          }
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "themes": [
+        {
+          "id": "dev",
+          "name": "Development",
+          "weight": 10,
+          "active": true
+        }
+      ]
+    },
+    {
+      "themes": [
+        {
+          "id": "kubernetes",
+          "name": "Kubernetes",
+          "description": "Container orchestration practice",
+          "weight": 20,
+          "active": true,
+          "tags": ["cloud", "dev"]
+        }
+      ]
+    }
+  ]
+}

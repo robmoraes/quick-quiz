@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   Difficulty,
@@ -11,7 +11,6 @@ import {
   type SessionTopics,
 } from 'src/services/api';
 import { playQuizSound } from 'src/services/sounds';
-import { quickQuizTheme } from 'src/services/theme-config';
 import type {
   AvailabilityCounter,
   DifficultyOption,
@@ -23,11 +22,11 @@ import type { SessionEventInput } from 'src/services/session-events';
 
 type SessionEventRecorder = (input: SessionEventInput) => void;
 
-export function useQuizCatalog() {
+export function useQuizCatalog(theme: Ref<string>) {
   const { t, locale } = useI18n();
 
   const catalog = ref<Catalog>({
-    theme: quickQuizTheme,
+    theme: theme.value,
     locale: 'en-US',
     fallbackLocale: 'en-US',
     topics: [],
@@ -44,6 +43,56 @@ export function useQuizCatalog() {
   const errorMessage = ref('');
   const topicOptions = ref<TopicSelectOption[]>([]);
   const sessionEventRecorder = ref<SessionEventRecorder | null>(null);
+
+  let generation = 0;
+  const requests = { catalog: 0, topics: 0, difficulties: 0 };
+
+  function invalidateRequests() {
+    generation++;
+    loadingCatalog.value = false;
+    loadingSessionTopics.value = false;
+    loadingSessionDifficulties.value = false;
+  }
+
+  function requestContext(kind: keyof typeof requests, topic?: string) {
+    const version = generation;
+    const request = ++requests[kind];
+    const requestedTheme = theme.value;
+    const requestedLocale = locale.value;
+    const session = getSessionId();
+    return () =>
+      version === generation &&
+      request === requests[kind] &&
+      requestedTheme === theme.value &&
+      requestedLocale === locale.value &&
+      session === getSessionId() &&
+      (topic === undefined || topic === selectedTopic.value);
+  }
+
+  watch([theme, locale], invalidateRequests, { flush: 'sync' });
+  watch(
+    selectedTopic,
+    () => {
+      requests.difficulties++;
+      loadingSessionDifficulties.value = false;
+      sessionDifficulties.value = null;
+    },
+    { flush: 'sync' },
+  );
+
+  function resetForTheme() {
+    clearSessionAvailability();
+    selectedTopic.value = '';
+    selectedDifficulty.value = Difficulty.Easy;
+    errorMessage.value = '';
+    catalog.value = {
+      theme: theme.value,
+      locale: locale.value,
+      fallbackLocale: 'en-US',
+      topics: [],
+      difficulties: [],
+    };
+  }
 
   const topicSource = computed<TopicState[]>(() =>
     sessionHasBackendState.value && sessionTopics.value
@@ -191,22 +240,28 @@ export function useQuizCatalog() {
     playQuizSound('severityChanged');
   }
 
-  async function loadCatalog() {
+  async function loadCatalog(): Promise<boolean> {
+    if (!theme.value) return false;
+    const isCurrent = requestContext('catalog');
     loadingCatalog.value = true;
     errorMessage.value = '';
 
     try {
       const previousTopic = selectedTopic.value;
-      catalog.value = await getCatalog();
+      const loaded = await getCatalog(theme.value);
+      if (!isCurrent()) return false;
+      catalog.value = loaded;
       selectedTopic.value = sortedTopics.value.some((topic) => topic.id === previousTopic)
         ? previousTopic
         : '';
       syncSelectedTopic();
       syncSelectedDifficulty();
+      return true;
     } catch {
-      errorMessage.value = t('errors.apiUnavailable');
+      if (isCurrent()) errorMessage.value = t('errors.apiUnavailable');
+      return false;
     } finally {
-      loadingCatalog.value = false;
+      if (isCurrent()) loadingCatalog.value = false;
     }
   }
 
@@ -241,12 +296,15 @@ export function useQuizCatalog() {
       return;
     }
 
+    const isCurrent = requestContext('topics');
     loadingSessionTopics.value = true;
     errorMessage.value = '';
     sessionTopics.value = null;
 
     try {
-      sessionTopics.value = await getSessionTopics();
+      const loaded = await getSessionTopics(theme.value);
+      if (!isCurrent()) return;
+      sessionTopics.value = loaded;
       recordSessionEvent({
         event: 'availability.topics_refreshed',
         severity: sessionTopics.value.topics.some((topic) => topic.available) ? 'info' : 'critical',
@@ -255,9 +313,9 @@ export function useQuizCatalog() {
         fields: topicAvailabilityFields(sessionTopics.value),
       });
     } catch {
-      errorMessage.value = t('errors.topics');
+      if (isCurrent()) errorMessage.value = t('errors.topics');
     } finally {
-      loadingSessionTopics.value = false;
+      if (isCurrent()) loadingSessionTopics.value = false;
     }
   }
 
@@ -273,8 +331,12 @@ export function useQuizCatalog() {
       return false;
     }
 
+    const isCurrent = requestContext('topics');
+    loadingSessionTopics.value = true;
     try {
-      sessionTopics.value = await getSessionTopics();
+      const loaded = await getSessionTopics(theme.value);
+      if (!isCurrent()) return false;
+      sessionTopics.value = loaded;
       const completed = sessionTopics.value.topics.every((topic) => !topic.available);
       recordSessionEvent({
         event: 'availability.topics_refreshed',
@@ -290,8 +352,10 @@ export function useQuizCatalog() {
       });
       return completed;
     } catch {
-      errorMessage.value = t('errors.topics');
+      if (isCurrent()) errorMessage.value = t('errors.topics');
       return false;
+    } finally {
+      if (isCurrent()) loadingSessionTopics.value = false;
     }
   }
 
@@ -301,12 +365,15 @@ export function useQuizCatalog() {
       return;
     }
 
+    const isCurrent = requestContext('difficulties', selectedTopic.value);
     loadingSessionDifficulties.value = true;
     errorMessage.value = '';
     sessionDifficulties.value = null;
 
     try {
-      sessionDifficulties.value = await getSessionDifficulties(selectedTopic.value);
+      const loaded = await getSessionDifficulties(theme.value, selectedTopic.value);
+      if (!isCurrent()) return;
+      sessionDifficulties.value = loaded;
       recordSessionEvent({
         event: 'availability.difficulties_refreshed',
         severity: sessionDifficulties.value.difficulties.some((difficulty) => difficulty.available)
@@ -328,13 +395,14 @@ export function useQuizCatalog() {
         },
       });
     } catch {
-      errorMessage.value = t('errors.difficulties');
+      if (isCurrent()) errorMessage.value = t('errors.difficulties');
     } finally {
-      loadingSessionDifficulties.value = false;
+      if (isCurrent()) loadingSessionDifficulties.value = false;
     }
   }
 
   function clearSessionAvailability() {
+    invalidateRequests();
     sessionHasBackendState.value = false;
     sessionTopics.value = null;
     sessionDifficulties.value = null;
@@ -345,6 +413,8 @@ export function useQuizCatalog() {
   }
 
   return {
+    theme,
+    resetForTheme,
     catalog,
     selectedTopic,
     selectedDifficulty,
@@ -399,7 +469,11 @@ function topicAvailabilityFields(sessionTopics: SessionTopics) {
   };
 }
 
-function buildCounter(available: number, total: number, active: boolean): AvailabilityCounter | null {
+function buildCounter(
+  available: number,
+  total: number,
+  active: boolean,
+): AvailabilityCounter | null {
   if (total <= 0) {
     return null;
   }

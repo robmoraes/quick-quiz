@@ -53,10 +53,22 @@ func (s *MemoryQuestionStore) Theme(_ context.Context, themeID string) (domain.T
 
 	for _, theme := range s.themes {
 		if theme.ID == themeID {
+			theme.Tags = append(domain.ThemeTags{}, theme.Tags...)
 			return theme, nil
 		}
 	}
 	return domain.Theme{}, domain.ErrThemeNotFound
+}
+
+func (s *MemoryQuestionStore) ListThemes(_ context.Context) ([]domain.Theme, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	themes := make([]domain.Theme, 0, len(s.themes))
+	for _, theme := range s.themes {
+		theme.Tags = append(domain.ThemeTags{}, theme.Tags...)
+		themes = append(themes, theme)
+	}
+	return themes, nil
 }
 
 func (s *MemoryQuestionStore) ListByThemeLocaleTopicAndDifficulty(_ context.Context, theme, locale, topic string, difficulty domain.Difficulty) ([]domain.Question, error) {
@@ -213,6 +225,7 @@ func normalizeThemes(themes []domain.Theme, questions []domain.Question) []domai
 		if theme.Name == "" {
 			theme.Name = theme.ID
 		}
+		theme.Tags = append(domain.ThemeTags{}, theme.Tags...)
 		normalized = append(normalized, theme)
 	}
 	return normalized

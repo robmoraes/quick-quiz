@@ -99,6 +99,7 @@ final class QuizAuthoringKernelTest extends TestCase
             self::assertStringContainsString('gpt-5-test-mini', (string) $response->getContent());
             $kernel->terminate($request, $response);
             $this->assertTopicTags($kernel, $session, $provider, $theme);
+            $this->assertThemeTags($kernel, $session, $provider, $theme);
         } finally {
             if ($provider === 'postgres') {
                 $db = (new ManagerDatabase($databaseUrl))->connection();
@@ -182,6 +183,32 @@ final class QuizAuthoringKernelTest extends TestCase
         self::assertStringContainsString('value="aws,'.$longTag.'"', $html);
         $this->form($kernel, $session, '/catalog/save', $form + ['tags' => 'aws,'.$longTag], 302);
         self::assertSame(['aws', $longTag], $this->api($kernel, $base.'/topics/aws')['topic']['tags']);
+    }
+
+    private function assertThemeTags(Kernel $kernel, Session $session, string $provider, string $theme): void
+    {
+        $base = '/api/admin/quiz/themes/'.$theme;
+        $themeInput = $this->api($kernel, $base)['theme'];
+        $form = $themeInput + ['_csrf' => $session->get('csrf_token')];
+        unset($form['tags']);
+        $html = $this->form($kernel, $session, '/themes/'.$theme.'/edit');
+        self::assertStringContainsString('id="tags"', $html);
+        if ($provider === 'legacy') {
+            self::assertMatchesRegularExpression('/name="tags"[^>]*disabled/s', $html);
+            $error = $this->api($kernel, $base, 'PUT', $themeInput + ['tags' => []], 409);
+            self::assertSame('theme_tags_unavailable', $error['error']['code']);
+            $this->form($kernel, $session, '/themes/save', $form, 302);
+            return;
+        }
+        self::assertSame([], $themeInput['tags']);
+        $this->form($kernel, $session, '/themes/save', $form + ['tags' => ' Dev , cloud,dev '], 302);
+        self::assertSame(['cloud', 'dev'], $this->api($kernel, $base)['theme']['tags']);
+        $invalid = $this->form($kernel, $session, '/themes/save', $form + ['tags' => '<script>invalid</script>']);
+        self::assertStringContainsString('&lt;script&gt;invalid&lt;/script&gt;', $invalid);
+        $this->form($kernel, $session, '/themes/save', array_replace($form, ['_csrf' => 'invalid', 'tags' => 'arts']));
+        self::assertSame(['cloud', 'dev'], $this->api($kernel, $base)['theme']['tags']);
+        $this->form($kernel, $session, '/themes/save', $form + ['tags' => ''], 302);
+        self::assertSame([], $this->api($kernel, $base)['theme']['tags']);
     }
 
     /** @param array<string,mixed>|null $payload @return array<string,mixed> */

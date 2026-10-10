@@ -53,6 +53,32 @@ docker compose --env-file deploy/compose.local/.env -f deploy/compose.local/dock
 
 O container PHP-FPM roda com `QUICKQUIZ_RUNTIME_UID` e `QUICKQUIZ_RUNTIME_GID`. Ajuste esses valores se seu usuário local não for `1000:1000`.
 
+## Temas disponíveis na SPA Dev
+
+`SPA_DEV_THEME_TAG=dev` no ambiente do Compose vira `SPA_THEME_TAG` no container
+Dev e `themeTag` no `/runtime-config.js`. Ausência usa `dev`; valor vazio ou
+inválido impede a inicialização. Para trocar a tag, recrie o container com a
+mesma imagem. A URL do navegador não altera esse filtro. A SPA DSLab mantém
+sua configuração atual.
+
+Para incluir Kubernetes no site Dev, crie/ative o tema no Manager com autoria
+PostgreSQL, associe a tag `dev`, confirme a publicação e recarregue a API.
+Verifique `GET /api/themes?tag=dev`. Não é necessária uma nova build da SPA.
+Links de tópico mantêm o hash router, como `/#/?topic=git`, dentro do tema
+selecionado inicialmente.
+
+Na primeira atualização, faça backup do PostgreSQL e da publicação, aplique
+`0003_theme_tags.sql` pelo comando de migração existente do Manager, atualize
+Manager/API e associe a tag ao tema Dev antes de atualizar a SPA Dev. O Compose
+local continua com autoria legada por padrão; o JSON de demonstração já tem a
+tag `dev`. A edição de tags pelo Manager exige sua configuração de autoria e
+importação PostgreSQL.
+
+No rollback, retorne a SPA Dev antes de remover o endpoint da API. Preserve as
+tabelas novas. Pause a publicação se voltar o Manager para uma versão que omite
+tags de temas. Consulte a sequência completa no
+[plano da spec 005](../docs/specs/005-tagged-theme-selection/plan.md).
+
 ## Secrets por arquivo
 
 Os secrets de runtime aceitam `NAME__FILE`. O arquivo apontado tem prioridade
