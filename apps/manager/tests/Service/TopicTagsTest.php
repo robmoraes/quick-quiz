@@ -2,7 +2,7 @@
 
 namespace App\Tests\Service;
 
-use App\Service\TopicTags;
+use App\Service\QuizTags;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
@@ -11,19 +11,19 @@ final class TopicTagsTest extends TestCase
 {
     public function testNormalizesDuplicatesAndReturnsStringSlugsInAsciiOrder(): void
     {
-        self::assertSame(['0', '123', 'aws', 'redes'], TopicTags::normalize([' AWS ', 'redes', 'aws', '123', '0']));
-        self::assertSame(['aws', 'redes'], TopicTags::fromForm(" AWS , redes,aws\t"));
-        self::assertSame([], TopicTags::fromForm(" \n"));
-        self::assertSame([], TopicTags::normalize([]));
-        self::assertSame([str_repeat('a', 50)], TopicTags::normalize([str_repeat('a', 50)]));
-        self::assertCount(20, TopicTags::normalize(array_map(fn (int $i): string => 'tag-'.$i, range(1, 20))));
+        self::assertSame(['0', '123', 'aws', 'redes'], QuizTags::normalize([' AWS ', 'redes', 'aws', '123', '0']));
+        self::assertSame(['aws', 'redes'], QuizTags::fromForm(" AWS , redes,aws\t"));
+        self::assertSame([], QuizTags::fromForm(" \n"));
+        self::assertSame([], QuizTags::normalize([]));
+        self::assertSame([str_repeat('a', 50)], QuizTags::normalize([str_repeat('a', 50)]));
+        self::assertCount(20, QuizTags::normalize(array_map(fn (int $i): string => 'tag-'.$i, range(1, 20))));
     }
 
     #[DataProvider('invalidSets')]
     public function testRejectsInvalidSets(mixed $input): void
     {
         $this->expectException(RuntimeException::class);
-        TopicTags::normalize($input);
+        QuizTags::normalize($input);
     }
 
     public static function invalidSets(): array
@@ -39,6 +39,6 @@ final class TopicTagsTest extends TestCase
     public function testFormRejectsEmptyCommaSeparatedEntries(): void
     {
         $this->expectException(RuntimeException::class);
-        TopicTags::fromForm('aws,,redes');
+        QuizTags::fromForm('aws,,redes');
     }
 }

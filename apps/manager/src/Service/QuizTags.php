@@ -4,7 +4,7 @@ namespace App\Service;
 
 use RuntimeException;
 
-final class TopicTags
+final class QuizTags
 {
     /** @return list<string> */
     public static function normalize(mixed $input): array
@@ -25,6 +25,16 @@ final class TopicTags
         }
         $tags = array_values(array_unique($tags));
         sort($tags, SORT_STRING);
+        return $tags;
+    }
+
+    /** Published tags must already be canonical; absence is handled by the reader. */
+    public static function fromPublication(mixed $input): array
+    {
+        $tags = self::normalize($input);
+        if ($tags !== $input) {
+            throw new RuntimeException('Published theme tags must be canonical, unique, and sorted.');
+        }
         return $tags;
     }
 

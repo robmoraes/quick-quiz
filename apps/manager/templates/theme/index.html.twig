@@ -37,6 +37,9 @@
           <td>
             <strong>{{ theme.name|default(theme.id) }}</strong>
             <div class="text-muted small">{{ theme.description|default('') }}</div>
+            {% for tag in theme.tags|default([]) %}
+              <span class="badge text-bg-light">{{ tag }}</span>
+            {% endfor %}
           </td>
           <td>{{ theme.weight }}</td>
           <td>{{ theme.createdAt }}</td>

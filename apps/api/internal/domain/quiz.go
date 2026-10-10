@@ -38,12 +38,13 @@ var (
 )
 
 type Theme struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Weight      int    `json:"weight"`
-	CreatedAt   string `json:"createdAt,omitempty"`
-	Active      bool   `json:"active"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Weight      int       `json:"weight"`
+	CreatedAt   string    `json:"createdAt,omitempty"`
+	Active      bool      `json:"active"`
+	Tags        ThemeTags `json:"tags"`
 }
 
 type Question struct {

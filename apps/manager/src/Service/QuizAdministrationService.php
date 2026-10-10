@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Exception\TopicTagsUnavailableException;
+use App\Exception\ThemeTagsUnavailableException;
 use App\Exception\AdminApiException;
 use App\Exception\QuizPublicationException;
 use App\Exception\QuizDatabaseException;
@@ -59,7 +60,7 @@ final class QuizAdministrationService
         try {
             $this->packs->saveTheme($input);
         } catch (RuntimeException $error) {
-            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+            if ($error instanceof ThemeTagsUnavailableException || $error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
                 throw $error;
             }
             throw AdminApiException::validation($error->getMessage());
@@ -79,7 +80,7 @@ final class QuizAdministrationService
         try {
             $this->packs->saveTheme($input);
         } catch (RuntimeException $error) {
-            if ($error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
+            if ($error instanceof ThemeTagsUnavailableException || $error instanceof QuizPublicationException || $error instanceof QuizDatabaseException || $error instanceof PDOException) {
                 throw $error;
             }
             throw AdminApiException::validation($error->getMessage());

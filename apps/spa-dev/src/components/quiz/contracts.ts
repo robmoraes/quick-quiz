@@ -20,6 +20,7 @@ export type QuizScreen =
 export type AnswerFeedback = 'idle' | 'correct' | 'wrong';
 
 export type ResultAnswer = RunResult['answers'][number] & {
+  theme: string;
   runId: string;
   topic: string;
   difficulty: Difficulty;

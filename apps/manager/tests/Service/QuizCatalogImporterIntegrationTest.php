@@ -85,6 +85,27 @@ final class QuizCatalogImporterIntegrationTest extends TestCase
         self::assertSame($before + 1, $this->revision());
     }
 
+    public function testThemeTagsRoundTripAndExplicitReplacementRemovesMissingSourceTags(): void
+    {
+        $source = json_decode($this->storage->read('themes.json'), true, flags: JSON_THROW_ON_ERROR);
+        $source['themes'][0]['tags'] = ['cloud', 'dev'];
+        $this->write('themes.json', $source);
+        $report = $this->importer->run(true);
+        self::assertTrue($report['comparison']['equal']);
+        self::assertSame(['added' => ['cloud', 'dev'], 'removed' => []], $report['themeTagChanges'][$this->theme]);
+        self::assertSame(['cloud', 'dev'], $this->renderer->render()['themes.json']['themes'][0]['tags']);
+        self::assertFalse($this->importer->run(true)['applied']);
+        $this->tagTopic();
+        unset($source['themes'][0]['tags']);
+        $this->write('themes.json', $source);
+        $preview = $this->importer->run();
+        self::assertSame(['added' => [], 'removed' => ['cloud', 'dev']], $preview['themeTagChanges'][$this->theme]);
+        self::assertSame(['cloud', 'dev'], $this->renderer->render()['themes.json']['themes'][0]['tags']);
+        self::assertTrue($this->importer->run(true, true)['comparison']['equal']);
+        self::assertSame([], $this->renderer->render()['themes.json']['themes'][0]['tags']);
+        self::assertSame(['aws', 'php'], $this->topicTags());
+    }
+
     public function testPartialTopicLocalizationsRoundTripWithoutInventingTranslations(): void
     {
         $path = $this->theme.'/pt-BR/index.json';

@@ -1,11 +1,21 @@
 import { getActiveLocale } from 'src/i18n/locale';
-import { quickQuizTheme } from 'src/services/theme-config';
+import { advertisingTheme } from 'src/services/theme-config';
 
 export enum Difficulty {
   Easy = 1,
   Normal = 2,
   Hard = 3,
   Hardcore = 4,
+}
+
+export interface Theme {
+  id: string;
+  name: string;
+  description: string;
+  weight: number;
+  createdAt?: string;
+  active: boolean;
+  tags: string[];
 }
 
 export interface TopicOption {
@@ -150,13 +160,17 @@ export interface ApiError extends Error {
   status: number;
 }
 
-const API_BASE_URL =
-  window.__QUICKQUIZ_CONFIG__?.apiBaseUrl?.trim() || 'http://localhost:8080';
-const ADS_API_BASE_URL =
-  window.__QUICKQUIZ_CONFIG__?.adsApiBaseUrl?.trim() || API_BASE_URL;
+const API_BASE_URL = window.__QUICKQUIZ_CONFIG__?.apiBaseUrl?.trim() || 'http://localhost:8080';
+const ADS_API_BASE_URL = window.__QUICKQUIZ_CONFIG__?.adsApiBaseUrl?.trim() || API_BASE_URL;
 
-export async function getCatalog(): Promise<Catalog> {
-  return request<Catalog>('/api/catalog');
+export async function getThemes(tag: string): Promise<Theme[]> {
+  const query = new URLSearchParams({ tag });
+  const response = await request<{ themes: Theme[] }>(`/api/themes?${query.toString()}`, null);
+  return response.themes;
+}
+
+export async function getCatalog(theme: string): Promise<Catalog> {
+  return request<Catalog>('/api/catalog', theme);
 }
 
 export async function getAds(limit = 2, emphasis = 0, topic = ''): Promise<Ads> {
@@ -168,59 +182,72 @@ export async function getAds(limit = 2, emphasis = 0, topic = ''): Promise<Ads> 
   if (requestedTopic) {
     params.set('topic', requestedTopic);
   }
-  return request<Ads>(`/api/ads?${params.toString()}`, {}, ADS_API_BASE_URL);
+  return request<Ads>(`/api/ads?${params.toString()}`, advertisingTheme, {}, ADS_API_BASE_URL);
 }
 
-export async function getSessionTopics(): Promise<SessionTopics> {
-  return request<SessionTopics>('/api/session/topics');
+export async function getSessionTopics(theme: string): Promise<SessionTopics> {
+  return request<SessionTopics>('/api/session/topics', theme);
 }
 
-export async function getSessionDifficulties(topic: string): Promise<SessionDifficulties> {
+export async function getSessionDifficulties(
+  theme: string,
+  topic: string,
+): Promise<SessionDifficulties> {
   const params = new URLSearchParams({ topic });
-  return request<SessionDifficulties>(`/api/session/difficulties?${params.toString()}`);
+  return request<SessionDifficulties>(`/api/session/difficulties?${params.toString()}`, theme);
 }
 
-export async function createRun(topic: string, difficulty: Difficulty): Promise<CreateRunResponse> {
-  return request<CreateRunResponse>('/api/runs', {
+export async function createRun(
+  theme: string,
+  topic: string,
+  difficulty: Difficulty,
+): Promise<CreateRunResponse> {
+  return request<CreateRunResponse>('/api/runs', theme, {
     method: 'POST',
     body: JSON.stringify({ topic, difficulty, locale: getLocale() }),
   });
 }
 
 export async function answerQuestion(
+  theme: string,
   runId: string,
   questionId: string,
   optionId: string,
 ): Promise<AnswerResponse> {
-  return request<AnswerResponse>(`/api/runs/${runId}/answers`, {
+  return request<AnswerResponse>(`/api/runs/${runId}/answers`, theme, {
     method: 'POST',
     body: JSON.stringify({ questionId, optionId }),
   });
 }
 
-export async function finishRun(runId: string): Promise<void> {
-  await request(`/api/runs/${runId}/finish`, { method: 'POST' });
+export async function finishRun(theme: string, runId: string): Promise<void> {
+  await request(`/api/runs/${runId}/finish`, theme, { method: 'POST' });
 }
 
-export async function getRunState(runId: string): Promise<RunState> {
+export async function getRunState(theme: string, runId: string): Promise<RunState> {
   const encodedRunId = encodeURIComponent(runId);
-  return request<RunState>(`/api/runs/${encodedRunId}/state`);
+  return request<RunState>(`/api/runs/${encodedRunId}/state`, theme);
 }
 
-export async function getResult(runId: string): Promise<RunResult> {
-  return request<RunResult>(`/api/runs/${runId}/result`);
+export async function getResult(theme: string, runId: string): Promise<RunResult> {
+  return request<RunResult>(`/api/runs/${runId}/result`, theme);
 }
 
-export async function getQuestionSolution(runId: string, questionId: string): Promise<QuestionSolution> {
+export async function getQuestionSolution(
+  theme: string,
+  runId: string,
+  questionId: string,
+): Promise<QuestionSolution> {
   const encodedRunId = encodeURIComponent(runId);
   const encodedQuestionId = encodeURIComponent(questionId);
   return request<QuestionSolution>(
     `/api/runs/${encodedRunId}/questions/${encodedQuestionId}/solution`,
+    theme,
   );
 }
 
-export async function resetSession(): Promise<void> {
-  await request('/api/session/reset', { method: 'POST' });
+export async function resetSession(theme: string): Promise<void> {
+  await request('/api/session/reset', theme, { method: 'POST' });
   rotateSessionId();
 }
 
@@ -257,6 +284,7 @@ function createSessionId() {
 
 async function request<T>(
   path: string,
+  theme: string | null,
   init: RequestInit = {},
   baseUrl = API_BASE_URL,
 ): Promise<T> {
@@ -264,9 +292,13 @@ async function request<T>(
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      'X-QuickQuiz-Session-ID': getSessionId(),
-      'X-QuickQuiz-Locale': getLocale(),
-      'X-QuickQuiz-Theme': quickQuizTheme,
+      ...(theme === null
+        ? {}
+        : {
+            'X-QuickQuiz-Session-ID': getSessionId(),
+            'X-QuickQuiz-Locale': getLocale(),
+            'X-QuickQuiz-Theme': theme,
+          }),
       ...init.headers,
     },
   });

@@ -42,8 +42,11 @@ final class QuizProjectionRenderer
     private function renderSnapshot(PDO $db): array
     {
         $objects = [];
-        $themeRows = $db->query('SELECT id,name,description,weight,active,created_at
-            FROM quiz_themes ORDER BY weight,id')->fetchAll(PDO::FETCH_ASSOC);
+        $themeRows = $db->query('SELECT theme.id,theme.name,theme.description,theme.weight,theme.active,theme.created_at,theme_tags.tags FROM quiz_themes theme
+            LEFT JOIN (
+                SELECT theme_id, json_agg(tag_slug ORDER BY tag_slug COLLATE "C") AS tags
+                FROM quiz_theme_tags GROUP BY theme_id
+            ) theme_tags ON theme_tags.theme_id=theme.id ORDER BY weight,id')->fetchAll(PDO::FETCH_ASSOC);
         $themes = [];
         foreach ($themeRows as $row) {
             $themes[] = [
@@ -53,6 +56,7 @@ final class QuizProjectionRenderer
                 'weight' => (int) $row['weight'],
                 'createdAt' => $this->utc((string) $row['created_at']),
                 'active' => $this->boolean($row['active']),
+                'tags' => json_decode((string) ($row['tags'] ?? '[]'), true, flags: JSON_THROW_ON_ERROR),
             ];
             $theme = (string) $row['id'];
             $objects[$theme.'/index.json'] = ['topics' => []];

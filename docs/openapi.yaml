@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: QuickQuiz Dev API
-  version: 0.2.0
+  version: 0.3.0
   description: QuickQuiz Dev MVP API.
 servers:
   - url: http://localhost:8080
@@ -13,6 +13,67 @@ tags:
   - name: Runs
   - name: Solutions
 paths:
+  /api/themes:
+    get:
+      operationId: listThemes
+      summary: List active published themes
+      description: >-
+        No theme header, session ID, or administrative token is required.
+        Omit tag to list all active themes. Supply exactly one tag for exact
+        membership filtering after ASCII whitespace trimming and lowercasing.
+        Empty, repeated, invalid, or oversized values return invalid_tag.
+        Inactive themes are never returned. Active themes can have no playable
+        topics. The response is locale-neutral and ordered by weight, then ID.
+      security: []
+      parameters:
+        - name: tag
+          in: query
+          required: false
+          description: >-
+            One classification slug; maximum 50 ASCII bytes before normalization.
+            A valid unknown tag produces an empty list. Repetition is invalid.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 50
+            pattern: '^[ \t\r\n\f\v]*[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*[ \t\r\n\f\v]*$'
+          example: dev
+      responses:
+        '200':
+          description: Active themes matching the optional tag, possibly empty.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemeList'
+              examples:
+                devAudience:
+                  value:
+                    themes:
+                      - id: dev
+                        name: Development
+                        description: Software development practice
+                        weight: 10
+                        active: true
+                        tags: [dev]
+                      - id: kubernetes
+                        name: Kubernetes
+                        description: Container orchestration practice
+                        weight: 20
+                        active: true
+                        tags: [cloud, dev]
+                noMatch:
+                  value:
+                    themes: []
+        '400':
+          description: Invalid tag query.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvalidTagError'
+              example:
+                error:
+                  code: invalid_tag
+                  message: Invalid tag
   /healthz:
     get:
       tags:
@@ -380,6 +441,56 @@ components:
       example: go-easy-001
 
   schemas:
+    ThemeList:
+      type: object
+      required: [themes]
+      properties:
+        themes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicTheme'
+    PublicTheme:
+      type: object
+      required: [id, name, description, weight, active, tags]
+      properties:
+        id:
+          type: string
+          minLength: 1
+        name:
+          type: string
+        description:
+          type: string
+        weight:
+          type: integer
+        createdAt:
+          type: string
+          description: Existing theme creation timestamp, when present.
+        active:
+          type: boolean
+          enum: [true]
+        tags:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          description: Canonical slugs sorted in ascending ASCII order; never null.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+            pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*(?![\s\S])'
+    InvalidTagError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [invalid_tag]
+            message:
+              type: string
     Difficulty:
       type: integer
       format: int32

@@ -25,12 +25,13 @@ type themeIndex struct {
 }
 
 type themeIndexTheme struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Weight      int    `json:"weight"`
-	CreatedAt   string `json:"createdAt"`
-	Active      bool   `json:"active"`
+	ID          string           `json:"id"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Weight      int              `json:"weight"`
+	CreatedAt   string           `json:"createdAt"`
+	Active      bool             `json:"active"`
+	Tags        domain.ThemeTags `json:"tags"`
 }
 
 type questionIndex struct {
@@ -313,6 +314,7 @@ func themeIndexToDomain(index themeIndex) []domain.Theme {
 			Weight:      theme.Weight,
 			CreatedAt:   strings.TrimSpace(theme.CreatedAt),
 			Active:      theme.Active,
+			Tags:        append(domain.ThemeTags{}, theme.Tags...),
 		})
 	}
 	return themes

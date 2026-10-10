@@ -51,6 +51,7 @@ final class QuizSourceCatalog
                 'weight' => $this->integer($theme['weight'] ?? null, 'weight', 'themes.json'),
                 'createdAt' => $this->createdAt($theme['createdAt'] ?? $theme['created_at'] ?? '', 'themes.json'),
                 'active' => $this->active($theme['active'] ?? null, 'themes.json'),
+                'tags' => QuizTags::fromPublication(array_key_exists('tags', $theme) ? $theme['tags'] : []),
             ];
         }
         unset($theme);
@@ -247,7 +248,17 @@ final class QuizSourceCatalog
     private function json(string $path): array
     {
         try {
-            $decoded = json_decode($this->storage->read($path), true, 512, JSON_THROW_ON_ERROR);
+            $contents = $this->storage->read($path);
+            $decoded = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+            if ($path === 'themes.json' && isset($decoded['themes']) && is_array($decoded['themes'])) {
+                $typed = json_decode($contents, false, 512, JSON_THROW_ON_ERROR);
+                foreach ($typed->themes ?? [] as $key => $theme) {
+                    if (is_object($theme) && property_exists($theme, 'tags')) {
+                        // Preserve {} versus [] so malformed tag sets are rejected.
+                        $decoded['themes'][$key]['tags'] = $theme->tags;
+                    }
+                }
+            }
         } catch (JsonException $error) {
             throw new RuntimeException(sprintf('%s: invalid JSON.', $path), previous: $error);
         }

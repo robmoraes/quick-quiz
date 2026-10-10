@@ -8,7 +8,14 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+Next planned release: `api/v0.8.0`.
+
 ### Added
+
+- Public `GET /api/themes` discovery with optional normalized tag filtering,
+  ordered active themes, and explicit invalid-tag errors.
+- Canonical theme tags loaded through the existing local/S3 startup snapshot,
+  with backward compatibility for untagged published content.
 
 - Added an open active-session monitor endpoint that returns non-expired run
   metadata, including finished runs retained until session TTL cleanup.
@@ -86,7 +93,7 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 - The API release image repository is configurable through the
   `DOCKERHUB_API_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.4.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.7.0...HEAD
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.2...api%2Fv0.4.0
 [0.3.2]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.1...api%2Fv0.3.2
 [0.3.1]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.0...api%2Fv0.3.1

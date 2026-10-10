@@ -243,6 +243,11 @@ jobs:
         working-directory: apps/${{ steps.tag.outputs.app }}
         run: npm run lint
 
+      - name: Test SPA Dev
+        if: steps.tag.outputs.app == 'spa-dev'
+        working-directory: apps/spa-dev
+        run: npm test
+
       - name: Build SPA
         if: steps.tag.outputs.app == 'spa-dev' || steps.tag.outputs.app == 'spa-dslab'
         working-directory: apps/${{ steps.tag.outputs.app }}

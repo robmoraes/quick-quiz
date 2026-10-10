@@ -12,24 +12,32 @@ final class QuizContentRepository
     {
     }
 
-    /** @return list<array{id:string,name:string,description:string,weight:int,createdAt:string,active:bool}> */
+    /** @return list<array{id:string,name:string,description:string,weight:int,createdAt:string,active:bool,tags:list<string>}> */
     public function themes(): array
     {
         $rows = $this->database->connection()->query(
-            'SELECT id, name, description, weight, active, created_at
-             FROM quiz_themes
+            'SELECT theme.id, theme.name, theme.description, theme.weight, theme.active, theme.created_at, theme_tags.tags
+             FROM quiz_themes theme
+             LEFT JOIN (
+                SELECT theme_id, json_agg(tag_slug ORDER BY tag_slug COLLATE "C") AS tags
+                FROM quiz_theme_tags GROUP BY theme_id
+             ) theme_tags ON theme_tags.theme_id = theme.id
              ORDER BY weight, id',
         )->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(fn (array $row): array => $this->themeRow($row), $rows);
     }
 
-    /** @return array{id:string,name:string,description:string,weight:int,createdAt:string,active:bool}|null */
+    /** @return array{id:string,name:string,description:string,weight:int,createdAt:string,active:bool,tags:list<string>}|null */
     public function theme(string $id): ?array
     {
         $statement = $this->database->connection()->prepare(
-            'SELECT id, name, description, weight, active, created_at
-             FROM quiz_themes
+            'SELECT theme.id, theme.name, theme.description, theme.weight, theme.active, theme.created_at, theme_tags.tags
+             FROM quiz_themes theme
+             LEFT JOIN (
+                SELECT theme_id, json_agg(tag_slug ORDER BY tag_slug COLLATE "C") AS tags
+                FROM quiz_theme_tags GROUP BY theme_id
+             ) theme_tags ON theme_tags.theme_id = theme.id
              WHERE id = :id',
         );
         $statement->execute(['id' => trim($id)]);
@@ -404,7 +412,7 @@ final class QuizContentRepository
         return $statement->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    /** @param array<string,mixed> $row @return array{id:string,name:string,description:string,weight:int,createdAt:string,active:bool} */
+    /** @param array<string,mixed> $row @return array{id:string,name:string,description:string,weight:int,createdAt:string,active:bool,tags:list<string>} */
     private function themeRow(array $row): array
     {
         return [
@@ -414,6 +422,7 @@ final class QuizContentRepository
             'weight' => (int) $row['weight'],
             'createdAt' => $this->utcTimestamp((string) $row['created_at']),
             'active' => $this->boolean($row['active']),
+            'tags' => json_decode((string) ($row['tags'] ?? '[]'), true, flags: JSON_THROW_ON_ERROR),
         ];
     }
 

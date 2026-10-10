@@ -102,8 +102,10 @@ final class TopicTagsIntegrationTest extends TestCase
         self::assertSame(['aws', 'redes'], $fresh->topics($this->theme, 'pt-BR', 'en-US')[0]['tags']);
         self::assertArrayNotHasKey('tags', $this->packs->readCentralCatalog()['topics'][0]);
         $this->publication->publishCurrent();
-        foreach ($this->objects->snapshot() as $contents) {
-            self::assertStringNotContainsString('"tags"', $contents);
+        foreach ($this->objects->snapshot() as $key => $contents) {
+            if ($key !== 'themes.json') {
+                self::assertStringNotContainsString('"tags"', $contents);
+            }
         }
     }
 

@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Exception\TopicTagsUnavailableException;
+use App\Exception\ThemeTagsUnavailableException;
 use App\Storage\ContentStorage;
 use App\Storage\LocalContentStorage;
 use RuntimeException;
@@ -121,6 +122,9 @@ final class QuizPackService implements QuizAuthoringService
     /** @param array<string,mixed> $input */
     public function saveTheme(array $input): void
     {
+        if (array_key_exists('tags', $input)) {
+            throw new ThemeTagsUnavailableException();
+        }
         $id = $this->normalizeKey((string) ($input['id'] ?? ''));
         if ($id === '') {
             throw new RuntimeException('Theme ID is required.');
@@ -142,6 +146,9 @@ final class QuizPackService implements QuizAuthoringService
         foreach ($themes as &$theme) {
             if (($theme['id'] ?? '') !== $id) {
                 continue;
+            }
+            if (array_key_exists('tags', $theme)) {
+                $payload['tags'] = $theme['tags'];
             }
             $theme = $payload;
             $found = true;
@@ -1426,7 +1433,7 @@ final class QuizPackService implements QuizAuthoringService
                 'weight' => (int) ($theme['weight'] ?? 0),
                 'createdAt' => $createdAt,
                 'active' => (bool) ($theme['active'] ?? false),
-            ];
+            ] + (array_key_exists('tags', $theme) ? ['tags' => $theme['tags']] : []);
         }, $themes)))];
     }
 

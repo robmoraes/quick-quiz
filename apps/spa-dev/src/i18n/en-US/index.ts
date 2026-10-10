@@ -28,6 +28,17 @@ export default {
       'One wrong answer resets the whole current session. There is no result screen for the lost run.',
     hardcoreConfirm: 'Accept fatal risk',
   },
+  themes: {
+    loading: 'Loading themes',
+    label: 'Choose the theme',
+    selected: 'Theme: {name}',
+    empty: 'No themes are available on this site yet.',
+    loadError: 'Could not load themes. Try again.',
+    configurationError: 'Theme selection is not configured correctly for this site.',
+    retry: 'Try again',
+    locked: 'The theme stays the same until this session ends.',
+    noTopics: 'This theme has no playable topics yet. Choose another theme.',
+  },
   form: {
     topic: 'Choose the Topic',
   },
