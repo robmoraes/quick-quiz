@@ -1,6 +1,6 @@
 # Feature: Tagged Theme Selection
 
-Status: Approved and implemented locally on 2026-10-10. Automated verification complete; not deployed to production.
+Status: Approved, implemented, verified, and deployed to production on 2026-10-10. See the [deployment record](../../runbooks/tagged-theme-selection-release.md).
 
 ## Intent
 
