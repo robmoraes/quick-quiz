@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"math/big"
 	"sort"
 	"time"
@@ -16,12 +17,12 @@ import (
 var (
 	ErrInvalidInput        = errors.New("invalid input")
 	ErrThemeRequired       = errors.New("theme is required")
-	ErrThemeNotFound       = errors.New("theme not found")
-	ErrThemeInactive       = errors.New("theme inactive")
-	ErrRunNotFound         = errors.New("run not found")
+	ErrThemeNotFound       = domain.ErrThemeNotFound
+	ErrThemeInactive       = domain.ErrThemeInactive
+	ErrRunNotFound         = domain.ErrRunNotFound
 	ErrRunFinished         = errors.New("run already finished")
 	ErrQuestionMismatch    = errors.New("question does not match current run state")
-	ErrQuestionNotFound    = errors.New("question not found")
+	ErrQuestionNotFound    = domain.ErrQuestionNotFound
 	ErrOptionNotFound      = errors.New("option not found")
 	ErrNoQuestionsLeft     = errors.New("no questions left")
 	ErrSolutionForbidden   = errors.New("solution forbidden")
@@ -98,6 +99,13 @@ type AnswerOutput struct {
 }
 
 func (s *RunService) Metadata(ctx context.Context, theme, locale string) (domain.CatalogMetadata, error) {
+	if theme == "" {
+		return domain.CatalogMetadata{}, ErrThemeRequired
+	}
+	if reader, ok := s.questions.(RuntimeQuestionReader); ok {
+		result, err := reader.ReadCatalog(ctx, domain.CatalogReadInput{Theme: theme, Locale: s.locales.Resolve(locale, ""), FallbackLocale: s.locales.Fallback()})
+		return result.Metadata, err
+	}
 	if err := validateTheme(ctx, s.questions, theme); err != nil {
 		return domain.CatalogMetadata{}, err
 	}
@@ -117,50 +125,49 @@ func (s *RunService) CreateRun(ctx context.Context, input CreateRunInput) (Creat
 	if input.SessionID == "" || input.Topic == "" || !input.Difficulty.Valid() {
 		return CreateRunOutput{}, ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, input.Theme); err != nil {
-		return CreateRunOutput{}, err
+	if input.Theme == "" {
+		return CreateRunOutput{}, ErrThemeRequired
 	}
-
-	resolvedLocale := s.locales.Resolve(input.Locale, "")
-	resolvedLocale, questions, err := s.questionsForDifficulty(ctx, input.Theme, resolvedLocale, input.Topic, input.Difficulty)
-	if err != nil {
-		return CreateRunOutput{}, err
-	}
-	if len(questions) == 0 {
-		return CreateRunOutput{}, ErrNoQuestionsLeft
-	}
-
 	usedQuestionIDs, err := s.runs.UsedQuestionIDs(ctx, input.SessionID, input.Theme, input.Topic, input.Difficulty)
 	if err != nil {
+		return CreateRunOutput{}, runStorageError(err)
+	}
+	selected, err := s.selectPackages(ctx, domain.RunPackageSelection{
+		Theme: input.Theme, Topic: input.Topic, Difficulty: input.Difficulty,
+		Locale: s.locales.Resolve(input.Locale, ""), FallbackLocale: s.locales.Fallback(),
+		SupportedLocales: s.locales.Supported(), Limit: s.questionLimit, UsedQuestionIDs: usedQuestionIDs,
+	})
+	if err != nil {
 		return CreateRunOutput{}, err
 	}
-	availableCount := countAvailableQuestions(questions, usedQuestionIDs)
-	if availableCount == 0 {
+	if len(selected.Packages) == 0 {
 		return CreateRunOutput{}, ErrNoQuestionsLeft
 	}
 
 	now := time.Now().UTC()
 	run := &domain.Run{
+		Version: 2, QuestionSnapshots: selected.Packages, CatalogRevision: selected.Revision,
+		CatalogProvider: selected.Provider, CatalogDigest: selected.SourceDigest,
 		ID:              "run_" + randomID(16),
 		SessionID:       input.SessionID,
 		Theme:           input.Theme,
-		Locale:          resolvedLocale,
+		Locale:          selected.Locale,
 		Topic:           input.Topic,
 		Difficulty:      input.Difficulty,
-		QuestionLimit:   minInt(s.questionLimit, availableCount),
+		QuestionLimit:   len(selected.Packages),
 		UsedQuestionIDs: usedQuestionIDs,
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}
 
-	served, err := s.nextQuestionFromList(run, questions)
+	served, err := s.nextQuestion(ctx, run)
 	if err != nil {
 		return CreateRunOutput{}, err
 	}
 	run.CurrentQuestion = &served
 
 	if err := s.runs.Create(ctx, run); err != nil {
-		return CreateRunOutput{}, err
+		return CreateRunOutput{}, runStorageError(err)
 	}
 
 	return CreateRunOutput{
@@ -175,19 +182,21 @@ func (s *RunService) SessionDifficulties(ctx context.Context, input SessionDiffi
 	if input.SessionID == "" || input.Topic == "" {
 		return domain.SessionDifficulties{}, ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, input.Theme); err != nil {
-		return domain.SessionDifficulties{}, err
-	}
-
-	resolvedLocale := s.locales.Resolve(input.Locale, "")
-	effectiveLocale, difficulties, err := s.sessionDifficultyAvailability(ctx, input.SessionID, input.Theme, resolvedLocale, input.Topic)
+	catalog, err := s.sessionCatalog(ctx, input.SessionID, input.Theme, input.Locale)
 	if err != nil {
 		return domain.SessionDifficulties{}, err
+	}
+	difficulties := make([]domain.SessionDifficultyAvailability, 0)
+	for _, topic := range catalog.Metadata.Topics {
+		if topic.ID == input.Topic {
+			difficulties = catalogDifficulties(topic, catalog.AvailableCounts[topic.ID])
+			break
+		}
 	}
 
 	return domain.SessionDifficulties{
 		Theme:        input.Theme,
-		Locale:       effectiveLocale,
+		Locale:       catalog.Metadata.Locale,
 		Topic:        input.Topic,
 		Difficulties: difficulties,
 	}, nil
@@ -197,21 +206,15 @@ func (s *RunService) SessionTopics(ctx context.Context, input SessionTopicsInput
 	if input.SessionID == "" {
 		return domain.SessionTopics{}, ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, input.Theme); err != nil {
-		return domain.SessionTopics{}, err
-	}
-
-	metadata, err := s.Metadata(ctx, input.Theme, input.Locale)
+	catalog, err := s.sessionCatalog(ctx, input.SessionID, input.Theme, input.Locale)
 	if err != nil {
 		return domain.SessionTopics{}, err
 	}
+	metadata := catalog.Metadata
 
 	topics := make([]domain.SessionTopicAvailability, 0, len(metadata.Topics))
 	for _, topic := range metadata.Topics {
-		_, difficulties, err := s.sessionDifficultyAvailability(ctx, input.SessionID, metadata.Theme, metadata.Locale, topic.ID)
-		if err != nil {
-			return domain.SessionTopics{}, err
-		}
+		difficulties := catalogDifficulties(topic, catalog.AvailableCounts[topic.ID])
 
 		questionCount := 0
 		availableQuestionCount := 0
@@ -245,23 +248,26 @@ func (s *RunService) ResetSession(ctx context.Context, sessionID, theme string) 
 	if sessionID == "" {
 		return ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, theme); err != nil {
-		return err
+	if theme == "" {
+		return ErrThemeRequired
 	}
-	return s.runs.DeleteBySession(ctx, sessionID, theme)
+	if err := s.runs.DeleteBySession(ctx, sessionID, theme); err != nil {
+		return runStorageError(err)
+	}
+	return nil
 }
 
 func (s *RunService) RunState(ctx context.Context, theme, runID string) (domain.RunState, error) {
 	if runID == "" {
 		return domain.RunState{}, ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, theme); err != nil {
-		return domain.RunState{}, err
+	if theme == "" {
+		return domain.RunState{}, ErrThemeRequired
 	}
 
 	run, err := s.runs.Get(ctx, runID)
 	if err != nil {
-		return domain.RunState{}, ErrRunNotFound
+		return domain.RunState{}, runStorageError(err)
 	}
 	if run.Theme != theme {
 		return domain.RunState{}, ErrRunNotFound
@@ -293,7 +299,7 @@ func (s *RunService) RunState(ctx context.Context, theme, runID string) (domain.
 func (s *RunService) ActiveSessions(ctx context.Context) (domain.ActiveSessions, error) {
 	runs, err := s.runs.ListTracked(ctx)
 	if err != nil {
-		return domain.ActiveSessions{}, err
+		return domain.ActiveSessions{}, runStorageError(err)
 	}
 
 	sort.SliceStable(runs, func(i, j int) bool {
@@ -343,13 +349,13 @@ func (s *RunService) Answer(ctx context.Context, theme, runID, questionID, optio
 	if runID == "" || questionID == "" || optionID == "" {
 		return AnswerOutput{}, ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, theme); err != nil {
-		return AnswerOutput{}, err
+	if theme == "" {
+		return AnswerOutput{}, ErrThemeRequired
 	}
 
 	run, err := s.runs.Get(ctx, runID)
 	if err != nil {
-		return AnswerOutput{}, ErrRunNotFound
+		return AnswerOutput{}, runStorageError(err)
 	}
 	if run.Theme != theme {
 		return AnswerOutput{}, ErrRunNotFound
@@ -376,21 +382,21 @@ func (s *RunService) Answer(ctx context.Context, theme, runID, questionID, optio
 		// Fatal hardcore loss is a server-side game rule; deleting the theme session here
 		// prevents clients from preserving progress after a wrong answer.
 		if err := s.runs.DeleteBySession(ctx, run.SessionID, run.Theme); err != nil {
-			return AnswerOutput{}, err
+			return AnswerOutput{}, runStorageError(err)
 		}
 		return AnswerOutput{Correct: false, Finished: true, FinishReason: run.FinishReason}, nil
 	}
 
 	if len(run.Answers) >= run.QuestionLimit {
 		s.finish(run, domain.FinishReasonMaxQuestionsReached)
-		return AnswerOutput{Correct: correct, Finished: true, FinishReason: run.FinishReason}, s.runs.Save(ctx, run)
+		return AnswerOutput{Correct: correct, Finished: true, FinishReason: run.FinishReason}, saveRun(ctx, s.runs, run)
 	}
 
 	next, err := s.nextQuestion(ctx, run)
 	if err != nil {
 		if errors.Is(err, ErrNoQuestionsLeft) {
 			s.finish(run, domain.FinishReasonNoQuestionsLeft)
-			return AnswerOutput{Correct: correct, Finished: true, FinishReason: run.FinishReason}, s.runs.Save(ctx, run)
+			return AnswerOutput{Correct: correct, Finished: true, FinishReason: run.FinishReason}, saveRun(ctx, s.runs, run)
 		}
 		return AnswerOutput{}, err
 	}
@@ -398,7 +404,7 @@ func (s *RunService) Answer(ctx context.Context, theme, runID, questionID, optio
 	run.CurrentQuestion = &next
 	run.UpdatedAt = time.Now().UTC()
 
-	if err := s.runs.Save(ctx, run); err != nil {
+	if err := saveRun(ctx, s.runs, run); err != nil {
 		return AnswerOutput{}, err
 	}
 
@@ -414,13 +420,13 @@ func (s *RunService) Finish(ctx context.Context, theme, runID string) error {
 	if runID == "" {
 		return ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, theme); err != nil {
-		return err
+	if theme == "" {
+		return ErrThemeRequired
 	}
 
 	run, err := s.runs.Get(ctx, runID)
 	if err != nil {
-		return ErrRunNotFound
+		return runStorageError(err)
 	}
 	if run.Theme != theme {
 		return ErrRunNotFound
@@ -428,20 +434,20 @@ func (s *RunService) Finish(ctx context.Context, theme, runID string) error {
 	if !run.Finished {
 		s.finish(run, domain.FinishReasonPlayerQuit)
 	}
-	return s.runs.Save(ctx, run)
+	return saveRun(ctx, s.runs, run)
 }
 
 func (s *RunService) Result(ctx context.Context, theme, runID string) (domain.Result, error) {
 	if runID == "" {
 		return domain.Result{}, ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, theme); err != nil {
-		return domain.Result{}, err
+	if theme == "" {
+		return domain.Result{}, ErrThemeRequired
 	}
 
 	run, err := s.runs.Get(ctx, runID)
 	if err != nil {
-		return domain.Result{}, ErrRunNotFound
+		return domain.Result{}, runStorageError(err)
 	}
 	if run.Theme != theme {
 		return domain.Result{}, ErrRunNotFound
@@ -472,6 +478,19 @@ func (s *RunService) Result(ctx context.Context, theme, runID string) (domain.Re
 }
 
 func (s *RunService) nextQuestion(ctx context.Context, run *domain.Run) (domain.ServedQuestion, error) {
+	if run.Version >= 2 {
+		index := len(run.Answers)
+		if index >= len(run.QuestionSnapshots) {
+			return domain.ServedQuestion{}, ErrNoQuestionsLeft
+		}
+		snapshot := run.QuestionSnapshots[index]
+		question, ok := snapshot.Translations[run.Locale]
+		if !ok || question.Validate() != nil {
+			return domain.ServedQuestion{}, fmt.Errorf("%w: invalid run snapshot", domain.ErrStorageUnavailable)
+		}
+		run.SnapshotIndex = index
+		return s.serveQuestion(run, question), nil
+	}
 	questions, err := s.questions.ListByThemeLocaleTopicAndDifficulty(ctx, run.Theme, run.Locale, run.Topic, run.Difficulty)
 	if err != nil {
 		return domain.ServedQuestion{}, err
@@ -547,6 +566,13 @@ func (s *RunService) nextQuestionFromList(run *domain.Run, questions []domain.Qu
 	}
 
 	question := available[randomInt(len(available))]
+	return s.serveQuestion(run, question), nil
+}
+
+func (s *RunService) serveQuestion(run *domain.Run, question domain.Question) domain.ServedQuestion {
+	if run.UsedQuestionIDs == nil {
+		run.UsedQuestionIDs = make(map[string]bool)
+	}
 	run.UsedQuestionIDs[question.ID] = true
 
 	correctText := question.CorrectOptions[randomInt(len(question.CorrectOptions))]
@@ -568,7 +594,21 @@ func (s *RunService) nextQuestionFromList(run *domain.Run, questions []domain.Qu
 		CorrectOptionID: correctOptionID,
 		Position:        len(run.Answers) + 1,
 		Total:           run.QuestionLimit,
-	}, nil
+	}
+}
+
+func runStorageError(err error) error {
+	if errors.Is(err, domain.ErrRunNotFound) || errors.Is(err, domain.ErrStorageUnavailable) {
+		return err
+	}
+	return fmt.Errorf("%w: run storage operation failed", domain.ErrStorageUnavailable)
+}
+
+func saveRun(ctx context.Context, repository RunRepository, run *domain.Run) error {
+	if err := repository.Save(ctx, run); err != nil {
+		return runStorageError(err)
+	}
+	return nil
 }
 
 func minInt(a, b int) int {

@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -68,6 +69,65 @@ func TestOpenAISolutionGeneratorCallsResponsesAPI(t *testing.T) {
 	}
 	if explanation != "Because gofmt standardizes formatting." {
 		t.Fatalf("unexpected explanation: %q", explanation)
+	}
+}
+
+type failedSolutionPromptSource struct{}
+
+func (failedSolutionPromptSource) Load(context.Context, string) (string, error) {
+	return "", domain.ErrStorageUnavailable
+}
+
+func TestOpenAISolutionPromptOutageDoesNotFallBackOrCallProvider(t *testing.T) {
+	calls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls++; w.WriteHeader(500) }))
+	defer server.Close()
+	generator := NewOpenAISolutionGenerator(OpenAISolutionGeneratorConfig{APIKey: "test-key", BaseURL: server.URL}, server.Client(), failedSolutionPromptSource{})
+	_, err := generator.GenerateSolution(context.Background(), GenerateSolutionInput{Theme: "literature"})
+	if !errors.Is(err, domain.ErrStorageUnavailable) || calls != 0 {
+		t.Fatalf("prompt outage was hidden: calls=%d err=%v", calls, err)
+	}
+}
+
+func TestPreparedPromptIsUsedEvenWhenItsSourceChanges(t *testing.T) {
+	source := &testSolutionPromptSource{prompt: "Original prompt"}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request openAIResponseRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		if request.Instructions != "Original prompt" {
+			t.Fatalf("prepared cache prompt changed: %q", request.Instructions)
+		}
+		_, _ = w.Write([]byte(`{"output_text":"Explanation"}`))
+	}))
+	defer server.Close()
+	generator := NewOpenAISolutionGenerator(OpenAISolutionGeneratorConfig{APIKey: "test-key", BaseURL: server.URL}, server.Client(), source)
+	prepared, err := generator.PrepareSolution(context.Background(), "agronomy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source.prompt = "Later prompt"
+	if _, err := generator.GenerateSolution(context.Background(), GenerateSolutionInput{Theme: "agronomy", EffectiveInstructions: prepared.Instructions}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGenerationFingerprintIncludesPublicConfigurationNotAPIKey(t *testing.T) {
+	config := OpenAISolutionGeneratorConfig{APIKey: "key-a", BaseURL: "https://provider.example/v1", Model: "model-a", Project: "project-a"}
+	a, _ := NewOpenAISolutionGenerator(config, nil, nil).PrepareSolution(context.Background(), "dev")
+	config.APIKey = "key-b"
+	b, _ := NewOpenAISolutionGenerator(config, nil, nil).PrepareSolution(context.Background(), "dev")
+	if a.GeneratorConfigDigest != b.GeneratorConfigDigest {
+		t.Fatal("credential rotation invalidated public generation semantics")
+	}
+	config.Project = "project-b"
+	c, _ := NewOpenAISolutionGenerator(config, nil, nil).PrepareSolution(context.Background(), "dev")
+	if a.GeneratorConfigDigest == c.GeneratorConfigDigest {
+		t.Fatal("project context omitted from generation identity")
+	}
+	if a.Instructions != DefaultSolutionPrompt || a.PromptDigest != hashText(DefaultSolutionPrompt) {
+		t.Fatal("missing prompt did not resolve neutral default")
 	}
 }
 

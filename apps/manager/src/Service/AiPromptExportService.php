@@ -10,8 +10,11 @@ final class AiPromptExportService
 {
     private readonly ContentStorage $contentStorage;
 
-    public function __construct(string $contentRoot, ?ContentStorage $contentStorage = null)
+    public function __construct(string $contentRoot, ?ContentStorage $contentStorage = null, private readonly string $publicationProvider = 'content_storage')
     {
+        if (!in_array($publicationProvider, ['content_storage', 'postgres'], true)) {
+            throw new RuntimeException('Unsupported AI prompt publication provider.');
+        }
         $this->contentStorage = $contentStorage ?? new LocalContentStorage($contentRoot);
     }
 
@@ -27,6 +30,9 @@ final class AiPromptExportService
             throw new RuntimeException('Prompt text is required for export.');
         }
 
+        if ($this->publicationProvider === 'postgres') {
+            return;
+        }
         $this->contentStorage->write($this->questionSolutionPromptKey($theme), $text."\n");
     }
 

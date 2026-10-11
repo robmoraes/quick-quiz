@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: QuickQuiz Manager Administration API
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Protected API for discovering and maintaining QuickQuiz themes, topics,
     and complete localized question sets. Every operation requires an
@@ -1012,17 +1012,45 @@ components:
                     items:
                       $ref: "#/components/schemas/TopicView"
     Publication:
+      description: 'Publication metadata inside existing mutation envelopes. The branches are disjoint by
+        backend: omission or content_storage selects the legacy profile; postgres selects the atomic database
+        profile. No OpenAPI discriminator is required because legacy responses may omit backend. Canonical
+        resource/deletion fields and TopicTagsOnlyPublication remain unchanged when this component is merged.'
+      oneOf:
+      - $ref: '#/components/schemas/LegacyPublication'
+      - $ref: '#/components/schemas/PostgresPublication'
+      x-canonical-bindings:
+      - ThemeMutation.publication
+      - TopicMutation.publication.oneOf
+      - CreateQuestionBatchResult.publication
+      - DeleteThemeResult.publication
+      - DeleteTopicResult.publication
+      - DeleteQuestionResult.publication
+      - Existing inline question-mutation publication references
+    PublicationFields:
       type: object
-      required: [apiReloadRequired, reason]
+      required:
+      - apiReloadRequired
+      - reason
+      description: Existing mutation publication fields plus additive backend metadata. Keep these fields
+        and any canonical envelope/resource requirements during the implementation merge.
       properties:
+        backend:
+          type: string
+          enum:
+          - content_storage
+          - postgres
         revision:
           type: integer
           minimum: 0
-          description: Present when PostgreSQL authoring is active.
         status:
           type: string
-          enum: [published]
-          description: Present when PostgreSQL authoring is active.
+          enum:
+          - published
+        apiReloadRequired:
+          type: boolean
+        reason:
+          type: string
         checksum:
           type: string
           nullable: true
@@ -1032,17 +1060,78 @@ components:
         durationMs:
           type: integer
           nullable: true
-        apiReloadRequired:
-          type: boolean
-          enum: [true]
-        reason:
-          type: string
+    LegacyPublication:
+      allOf:
+      - $ref: '#/components/schemas/PublicationFields'
+      - type: object
+        properties:
+          backend:
+            type: string
+            enum:
+            - content_storage
+          apiReloadRequired:
+            type: boolean
+            enum:
+            - true
+      description: Compatible successful local/S3 mutation publication. backend is optional; PostgreSQL authoring
+        may still use this content_storage publication profile. Topic-tags-only responses use their existing
+        separate component.
+    PostgresPublication:
+      allOf:
+      - $ref: '#/components/schemas/PublicationFields'
+      - type: object
+        required:
+        - backend
+        - revision
+        - status
+        - apiReloadRequired
+        properties:
+          backend:
+            type: string
+            enum:
+            - postgres
+          status:
+            type: string
+            enum:
+            - published
+          apiReloadRequired:
+            type: boolean
+            enum:
+            - false
+          checksum:
+            type: string
+            nullable: true
+            enum:
+            - null
+          objectCount:
+            type: integer
+            nullable: true
+            enum:
+            - null
+      description: Successful atomic PostgreSQL mutation publication. revision identifies the content commit;
+        checksum and objectCount, when present, are null because no legacy export is performed by CRUD.
     PublicationStatus:
+      description: Status metadata inside the publication GET/POST envelopes. Omitted backend or content_storage
+        selects the compatible legacy profile; postgres requires a committed published state and reload false.
+      oneOf:
+      - $ref: '#/components/schemas/LegacyPublicationStatus'
+      - $ref: '#/components/schemas/PostgresPublicationStatus'
+    PublicationStatusFields:
       type: object
+      description: Preserve all existing canonical status fields and add backend metadata. provider continues
+        identifying authoring persistence; backend identifies publication. Existing diagnostic/timing fields
+        remain available.
       properties:
         provider:
           type: string
-          enum: [legacy, postgres]
+          enum:
+          - legacy
+          - postgres
+        backend:
+          type: string
+          enum:
+          - content_storage
+          - postgres
         currentRevision:
           type: integer
           minimum: 0
@@ -1054,7 +1143,12 @@ components:
           minimum: 0
         status:
           type: string
-          enum: [pending, published, failed]
+          enum:
+          - pending
+          - published
+          - failed
+        apiReloadRequired:
+          type: boolean
         checksum:
           type: string
           nullable: true
@@ -1073,8 +1167,62 @@ components:
         durationMs:
           type: integer
           nullable: true
-        apiReloadRequired:
-          type: boolean
+    LegacyPublicationStatus:
+      allOf:
+      - $ref: '#/components/schemas/PublicationStatusFields'
+      - type: object
+        properties:
+          backend:
+            type: string
+            enum:
+            - content_storage
+      description: Existing legacy status shape, including pending/failed revisions and optional reload metadata.
+        backend may be absent. provider may be legacy or postgres because authoring persistence and publication
+        are distinct.
+    PostgresPublicationStatus:
+      allOf:
+      - $ref: '#/components/schemas/PublicationStatusFields'
+      - type: object
+        required:
+        - provider
+        - backend
+        - currentRevision
+        - publishedRevision
+        - status
+        - apiReloadRequired
+        properties:
+          provider:
+            type: string
+            enum:
+            - postgres
+          backend:
+            type: string
+            enum:
+            - postgres
+          status:
+            type: string
+            enum:
+            - published
+          apiReloadRequired:
+            type: boolean
+            enum:
+            - false
+          checksum:
+            type: string
+            nullable: true
+            enum:
+            - null
+          objectCount:
+            type: integer
+            nullable: true
+            enum:
+            - null
+      description: Atomic database publication status. currentRevision and publishedRevision are required
+        and equal; if revision is present, it denotes that same commit. OpenAPI 3.0 cannot express equality
+        between separate properties; enforce these invariants in application and integration validation.
+      x-invariants:
+      - currentRevision equals publishedRevision.
+      - revision, when present, equals currentRevision.
     PublicationFailure:
       type: object
       required: [error, publication]

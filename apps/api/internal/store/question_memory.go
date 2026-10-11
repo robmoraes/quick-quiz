@@ -10,10 +10,12 @@ import (
 )
 
 type MemoryQuestionStore struct {
-	mu        sync.RWMutex
-	questions []domain.Question
-	topics    []domain.TopicOption
-	themes    []domain.Theme
+	mu           sync.RWMutex
+	questions    []domain.Question
+	topics       []domain.TopicOption
+	themes       []domain.Theme
+	provider     string
+	sourceDigest string
 }
 
 func NewMemoryQuestionStore(questions []domain.Question) *MemoryQuestionStore {
@@ -34,17 +36,20 @@ func NewMemoryQuestionStoreWithThemeMetadata(questions []domain.Question, topics
 			continue
 		}
 		seen[questionKey] = true
-		valid = append(valid, question)
+		valid = append(valid, cloneQuestion(question))
 	}
 
-	return &MemoryQuestionStore{
+	result := &MemoryQuestionStore{
 		questions: valid,
 		topics: normalizeTopicOptions(
 			topics,
 			valid,
 		),
-		themes: normalizeThemes(themes, valid),
+		themes:   normalizeThemes(themes, valid),
+		provider: "local",
 	}
+	result.sourceDigest = result.datasetDigest()
+	return result
 }
 
 func (s *MemoryQuestionStore) Theme(_ context.Context, themeID string) (domain.Theme, error) {
@@ -225,6 +230,7 @@ func normalizeThemes(themes []domain.Theme, questions []domain.Question) []domai
 		if theme.Name == "" {
 			theme.Name = theme.ID
 		}
+		theme.Tags = append(domain.ThemeTags{}, theme.Tags...)
 		theme.Tags = append(domain.ThemeTags{}, theme.Tags...)
 		normalized = append(normalized, theme)
 	}

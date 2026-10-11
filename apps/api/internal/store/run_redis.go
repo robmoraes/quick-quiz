@@ -24,6 +24,8 @@ type RedisRunStoreConfig struct {
 	TLSConfig *tls.Config
 	KeyPrefix string
 	TTL       time.Duration
+	// Operator dry-run clients must not bootstrap an empty database implicitly.
+	DisableIndexBootstrap bool
 }
 
 type RedisRunStore struct {
@@ -36,8 +38,8 @@ func NewRedisRunStore(ctx context.Context, config RedisRunStoreConfig) (*RedisRu
 	if strings.TrimSpace(config.Addr) == "" {
 		return nil, errors.New("REDIS_ADDR is required")
 	}
-	if config.TTL <= 0 {
-		return nil, errors.New("SESSION_TTL must be greater than zero")
+	if config.TTL < time.Millisecond {
+		return nil, errors.New("SESSION_TTL must be at least one millisecond")
 	}
 
 	keyPrefix := strings.TrimSpace(config.KeyPrefix)
@@ -57,10 +59,17 @@ func NewRedisRunStore(ctx context.Context, config RedisRunStoreConfig) (*RedisRu
 	})
 	if err := client.Ping(ctx).Err(); err != nil {
 		_ = client.Close()
-		return nil, fmt.Errorf("connect to Redis at %s: %w", config.Addr, err)
+		return nil, indexError(err)
 	}
 
-	return newRedisRunStore(client, keyPrefix, config.TTL), nil
+	store := newRedisRunStore(client, keyPrefix, config.TTL)
+	if !config.DisableIndexBootstrap {
+		if err := store.bootstrapIndex(ctx); err != nil {
+			_ = client.Close()
+			return nil, err
+		}
+	}
+	return store, nil
 }
 
 func newRedisRunStore(client *redis.Client, keyPrefix string, ttl time.Duration) *RedisRunStore {
@@ -72,7 +81,7 @@ func (s *RedisRunStore) Close() error {
 }
 
 func (s *RedisRunStore) Create(ctx context.Context, run *domain.Run) error {
-	return s.store(ctx, run)
+	return s.store(ctx, run, true)
 }
 
 func (s *RedisRunStore) Get(ctx context.Context, id string) (*domain.Run, error) {
@@ -81,18 +90,18 @@ func (s *RedisRunStore) Get(ctx context.Context, id string) (*domain.Run, error)
 		return nil, errRunNotFound{}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("get run %q from Redis: %w", id, err)
+		return nil, indexError(err)
 	}
 
 	run, err := decodeRedisRun(payload)
 	if err != nil {
-		return nil, fmt.Errorf("decode run %q from Redis: %w", id, err)
+		return nil, indexError(errors.New("invalid Redis run record"))
 	}
 	return run, nil
 }
 
 func (s *RedisRunStore) Save(ctx context.Context, run *domain.Run) error {
-	return s.store(ctx, run)
+	return s.store(ctx, run, false)
 }
 
 func (s *RedisRunStore) ListTracked(ctx context.Context) ([]domain.Run, error) {
@@ -108,40 +117,17 @@ func (s *RedisRunStore) ListTracked(ctx context.Context) ([]domain.Run, error) {
 }
 
 func (s *RedisRunStore) DeleteBySession(ctx context.Context, sessionID, theme string) error {
-	keys := make([]string, 0)
-	err := s.forEachRun(ctx, func(run *domain.Run) error {
-		if run.SessionID == sessionID && run.Theme == theme {
-			keys = append(keys, s.key(run.ID))
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	if len(keys) == 0 {
-		return nil
-	}
-	if err := s.client.Del(ctx, keys...).Err(); err != nil {
-		return fmt.Errorf("delete session runs from Redis: %w", err)
-	}
-	return nil
+	return s.deleteIndexedSession(ctx, sessionID, theme)
 }
 
 func (s *RedisRunStore) UsedQuestionIDs(ctx context.Context, sessionID, theme, topic string, difficulty domain.Difficulty) (map[string]bool, error) {
 	usedQuestionIDs := make(map[string]bool)
-	err := s.forEachRun(ctx, func(run *domain.Run) error {
-		if run.SessionID != sessionID || run.Theme != theme || run.Topic != topic || run.Difficulty != difficulty {
-			return nil
-		}
-		for id, used := range run.UsedQuestionIDs {
-			if used {
-				usedQuestionIDs[id] = true
-			}
-		}
-		return nil
-	})
+	consumption, err := s.ConsumedBySession(ctx, sessionID, theme)
 	if err != nil {
 		return nil, err
+	}
+	for _, id := range consumption[topic][difficulty] {
+		usedQuestionIDs[id] = true
 	}
 	return usedQuestionIDs, nil
 }
@@ -180,8 +166,12 @@ func (s *RedisRunStore) TrackSolutionRequest(ctx context.Context, runID, questio
 			if err != nil {
 				return err
 			}
+			metadata, err := s.metadata(run)
+			if err != nil {
+				return err
+			}
 			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
-				pipe.Set(ctx, key, updatedPayload, s.ttl)
+				pipe.Eval(ctx, indexedWriteLua, s.writeIndexKeys(run), s.writeIndexArgs(run, updatedPayload, metadata, false)...)
 				return nil
 			})
 			if err == nil {
@@ -193,22 +183,27 @@ func (s *RedisRunStore) TrackSolutionRequest(ctx context.Context, runID, questio
 			continue
 		}
 		if err != nil {
-			return false, fmt.Errorf("track solution request in Redis: %w", err)
+			if errors.As(err, new(errRunNotFound)) {
+				return false, err
+			}
+			return false, indexError(err)
 		}
 		return allowed, nil
 	}
-	return false, errors.New("track solution request in Redis: concurrent update retry limit reached")
+	return false, indexError(errors.New("concurrent update retry limit reached"))
 }
 
-func (s *RedisRunStore) store(ctx context.Context, run *domain.Run) error {
+func (s *RedisRunStore) store(ctx context.Context, run *domain.Run, requireReady bool) error {
+	metadata, err := s.metadata(run)
+	if err != nil {
+		return indexError(err)
+	}
 	payload, err := json.Marshal(run)
 	if err != nil {
-		return fmt.Errorf("encode run %q for Redis: %w", run.ID, err)
+		return indexError(errors.New("cannot encode Redis run record"))
 	}
-	if err := s.client.Set(ctx, s.key(run.ID), payload, s.ttl).Err(); err != nil {
-		return fmt.Errorf("store run %q in Redis: %w", run.ID, err)
-	}
-	return nil
+	_, err = s.client.Eval(ctx, indexedWriteLua, s.writeIndexKeys(run), s.writeIndexArgs(run, payload, metadata, requireReady)...).Result()
+	return indexError(err)
 }
 
 func (s *RedisRunStore) forEachRun(ctx context.Context, visit func(*domain.Run) error) error {

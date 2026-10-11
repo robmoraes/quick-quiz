@@ -54,7 +54,7 @@ func NewRedisSolutionStore(ctx context.Context, config RedisSolutionStoreConfig)
 	})
 	if err := client.Ping(ctx).Err(); err != nil {
 		_ = client.Close()
-		return nil, fmt.Errorf("connect to Redis at %s: %w", config.Addr, err)
+		return nil, fmt.Errorf("connect to Redis solution storage: %w", err)
 	}
 
 	return newRedisSolutionStore(client, keyPrefix, config.TTL), nil
@@ -66,6 +66,13 @@ func newRedisSolutionStore(client *redis.Client, keyPrefix string, ttl time.Dura
 
 func (s *RedisSolutionStore) Close() error {
 	return s.client.Close()
+}
+
+func (s *RedisSolutionStore) Ready(ctx context.Context) error {
+	if err := s.client.Ping(ctx).Err(); err != nil {
+		return fmt.Errorf("%w: Redis solution storage unavailable: %w", domain.ErrStorageUnavailable, err)
+	}
+	return nil
 }
 
 func (s *RedisSolutionStore) Get(ctx context.Context, key domain.QuestionSolution) (domain.QuestionSolution, error) {

@@ -31,10 +31,14 @@ const (
 )
 
 var (
-	ErrInvalidDifficulty = errors.New("invalid difficulty")
-	ErrInvalidQuestion   = errors.New("invalid question")
-	ErrSolutionNotFound  = errors.New("solution not found")
-	ErrThemeNotFound     = errors.New("theme not found")
+	ErrInvalidDifficulty  = errors.New("invalid difficulty")
+	ErrInvalidQuestion    = errors.New("invalid question")
+	ErrSolutionNotFound   = errors.New("solution not found")
+	ErrThemeNotFound      = errors.New("theme not found")
+	ErrThemeInactive      = errors.New("theme inactive")
+	ErrQuestionNotFound   = errors.New("question not found")
+	ErrStorageUnavailable = errors.New("storage unavailable")
+	ErrRunNotFound        = errors.New("run not found")
 )
 
 type Theme struct {
@@ -59,15 +63,16 @@ type Question struct {
 }
 
 type QuestionSolution struct {
-	Theme        string     `json:"theme"`
-	Locale       string     `json:"locale"`
-	Topic        string     `json:"topic"`
-	Difficulty   Difficulty `json:"difficulty"`
-	QuestionID   string     `json:"questionId"`
-	Explanation  string     `json:"explanation"`
-	Model        string     `json:"model,omitempty"`
-	QuestionHash string     `json:"-"`
-	GeneratedAt  string     `json:"generatedAt,omitempty"`
+	Theme         string     `json:"theme"`
+	Locale        string     `json:"locale"`
+	Topic         string     `json:"topic"`
+	Difficulty    Difficulty `json:"difficulty"`
+	QuestionID    string     `json:"questionId"`
+	Explanation   string     `json:"explanation"`
+	Model         string     `json:"model,omitempty"`
+	QuestionHash  string     `json:"-"`
+	CacheIdentity string     `json:"-"`
+	GeneratedAt   string     `json:"generatedAt,omitempty"`
 }
 
 func (q Question) Validate() error {
@@ -125,6 +130,12 @@ type AnswerRecord struct {
 }
 
 type Run struct {
+	Version                    int                `json:",omitempty"`
+	QuestionSnapshots          []QuestionSnapshot `json:",omitempty"`
+	SnapshotIndex              int                `json:",omitempty"`
+	CatalogRevision            *int64             `json:",omitempty"`
+	CatalogProvider            string             `json:",omitempty"`
+	CatalogDigest              string             `json:",omitempty"`
 	ID                         string
 	SessionID                  string
 	Theme                      string

@@ -51,6 +51,15 @@ not require installing Spec Kit or a shared specification service.
   storage, publication, API compatibility, frontend state, and rollout design.
 - [005-tagged-theme-selection/tasks.md](005-tagged-theme-selection/tasks.md):
   implementation checklist and local automated verification evidence.
+- [006-postgresql-quiz-runtime/spec.md](006-postgresql-quiz-runtime/spec.md):
+  approved PostgreSQL player reads, atomic publication, and stable run snapshots
+  for a growing, subject-neutral catalog.
+- [006-postgresql-quiz-runtime/plan.md](006-postgresql-quiz-runtime/plan.md):
+  scoped SQL/Redis access, reader permissions, compatibility, and recovery.
+- [006-postgresql-quiz-runtime/tasks.md](006-postgresql-quiz-runtime/tasks.md):
+  implementation checklist and automated acceptance/capacity evidence.
+- [ADR 004](../architecture/adr/004-postgresql-quiz-runtime.md): accepted
+  replacement of the S3/runtime-snapshot publication boundary; deployment is separate.
 
 ## Archive
 

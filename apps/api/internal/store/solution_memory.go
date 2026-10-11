@@ -2,6 +2,9 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -41,6 +44,13 @@ func (s *MemorySolutionStore) Save(_ context.Context, solution domain.QuestionSo
 }
 
 func solutionKey(solution domain.QuestionSolution) string {
+	if solution.CacheIdentity != "" {
+		// Hash structured identity, rather than joining untrusted text with a
+		// separator. No content/instruction text appears in a cache key.
+		payload, _ := json.Marshal([]any{"v2", solution.Theme, solution.Locale, solution.Topic, solution.Difficulty, solution.QuestionID, solution.CacheIdentity})
+		sum := sha256.Sum256(payload)
+		return "v2:" + hex.EncodeToString(sum[:])
+	}
 	return fmt.Sprintf(
 		"%s:%s:%s:%d:%s",
 		solution.Theme,

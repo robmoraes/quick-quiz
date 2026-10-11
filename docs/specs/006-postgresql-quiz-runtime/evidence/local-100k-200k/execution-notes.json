@@ -1,0 +1,24 @@
+{
+  "measurement_status": "completed",
+  "measured_http_operations": 24000,
+  "measured_http_and_validation_errors": 0,
+  "owned_session_cleanup_errors": 0,
+  "api_container_exit_codes": [0, 0],
+  "api_containers_oom_killed": [false, false],
+  "orchestration_finalization": {
+    "initial_error": "The shell wrapper was edited while Bash was still reading it. Both completed measurement receipts and API/dependency statistics had already been written, but final summary generation encountered a shell parse error.",
+    "recovery": "The EXIT trap removed all owned containers and their anonymous volumes. Receipt ownership was restored to workspace UID 1004, and summarize.py was executed locally against the unchanged completed measurement receipts.",
+    "current_runner_checks": "bash -n passed; the wrapper now runs the API process with the workspace UID and records the executable checksum/build info before measurement.",
+    "workload_repeated": false,
+    "dependency_final_inspect_available": false,
+    "dependency_oom_or_restart_claim": "Not asserted: final dependency inspect was skipped by the wrapper parse error. API exit/OOM states are independently captured in each api-container JSON. Dependency memory statistics were captured after each workload."
+  },
+  "reproducibility_limit": "The initial run did not capture an executable checksum before its temporary binary was removed. Tool and dependency versions are recorded, and each plan/latency/memory receipt is retained. The current wrapper captures the checksum/build info for subsequent runs; no checksum of the completed run is invented.",
+  "cleanup_verified": "A subsequent docker ps -a filtered by the tool's exclusive quickquiz.runtime-benchmark=synthetic label returned no containers.",
+  "acceptance_limits": [
+    "The host is shared, with 12 logical CPUs and about 15.4 GiB RAM; all three benchmark workloads were pinned to the same two CPUs and given aggregate 2 GiB container memory limits.",
+    "The test excludes Manager, ads, SPAs, reverse proxy, production log I/O, AI, and ingress transit; load generation and validation share the API process.",
+    "The fixture administrator performs count/parity verification before the startup timer; startup measures runtime stores plus readyz with healthy seeded dependencies, not complete executable boot.",
+    "No dedicated production-node approval or one-million-question capacity claim is made."
+  ]
+}

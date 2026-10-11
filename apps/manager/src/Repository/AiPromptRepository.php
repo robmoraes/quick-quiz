@@ -10,7 +10,7 @@ final class AiPromptRepository
 {
     private ?PDO $pdo = null;
 
-    public function __construct(private readonly string $databaseUrl)
+    public function __construct(private readonly string $databaseUrl, private readonly string $publicationProvider = 'content_storage')
     {
     }
 
@@ -98,23 +98,25 @@ final class AiPromptRepository
 
         $this->initialize();
         $now = gmdate('c');
-        $statement = $this->pdo()->prepare(
-            'INSERT INTO ai_prompts (theme, prompt_key, prompt_text, created_at, updated_at)
-             VALUES (:theme, :prompt_key, :prompt_text, :created_at, :updated_at)
-             ON CONFLICT(theme, prompt_key) DO UPDATE SET
-                prompt_text = excluded.prompt_text,
-                updated_at = excluded.updated_at',
-        );
-        $ok = $statement->execute([
-            'theme' => $theme,
-            'prompt_key' => $key,
-            'prompt_text' => $text,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-        if (!$ok) {
-            throw new RuntimeException('Could not save AI prompt.');
-        }
+        $this->mutate(function (PDO $pdo) use ($theme, $key, $text, $now): void {
+            $statement = $pdo->prepare(
+                'INSERT INTO ai_prompts (theme, prompt_key, prompt_text, created_at, updated_at)
+                 VALUES (:theme, :prompt_key, :prompt_text, :created_at, :updated_at)
+                 ON CONFLICT(theme, prompt_key) DO UPDATE SET
+                    prompt_text = excluded.prompt_text,
+                    updated_at = excluded.updated_at',
+            );
+            $ok = $statement->execute([
+                'theme' => $theme,
+                'prompt_key' => $key,
+                'prompt_text' => $text,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            if (!$ok) {
+                throw new RuntimeException('Could not save AI prompt.');
+            }
+        });
     }
 
     public function restoreDefault(string $theme, string $key): void
@@ -122,8 +124,42 @@ final class AiPromptRepository
         $theme = $this->normalizeTheme($theme);
         AiPromptDefaults::get($key);
         $this->initialize();
-        $statement = $this->pdo()->prepare('DELETE FROM ai_prompts WHERE theme = :theme AND prompt_key = :prompt_key');
-        $statement->execute(['theme' => $theme, 'prompt_key' => $key]);
+        $this->mutate(function (PDO $pdo) use ($theme, $key): void {
+            $statement = $pdo->prepare('DELETE FROM ai_prompts WHERE theme = :theme AND prompt_key = :prompt_key');
+            $statement->execute(['theme' => $theme, 'prompt_key' => $key]);
+        });
+    }
+
+    /** Serialize prompt writes with quiz writes and explicit consistent exports. */
+    private function mutate(callable $operation): void
+    {
+        $pdo = $this->pdo();
+        $owns = !$pdo->inTransaction();
+        try {
+            if ($owns) {
+                $pdo->beginTransaction();
+            }
+            if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+                QuizCatalogLock::transaction($pdo);
+                if ($pdo->query("SELECT to_regclass('quiz_catalog_state')")->fetchColumn() !== null) {
+                    $backend = $pdo->query('SELECT publication_backend FROM quiz_catalog_state WHERE singleton=1')->fetchColumn();
+                    if ($backend !== $this->publicationProvider) {
+                        throw new RuntimeException('Configured prompt publication backend disagrees with stored catalog state.');
+                    }
+                } elseif ($this->publicationProvider === 'postgres') {
+                    throw new RuntimeException('PostgreSQL prompt publication requires migrated quiz catalog state.');
+                }
+            }
+            $operation($pdo);
+            if ($owns) {
+                $pdo->commit();
+            }
+        } catch (\Throwable $error) {
+            if ($owns && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $error;
+        }
     }
 
     /** @return array<string,array{text:string,updated_at:string}> */

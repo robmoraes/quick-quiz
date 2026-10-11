@@ -27,17 +27,49 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: parseLogLevel(cfg.LogLevel),
 	}))
+	if len(os.Args) > 1 {
+		if err := runCommand(context.Background(), cfg, os.Args[1:]); err != nil {
+			logger.Error("command failed", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	localeManager := i18n.NewManager(cfg.FallbackLocale, cfg.SupportedLocales)
-
-	storageCtx, cancelStorage := context.WithTimeout(context.Background(), cfg.StorageStartupTimeout)
-	questionDataset, err := loadQuestionDataset(storageCtx, cfg, localeManager.Fallback(), localeManager.Supported())
-	cancelStorage()
-	if err != nil {
-		logger.Error("failed to load questions", "provider", cfg.QuestionStorageProvider, "error", err)
-		os.Exit(1)
+	var postgres *store.PostgresQuestionStore
+	if cfg.QuestionStorageProvider == "postgres" || cfg.SolutionPromptStorageProvider == "postgres" {
+		postgres, err = store.NewPostgresQuestionStore(context.Background(), store.PostgresQuestionStoreConfig{
+			URL: cfg.QuizDatabase.URL, MaxConnections: cfg.QuizDatabase.MaxConnections,
+			ConnectTimeout: cfg.QuizDatabase.ConnectTimeout, QueryTimeout: cfg.QuizDatabase.QueryTimeout,
+			MaxIdleTime: cfg.QuizDatabase.MaxIdleTime, FallbackLocale: localeManager.Fallback(), SupportedLocales: localeManager.Supported(),
+		})
+		if err != nil {
+			logger.Error("failed to initialize PostgreSQL", "error", err)
+			os.Exit(1)
+		}
+		defer postgres.Close()
 	}
 
-	questionStore := store.NewMemoryQuestionStoreWithThemeMetadata(questionDataset.Questions, questionDataset.Topics, questionDataset.Themes)
+	storageCtx, cancelStorage := context.WithTimeout(context.Background(), cfg.StorageStartupTimeout)
+	var questionStore app.QuestionRepository
+	if cfg.QuestionStorageProvider == "postgres" {
+		if err = postgres.Ready(storageCtx); err != nil {
+			cancelStorage()
+			logger.Error("PostgreSQL runtime is not ready", "error", err)
+			os.Exit(1)
+		}
+		questionStore = postgres
+	} else {
+		dataset, loadErr := loadQuestionDataset(storageCtx, cfg, localeManager.Fallback(), localeManager.Supported())
+		if loadErr != nil {
+			cancelStorage()
+			logger.Error("failed to load questions", "provider", cfg.QuestionStorageProvider, "error", loadErr)
+			os.Exit(1)
+		}
+		memory := store.NewMemoryQuestionStoreWithThemeMetadata(dataset.Questions, dataset.Topics, dataset.Themes)
+		memory.SetProvenanceProvider(cfg.QuestionStorageProvider)
+		questionStore = memory
+	}
+	cancelStorage()
 	runStore, closeRunStore, err := loadRunStore(context.Background(), cfg)
 	if err != nil {
 		logger.Error("failed to initialize run storage", "provider", cfg.RunStorageProvider, "error", err)
@@ -48,6 +80,19 @@ func main() {
 			logger.Error("failed to close run storage", "error", err)
 		}
 	}()
+	if cfg.QuestionStorageProvider == "postgres" {
+		if legacy, ok := runStore.(interface {
+			CountLegacyDependent(context.Context) (int, error)
+		}); ok {
+			legacyCtx, cancelLegacy := context.WithTimeout(context.Background(), cfg.StorageStartupTimeout)
+			count, countErr := legacy.CountLegacyDependent(legacyCtx)
+			cancelLegacy()
+			if countErr != nil || count != 0 {
+				logger.Error("PostgreSQL cutover requires no legacy-provider-dependent runs", "remaining", count)
+				os.Exit(1)
+			}
+		}
+	}
 	runService := app.NewRunService(questionStore, runStore, cfg.RunQuestionLimit, localeManager)
 	solutionStore, closeSolutionStore, err := loadSolutionStore(context.Background(), cfg)
 	if err != nil {
@@ -60,10 +105,10 @@ func main() {
 		}
 	}()
 	promptCtx, cancelPrompt := context.WithTimeout(context.Background(), cfg.StorageStartupTimeout)
-	promptSource, err := loadSolutionPromptSource(promptCtx, cfg)
+	promptSource, err := loadSolutionPromptSource(promptCtx, cfg, postgres)
 	cancelPrompt()
 	if err != nil {
-		logger.Error("failed to initialize solution prompt storage", "provider", cfg.QuestionStorageProvider, "error", err)
+		logger.Error("failed to initialize solution prompt storage", "provider", cfg.SolutionPromptStorageProvider, "error", err)
 		os.Exit(1)
 	}
 	solutionGenerator := app.NewOpenAISolutionGenerator(app.OpenAISolutionGeneratorConfig{
@@ -76,9 +121,21 @@ func main() {
 	}, nil, promptSource)
 	solutionService := app.NewSolutionService(questionStore, runStore, solutionStore, solutionGenerator, localeManager)
 
+	readiness := make([]httpapi.ReadinessCheck, 0, 4)
+	if cfg.QuestionStorageProvider == "postgres" {
+		readiness = append(readiness, postgres.Ready)
+	}
+	if cfg.SolutionPromptStorageProvider == "postgres" {
+		readiness = append(readiness, postgres.PromptReady)
+	}
+	for _, dependency := range []any{runStore, solutionStore} {
+		if check, ok := dependency.(interface{ Ready(context.Context) error }); ok {
+			readiness = append(readiness, check.Ready)
+		}
+	}
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(runService, solutionService, logger, cfg.CORSAllowedOrigins),
+		Handler:           httpapi.NewRouter(runService, solutionService, logger, cfg.CORSAllowedOrigins, readiness...),
 		ReadHeaderTimeout: cfg.HTTPReadHeaderTimeout,
 		ReadTimeout:       cfg.HTTPReadTimeout,
 		WriteTimeout:      cfg.HTTPWriteTimeout,
@@ -108,8 +165,13 @@ func main() {
 	}
 }
 
-func loadSolutionPromptSource(ctx context.Context, cfg config.Config) (app.SolutionPromptSource, error) {
-	switch strings.ToLower(strings.TrimSpace(cfg.QuestionStorageProvider)) {
+func loadSolutionPromptSource(ctx context.Context, cfg config.Config, postgres ...*store.PostgresQuestionStore) (app.SolutionPromptSource, error) {
+	switch strings.ToLower(strings.TrimSpace(cfg.SolutionPromptStorageProvider)) {
+	case "postgres":
+		if len(postgres) == 0 || postgres[0] == nil {
+			return nil, fmt.Errorf("PostgreSQL prompt storage is not initialized")
+		}
+		return postgres[0], nil
 	case "", "local":
 		return store.NewFileSolutionPromptSource(cfg.OpenAI.SolutionPromptFile), nil
 	case "s3":
@@ -121,7 +183,7 @@ func loadSolutionPromptSource(ctx context.Context, cfg config.Config) (app.Solut
 			ForcePathStyle: cfg.S3.ForcePathStyle,
 		})
 	default:
-		return nil, fmt.Errorf("unsupported QUESTION_STORAGE_PROVIDER %q: use local or s3", cfg.QuestionStorageProvider)
+		return nil, fmt.Errorf("unsupported SOLUTION_PROMPT_STORAGE_PROVIDER")
 	}
 }
 
@@ -157,7 +219,7 @@ func loadSolutionStore(ctx context.Context, cfg config.Config) (app.SolutionRepo
 	}
 }
 
-func loadRunStore(ctx context.Context, cfg config.Config) (app.RunRepository, func() error, error) {
+func loadRunStore(ctx context.Context, cfg config.Config, disableBootstrap ...bool) (app.RunRepository, func() error, error) {
 	switch strings.ToLower(strings.TrimSpace(cfg.RunStorageProvider)) {
 	case "", "memory":
 		return store.NewMemoryRunStore(cfg.SessionTTL), func() error { return nil }, nil
@@ -170,13 +232,14 @@ func loadRunStore(ctx context.Context, cfg config.Config) (app.RunRepository, fu
 		connectCtx, cancel := context.WithTimeout(ctx, cfg.Redis.ConnectTimeout)
 		defer cancel()
 		runStore, err := store.NewRedisRunStore(connectCtx, store.RedisRunStoreConfig{
-			Addr:      cfg.Redis.Addr,
-			Username:  cfg.Redis.Username,
-			Password:  cfg.Redis.Password,
-			DB:        cfg.Redis.DB,
-			TLSConfig: tlsConfig,
-			KeyPrefix: cfg.Redis.KeyPrefix,
-			TTL:       cfg.SessionTTL,
+			Addr:                  cfg.Redis.Addr,
+			Username:              cfg.Redis.Username,
+			Password:              cfg.Redis.Password,
+			DB:                    cfg.Redis.DB,
+			TLSConfig:             tlsConfig,
+			KeyPrefix:             cfg.Redis.KeyPrefix,
+			TTL:                   cfg.SessionTTL,
+			DisableIndexBootstrap: len(disableBootstrap) > 0 && disableBootstrap[0],
 		})
 		if err != nil {
 			return nil, nil, err

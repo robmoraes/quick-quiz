@@ -179,6 +179,10 @@ Rollback or migration path:
 
 ## References
 
+- Accepted evolution: [ADR 004](004-postgresql-quiz-runtime.md) and
+  [spec 006](../../specs/006-postgresql-quiz-runtime/spec.md). They replace the
+  runtime/publication boundary for PostgreSQL runtime mode. The S3 startup
+  snapshot remains the deployed behavior until the separately authorized cutover.
 - [PostgreSQL-backed Quiz Authoring spec](../../specs/003-manager-quiz-postgresql/spec.md)
 - [ADR 001: Keep quiz administration in the Manager boundary](001-manager-owned-quiz-admin-api.md)
 - [Manager administration API](../../manager/admin-api.md)

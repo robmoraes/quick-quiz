@@ -1,0 +1,340 @@
+openapi: 3.0.3
+info:
+  title: QuickQuiz PostgreSQL Runtime Additions
+  version: 0.1.0
+  description: >-
+    Accepted additions for spec 006, merged into the canonical public and Manager
+    OpenAPI documents during implementation. Production rollout is separate.
+    Canonical documents retain existing operations and envelopes.
+x-status: accepted
+x-canonical-contracts:
+  public: docs/openapi.yaml
+  manager: docs/openapi-manager-admin.yaml
+x-impact:
+  - Existing public success payloads and request headers remain unchanged.
+  - Add StorageUnavailable as a 503 response on storage-dependent public operations.
+  - Existing explanation-specific 503 responses remain valid.
+  - Publication and PublicationStatus use disjoint legacy and postgres profiles.
+  - Missing backend selects the compatible legacy profile; postgres requires backend and reload false.
+  - Replace the canonical Publication component with this union so existing mutation references select the proper profile.
+  - Preserve canonical mutation resource fields and envelopes; TopicMutation retains its separate TopicTagsOnlyPublication alternative.
+  - PublicationEnvelope uses the PublicationStatus union for both publication operations.
+  - Nullable checksum and objectCount are null for postgres publication.
+paths:
+  /readyz:
+    get:
+      summary: Checks configured runtime dependencies and, in database mode, the PostgreSQL contract.
+      operationId: getReadiness
+      security: []
+      responses:
+        '200':
+          description: Configured runtime dependencies and contract are ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ready'
+        '503':
+          description: A configured runtime dependency or contract is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotReady'
+  /api/admin/quiz/publication:
+    get:
+      summary: Returns publication state, including its publication backend.
+      operationId: getQuizPublication
+      security:
+        - AdminBearer: []
+      responses:
+        '200':
+          description: Existing envelope with additive publication metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Existing Manager unavailable response.
+    post:
+      summary: Retries legacy publication or confirms an atomic PostgreSQL publication.
+      description: >-
+        In postgres mode an already published revision is an idempotent no-op.
+        This endpoint never silently promotes a pending legacy content revision.
+      operationId: retryQuizPublication
+      security:
+        - AdminBearer: []
+      responses:
+        '200':
+          description: Current revision is published without requiring a reload in postgres mode.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          description: Existing Manager unavailable or publication_failed envelope.
+components:
+  securitySchemes:
+    AdminBearer:
+      type: http
+      scheme: bearer
+      description: Existing Manager administrative token; never a player/database credential.
+  responses:
+    Unauthorized:
+      description: Existing Manager unauthorized envelope; no authentication change.
+    StorageUnavailable:
+      description: Required content/session storage is unavailable, not a missing resource.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StorageUnavailableError'
+  schemas:
+    Ready:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    NotReady:
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [not_ready]
+    StorageUnavailableError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [storage_unavailable]
+            message:
+              type: string
+              example: Storage unavailable
+    Publication:
+      description: >-
+        Publication metadata inside existing mutation envelopes. The branches
+        are disjoint by backend: omission or content_storage selects the legacy
+        profile; postgres selects the atomic database profile. No OpenAPI
+        discriminator is required because legacy responses may omit backend.
+        Canonical resource/deletion fields and TopicTagsOnlyPublication remain
+        unchanged when this component is merged.
+      oneOf:
+        - $ref: '#/components/schemas/LegacyPublication'
+        - $ref: '#/components/schemas/PostgresPublication'
+      x-canonical-bindings:
+        - ThemeMutation.publication
+        - TopicMutation.publication.oneOf
+        - CreateQuestionBatchResult.publication
+        - DeleteThemeResult.publication
+        - DeleteTopicResult.publication
+        - DeleteQuestionResult.publication
+        - Existing inline question-mutation publication references
+    PublicationFields:
+      type: object
+      required: [apiReloadRequired, reason]
+      description: >-
+        Existing mutation publication fields plus additive backend metadata.
+        Keep these fields and any canonical envelope/resource requirements
+        during the implementation merge.
+      properties:
+        backend:
+          type: string
+          enum: [content_storage, postgres]
+        revision:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [published]
+        apiReloadRequired:
+          type: boolean
+        reason:
+          type: string
+        checksum:
+          type: string
+          nullable: true
+        objectCount:
+          type: integer
+          nullable: true
+        durationMs:
+          type: integer
+          nullable: true
+    LegacyPublication:
+      allOf:
+        - $ref: '#/components/schemas/PublicationFields'
+        - type: object
+          properties:
+            backend:
+              type: string
+              enum: [content_storage]
+            apiReloadRequired:
+              type: boolean
+              enum: [true]
+      description: >-
+        Compatible successful local/S3 mutation publication. backend is optional;
+        PostgreSQL authoring may still use this content_storage publication
+        profile. Topic-tags-only responses use their existing separate component.
+    PostgresPublication:
+      allOf:
+        - $ref: '#/components/schemas/PublicationFields'
+        - type: object
+          required: [backend, revision, status, apiReloadRequired]
+          properties:
+            backend:
+              type: string
+              enum: [postgres]
+            status:
+              type: string
+              enum: [published]
+            apiReloadRequired:
+              type: boolean
+              enum: [false]
+            checksum:
+              type: string
+              nullable: true
+              enum: [null]
+            objectCount:
+              type: integer
+              nullable: true
+              enum: [null]
+      description: >-
+        Successful atomic PostgreSQL mutation publication. revision identifies
+        the content commit; checksum and objectCount, when present, are null
+        because no legacy export is performed by CRUD.
+    PublicationStatus:
+      description: >-
+        Status metadata inside the publication GET/POST envelopes. Omitted
+        backend or content_storage selects the compatible legacy profile;
+        postgres requires a committed published state and reload false.
+      oneOf:
+        - $ref: '#/components/schemas/LegacyPublicationStatus'
+        - $ref: '#/components/schemas/PostgresPublicationStatus'
+    PublicationStatusFields:
+      type: object
+      description: >-
+        Preserve all existing canonical status fields and add backend metadata.
+        provider continues identifying authoring persistence; backend identifies
+        publication. Existing diagnostic/timing fields remain available.
+      properties:
+        provider:
+          type: string
+          enum: [legacy, postgres]
+        backend:
+          type: string
+          enum: [content_storage, postgres]
+        currentRevision:
+          type: integer
+          minimum: 0
+        publishedRevision:
+          type: integer
+          minimum: 0
+        revision:
+          type: integer
+          minimum: 0
+        status:
+          type: string
+          enum: [pending, published, failed]
+        apiReloadRequired:
+          type: boolean
+        checksum:
+          type: string
+          nullable: true
+        objectCount:
+          type: integer
+          nullable: true
+        failureSummary:
+          type: string
+          nullable: true
+        startedAt:
+          type: string
+          nullable: true
+        finishedAt:
+          type: string
+          nullable: true
+        durationMs:
+          type: integer
+          nullable: true
+    LegacyPublicationStatus:
+      allOf:
+        - $ref: '#/components/schemas/PublicationStatusFields'
+        - type: object
+          properties:
+            backend:
+              type: string
+              enum: [content_storage]
+      description: >-
+        Existing legacy status shape, including pending/failed revisions and
+        optional reload metadata. backend may be absent. provider may be legacy
+        or postgres because authoring persistence and publication are distinct.
+    PostgresPublicationStatus:
+      allOf:
+        - $ref: '#/components/schemas/PublicationStatusFields'
+        - type: object
+          required: [provider, backend, currentRevision, publishedRevision, status, apiReloadRequired]
+          properties:
+            provider:
+              type: string
+              enum: [postgres]
+            backend:
+              type: string
+              enum: [postgres]
+            status:
+              type: string
+              enum: [published]
+            apiReloadRequired:
+              type: boolean
+              enum: [false]
+            checksum:
+              type: string
+              nullable: true
+              enum: [null]
+            objectCount:
+              type: integer
+              nullable: true
+              enum: [null]
+      description: >-
+        Atomic database publication status. currentRevision and publishedRevision
+        are required and equal; if revision is present, it denotes that same
+        commit. OpenAPI 3.0 cannot express equality between separate properties;
+        enforce these invariants in application and integration validation.
+      x-invariants:
+        - currentRevision equals publishedRevision.
+        - revision, when present, equals currentRevision.
+    MutationPublicationEnvelope:
+      type: object
+      required: [publication]
+      description: >-
+        Publication-bearing fragment of existing mutation envelopes, not a new
+        response shape or endpoint. Retain each canonical operation's required
+        resource/deletion fields. TopicMutation also retains its existing
+        TopicTagsOnlyPublication alternative.
+      properties:
+        publication:
+          $ref: '#/components/schemas/Publication'
+    PublicationEnvelope:
+      type: object
+      required: [publication]
+      properties:
+        publication:
+          $ref: '#/components/schemas/PublicationStatus'
+      example:
+        publication:
+          provider: postgres
+          backend: postgres
+          currentRevision: 42
+          publishedRevision: 42
+          status: published
+          apiReloadRequired: false
+          checksum: null
+          objectCount: null

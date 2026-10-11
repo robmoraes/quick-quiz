@@ -265,15 +265,22 @@ func (g *testSolutionGenerator) Model() string {
 }
 
 func seedSolutionRun(runStore *store.MemoryRunStore) {
+	snapshot := domain.QuestionSnapshot{
+		Key:          domain.QuestionKey{Theme: "dev", Topic: "go", Difficulty: domain.DifficultyEasy, QuestionID: "go-easy-001"},
+		Translations: map[string]domain.Question{"en-US": {ID: "go-easy-001", Theme: "dev", Locale: "en-US", Topic: "go", Difficulty: domain.DifficultyEasy, Prompt: "Fake question", CorrectOptions: []string{"correct answer"}, WrongOptions: []string{"wrong answer 01", "wrong answer 02"}}},
+	}
+	snapshot.Digest = domain.SnapshotDigest(snapshot)
 	now := time.Now().UTC()
 	_ = runStore.Create(context.Background(), &domain.Run{
-		ID:            "run_solution_001",
-		SessionID:     "session_solution_001",
-		Theme:         "dev",
-		Locale:        "en-US",
-		Topic:         "go",
-		Difficulty:    domain.DifficultyEasy,
-		QuestionLimit: 1,
+		ID:                "run_solution_001",
+		Version:           2,
+		QuestionSnapshots: []domain.QuestionSnapshot{snapshot},
+		SessionID:         "session_solution_001",
+		Theme:             "dev",
+		Locale:            "en-US",
+		Topic:             "go",
+		Difficulty:        domain.DifficultyEasy,
+		QuestionLimit:     1,
 		UsedQuestionIDs: map[string]bool{
 			"go-easy-001": true,
 		},

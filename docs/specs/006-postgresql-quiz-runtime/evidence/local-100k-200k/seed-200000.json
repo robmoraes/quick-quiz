@@ -1,0 +1,23 @@
+{
+  "architecture": "amd64",
+  "data": {
+    "canonical_questions": 200000,
+    "translations": 400000,
+    "answers": 2800000,
+    "themes": 200,
+    "topics": 2000,
+    "hot_scope_questions": 10000,
+    "database_bytes": 1117402803,
+    "index_bytes": 432701440,
+    "prompt_bytes": 256,
+    "answer_bytes": 96,
+    "seed_seconds": 71.120589656
+  },
+  "finished_at": "2026-10-11T17:03:22.199211715Z",
+  "go_version": "go1.27.1",
+  "mode": "seed",
+  "profile_description": "isolated synthetic seed; no API memory measurements in seed process",
+  "started_at": "2026-10-11T17:02:11.078536712Z",
+  "status": "completed",
+  "tool": "quickquiz-runtime-benchmark-v1"
+}

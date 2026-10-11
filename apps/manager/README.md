@@ -1,6 +1,6 @@
 # QuickQuiz Manager
 
-Symfony webapp for editing and validating QuickQuiz Dev quiz pack JSON files in local or S3-compatible storage.
+Symfony webapp for authoring QuickQuiz content in PostgreSQL or legacy JSON storage.
 
 The quiz pack contract is documented at `../../docs/quiz-pack-contract.md`.
 
@@ -84,4 +84,78 @@ Themes are managed through:
 After login, select a theme before managing catalog topics or questions. Inactive
 themes remain editable in the manager but are not served by the player API.
 
-The `question_solution` AI prompt is stored in the Manager database and exported through the configured content backend as `<theme>/ai-prompts/question-solution-prompt.txt` when it is saved, restored, or imported from JSON. The Manager, Quiz API, and Ads API must use the same bucket and prefix when S3 is enabled.
+In `content_storage` publication mode, the `question_solution` AI prompt is stored in the Manager database and exported through the configured content backend as `<theme>/ai-prompts/question-solution-prompt.txt` when it is saved, restored, or imported from JSON. The Manager, Quiz API, and Ads API must use the same bucket and prefix when S3 is enabled.
+
+## PostgreSQL runtime publication
+
+Set `MANAGER_QUIZ_PERSISTENCE_PROVIDER=postgres` for database authoring.
+`MANAGER_QUIZ_PUBLICATION_PROVIDER=content_storage` remains the default, preserving
+local/S3 publication. After an explicit verified backend transition, select
+`MANAGER_QUIZ_PUBLICATION_PROVIDER=postgres`: each validated quiz mutation and its
+published revision commit together. New API operations see the commit without a
+restart. Inactive themes/topics remain editable but are excluded from runtime
+views. Prompt saves/restores/imports use the database directly in this mode.
+Quiz CRUD/login do not need a question mount or an S3 bucket; Ads and explicit
+legacy exports retain their own storage dependency.
+
+Operator commands (run inside the Manager container):
+
+```sh
+php bin/console manager:database:migrate
+php bin/console manager:quiz:provision-reader --role=quickquiz_runtime --dry-run
+# Supply QUIZ_DATABASE_READER_PASSWORD or its __FILE variant before --apply.
+php bin/console manager:quiz:provision-reader --role=quickquiz_runtime --apply
+
+php bin/console manager:quiz:compare --expected-revision=R \
+  --legacy-provider-runs=0 --report=/tmp/quiz-comparison.json
+php bin/console manager:quiz:runtime-backend --provider=postgres \
+  --expected-revision=R --verification-report=/tmp/quiz-comparison.json --dry-run
+# Stop old writers and freeze quiz, prompt and tag writes before applying.
+php bin/console manager:quiz:runtime-backend --provider=postgres \
+  --expected-revision=R --verification-report=/tmp/quiz-comparison.json \
+  --apply --writes-frozen
+```
+
+Replace `R` with the actual equal current/published revision. The comparison uses
+configured legacy content storage, streams question packages, and includes
+inactive authoring content and solution instructions. `--legacy-provider-runs=0`
+is an explicit operator attestation from the API's real compatibility metric;
+it is never inferred by Manager. Pending legacy revisions must be reconciled
+explicitly with existing publication/recovery procedures. Coordinate Manager/API
+configuration and verify the candidate before routing traffic or unfreezing.
+Neither application startup nor a database outage switches providers.
+
+Provisioning requires an operator database credential with role/grant privileges,
+not the API credential. It creates a dedicated login with SELECT on the eight
+`quiz_runtime_v1` views, no base-table grants, ownership or role memberships.
+It explicitly revokes database TEMP from PUBLIC on this dedicated application
+database; the database owner retains its privileges. API credentials use a
+separate `QUIZ_DATABASE_URL` secret. Passwords do not appear in CLI reports.
+
+Prefer application rollback to a PostgreSQL-compatible image. Deliberate storage
+fallback first requires a complete fresh export of the latest authored revision
+and a version-2-compatible API reader; an old S3 prefix is unsafe:
+
+```sh
+php bin/console manager:quiz:export --format=legacy-json --target=local \
+  --directory=/tmp/fresh-quiz-export --expected-revision=R --dry-run
+php bin/console manager:quiz:export --format=legacy-json --target=local \
+  --directory=/tmp/fresh-quiz-export --expected-revision=R --apply \
+  --snapshot-reader-version=2 --report=/tmp/quiz-export.json
+php bin/console manager:quiz:runtime-backend --provider=content_storage \
+  --expected-revision=R --verification-report=/tmp/quiz-export.json --dry-run
+# Keep the write freeze through provider/routing coordination and verification.
+php bin/console manager:quiz:runtime-backend --provider=content_storage \
+  --expected-revision=R --verification-report=/tmp/quiz-export.json \
+  --apply --writes-frozen
+```
+
+For S3 export replace local target/directory with `--target=s3 --bucket=NAME
+--prefix=isolated/new/prefix`; AWS region, endpoint and path-style settings use
+the existing environment. Export never alters catalog/publication revisions.
+Every applied object is read back and the exact target inventory is checked.
+Reports include counts, locale parity and a logical checksum. Keep reports
+outside the export target. A failed export remains incomplete; retry into a fresh
+target. Backend commands recheck revision, source checksum and target contents;
+they never accept a dry-run export as fallback evidence. All authoring, prompt
+and tag writes must stay frozen from the final export through the switch.

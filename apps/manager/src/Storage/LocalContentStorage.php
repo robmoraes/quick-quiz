@@ -7,10 +7,13 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
 
-final class LocalContentStorage implements ContentStorage
+final class LocalContentStorage implements IterableContentStorage
 {
     public function __construct(private readonly string $root)
     {
+        if (trim($root) === '') {
+            throw new RuntimeException('Local content storage root is required.');
+        }
     }
 
     public function description(): string
@@ -76,17 +79,25 @@ final class LocalContentStorage implements ContentStorage
 
     public function list(string $prefix): array
     {
+        $keys = iterator_to_array($this->iterate($prefix), false);
+        sort($keys);
+
+        return $keys;
+    }
+
+    public function iterate(string $prefix): iterable
+    {
         $prefix = $this->normalizeKey($prefix);
         $path = $this->location($prefix);
         if (is_file($path)) {
-            return [$prefix];
+            yield $prefix;
+            return;
         }
         if (!is_dir($path)) {
-            return [];
+            return;
         }
 
         $rootLength = strlen($this->description()) + 1;
-        $keys = [];
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS),
         );
@@ -94,11 +105,8 @@ final class LocalContentStorage implements ContentStorage
             if (!$file->isFile()) {
                 continue;
             }
-            $keys[] = str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), $rootLength));
+            yield str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), $rootLength));
         }
-        sort($keys);
-
-        return $keys;
     }
 
     private function normalizeKey(string $key): string

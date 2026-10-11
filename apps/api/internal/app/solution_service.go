@@ -25,14 +25,26 @@ type SolutionGenerator interface {
 }
 
 type GenerateSolutionInput struct {
-	Theme          string
-	Locale         string
-	Topic          string
-	Difficulty     domain.Difficulty
-	QuestionID     string
-	Prompt         string
-	CorrectOptions []string
-	WrongOptions   []string
+	Theme                 string
+	Locale                string
+	Topic                 string
+	Difficulty            domain.Difficulty
+	QuestionID            string
+	Prompt                string
+	CorrectOptions        []string
+	WrongOptions          []string
+	EffectiveInstructions string
+}
+
+type SolutionGenerationContext struct {
+	Instructions          string
+	PromptDigest          string
+	GeneratorConfigDigest string
+	Model                 string
+}
+
+type PreparedSolutionGenerator interface {
+	PrepareSolution(context.Context, string) (SolutionGenerationContext, error)
 }
 
 type QuestionSolutionInput struct {
@@ -73,13 +85,9 @@ func (s *SolutionService) QuestionSolution(ctx context.Context, input QuestionSo
 	if input.Theme == "" || input.RunID == "" || input.QuestionID == "" {
 		return QuestionSolutionOutput{}, ErrInvalidInput
 	}
-	if err := validateTheme(ctx, s.questions, input.Theme); err != nil {
-		return QuestionSolutionOutput{}, err
-	}
-
 	run, err := s.runs.Get(ctx, input.RunID)
 	if err != nil {
-		return QuestionSolutionOutput{}, ErrRunNotFound
+		return QuestionSolutionOutput{}, runStorageError(err)
 	}
 	if run.Theme != input.Theme {
 		return QuestionSolutionOutput{}, ErrRunNotFound
@@ -91,25 +99,33 @@ func (s *SolutionService) QuestionSolution(ctx context.Context, input QuestionSo
 	limit := solutionRequestLimit(run)
 	allowed, err := s.runs.TrackSolutionRequest(ctx, run.ID, input.QuestionID, limit)
 	if err != nil {
-		return QuestionSolutionOutput{}, ErrRunNotFound
+		return QuestionSolutionOutput{}, runStorageError(err)
 	}
 	if !allowed {
 		return QuestionSolutionOutput{}, ErrSolutionRateLimited
 	}
 
 	resolvedLocale := s.locales.Resolve(input.Locale, "")
-	question, err := s.question(ctx, input.Theme, resolvedLocale, run.Topic, run.Difficulty, input.QuestionID)
+	snapshot, err := runQuestionSnapshot(run, input.QuestionID)
 	if err != nil {
 		return QuestionSolutionOutput{}, err
 	}
-	targetKey := solutionKeyFromQuestion(question)
+	question, ok := snapshot.Translations[resolvedLocale]
+	if !ok {
+		return QuestionSolutionOutput{}, ErrSolutionUnavailable
+	}
+	prepared, err := prepareSolution(ctx, s.generator, input.Theme)
+	if err != nil {
+		return QuestionSolutionOutput{}, fmt.Errorf("%w: prompt preparation failed", ErrSolutionUnavailable)
+	}
+	targetKey := solutionKeyFromSnapshot(question, snapshot.Digest, prepared)
 	if solution, ok, err := s.cachedSolution(ctx, targetKey, questionHash(question)); err != nil {
 		return QuestionSolutionOutput{}, err
 	} else if ok {
 		return QuestionSolutionOutput{QuestionSolution: solution, Cached: true}, nil
 	}
 
-	unlock := s.locks.lock(canonicalSolutionLockKey(question))
+	unlock := s.locks.lock(canonicalSolutionLockKey(question) + ":" + snapshot.Digest + ":" + prepared.PromptDigest + ":" + prepared.GeneratorConfigDigest)
 	defer unlock()
 
 	if solution, ok, err := s.cachedSolution(ctx, targetKey, questionHash(question)); err != nil {
@@ -118,51 +134,42 @@ func (s *SolutionService) QuestionSolution(ctx context.Context, input QuestionSo
 		return QuestionSolutionOutput{QuestionSolution: solution, Cached: true}, nil
 	}
 
-	questionsByLocale, err := s.questionsByLocale(ctx, input.Theme, run.Topic, run.Difficulty, input.QuestionID)
-	if err != nil {
-		return QuestionSolutionOutput{}, err
-	}
-
 	generatedTarget := false
 	for _, locale := range s.locales.Supported() {
-		localeQuestion, ok := questionsByLocale[locale]
+		localeQuestion, ok := snapshot.Translations[locale]
 		if !ok {
 			continue
 		}
 
 		localeHash := questionHash(localeQuestion)
-		if _, ok, err := s.cachedSolution(ctx, solutionKeyFromQuestion(localeQuestion), localeHash); err != nil {
+		localeKey := solutionKeyFromSnapshot(localeQuestion, snapshot.Digest, prepared)
+		if _, ok, err := s.cachedSolution(ctx, localeKey, localeHash); err != nil {
 			return QuestionSolutionOutput{}, err
 		} else if ok {
 			continue
 		}
 
 		explanation, err := s.generator.GenerateSolution(ctx, GenerateSolutionInput{
-			Theme:          localeQuestion.Theme,
-			Locale:         localeQuestion.Locale,
-			Topic:          localeQuestion.Topic,
-			Difficulty:     localeQuestion.Difficulty,
-			QuestionID:     localeQuestion.ID,
-			Prompt:         localeQuestion.Prompt,
-			CorrectOptions: append([]string(nil), localeQuestion.CorrectOptions...),
-			WrongOptions:   append([]string(nil), localeQuestion.WrongOptions...),
+			Theme:                 localeQuestion.Theme,
+			Locale:                localeQuestion.Locale,
+			Topic:                 localeQuestion.Topic,
+			Difficulty:            localeQuestion.Difficulty,
+			QuestionID:            localeQuestion.ID,
+			Prompt:                localeQuestion.Prompt,
+			CorrectOptions:        append([]string(nil), localeQuestion.CorrectOptions...),
+			WrongOptions:          append([]string(nil), localeQuestion.WrongOptions...),
+			EffectiveInstructions: prepared.Instructions,
 		})
 		if err != nil {
-			return QuestionSolutionOutput{}, fmt.Errorf("%w: %v", ErrSolutionUnavailable, err)
+			return QuestionSolutionOutput{}, fmt.Errorf("%w: generation failed", ErrSolutionUnavailable)
 		}
 
-		if err := s.solutions.Save(ctx, domain.QuestionSolution{
-			Theme:        localeQuestion.Theme,
-			Locale:       localeQuestion.Locale,
-			Topic:        localeQuestion.Topic,
-			Difficulty:   localeQuestion.Difficulty,
-			QuestionID:   localeQuestion.ID,
-			Explanation:  explanation,
-			Model:        generatorModel(s.generator),
-			QuestionHash: localeHash,
-			GeneratedAt:  s.now().Format(time.RFC3339),
-		}); err != nil {
-			return QuestionSolutionOutput{}, err
+		localeKey.Explanation = explanation
+		localeKey.Model = prepared.Model
+		localeKey.QuestionHash = localeHash
+		localeKey.GeneratedAt = s.now().Format(time.RFC3339)
+		if err := s.solutions.Save(ctx, localeKey); err != nil {
+			return QuestionSolutionOutput{}, fmt.Errorf("%w: solution cache write failed", domain.ErrStorageUnavailable)
 		}
 		if localeQuestion.Locale == resolvedLocale {
 			generatedTarget = true
@@ -180,6 +187,9 @@ func (s *SolutionService) QuestionSolution(ctx context.Context, input QuestionSo
 }
 
 func (s *SolutionService) question(ctx context.Context, theme, locale, topic string, difficulty domain.Difficulty, questionID string) (domain.Question, error) {
+	if reader, ok := s.questions.(RuntimeQuestionReader); ok {
+		return reader.LookupQuestion(ctx, domain.QuestionLookup{QuestionKey: domain.QuestionKey{Theme: theme, Topic: topic, Difficulty: difficulty, QuestionID: questionID}, Locale: locale})
+	}
 	questions, err := s.questions.ListByThemeLocaleTopicAndDifficulty(ctx, theme, locale, topic, difficulty)
 	if err != nil {
 		return domain.Question{}, err
@@ -216,12 +226,51 @@ func (s *SolutionService) cachedSolution(ctx context.Context, key domain.Questio
 		if errors.Is(err, domain.ErrSolutionNotFound) {
 			return domain.QuestionSolution{}, false, nil
 		}
-		return domain.QuestionSolution{}, false, err
+		return domain.QuestionSolution{}, false, fmt.Errorf("%w: solution cache read failed", domain.ErrStorageUnavailable)
 	}
-	if solution.QuestionHash != expectedQuestionHash || strings.TrimSpace(solution.Explanation) == "" {
+	if solution.QuestionHash != expectedQuestionHash || solution.CacheIdentity != key.CacheIdentity || strings.TrimSpace(solution.Explanation) == "" {
 		return domain.QuestionSolution{}, false, nil
 	}
 	return solution, true, nil
+}
+
+func runQuestionSnapshot(run *domain.Run, questionID string) (domain.QuestionSnapshot, error) {
+	if run.Version < 2 {
+		// Old answered records contain no correct options. A matching ID or prompt
+		// cannot prove that mutable current content is the historical answer.
+		return domain.QuestionSnapshot{}, ErrSolutionUnavailable
+	}
+	for _, snapshot := range run.QuestionSnapshots {
+		if snapshot.Key.QuestionID != questionID {
+			continue
+		}
+		if snapshot.Key.Theme != run.Theme || snapshot.Key.Topic != run.Topic || snapshot.Key.Difficulty != run.Difficulty || snapshot.Digest != domain.SnapshotDigest(snapshot) {
+			return domain.QuestionSnapshot{}, ErrSolutionUnavailable
+		}
+		return snapshot, nil
+	}
+	return domain.QuestionSnapshot{}, ErrQuestionNotFound
+}
+
+func prepareSolution(ctx context.Context, generator SolutionGenerator, theme string) (SolutionGenerationContext, error) {
+	if prepared, ok := generator.(PreparedSolutionGenerator); ok {
+		captured, err := prepared.PrepareSolution(ctx, theme)
+		if err != nil {
+			return SolutionGenerationContext{}, err
+		}
+		if strings.TrimSpace(captured.Instructions) == "" || captured.PromptDigest != hashText(captured.Instructions) || captured.GeneratorConfigDigest == "" {
+			return SolutionGenerationContext{}, ErrSolutionUnavailable
+		}
+		return captured, nil
+	}
+	return SolutionGenerationContext{Instructions: DefaultSolutionPrompt, PromptDigest: hashText(DefaultSolutionPrompt), GeneratorConfigDigest: hashText(fmt.Sprintf("%T:%s", generator, generatorModel(generator))), Model: generatorModel(generator)}, nil
+}
+
+func solutionKeyFromSnapshot(question domain.Question, snapshotDigest string, prepared SolutionGenerationContext) domain.QuestionSolution {
+	key := solutionKeyFromQuestion(question)
+	payload, _ := json.Marshal([]string{"v2", snapshotDigest, questionHash(question), prepared.PromptDigest, prepared.GeneratorConfigDigest, prepared.Model, question.Locale})
+	key.CacheIdentity = hashText(string(payload))
+	return key
 }
 
 func solutionKeyFromQuestion(question domain.Question) domain.QuestionSolution {

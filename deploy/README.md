@@ -8,7 +8,7 @@ Docker packaging for running and testing QuickQuiz Dev locally with a production
 
 - `api`: statically compiled Go API in a multi-stage image, running without root.
 - `redis`: ephemeral run/session and generated-solution cache, limited to 256 MiB of data and 384 MiB of container memory.
-- `manager-db`: PostgreSQL storage for Manager administrators and AI prompts.
+- `manager-db`: PostgreSQL for Manager administrators, AI prompts and selected authored content.
 - `ads-api`: statically compiled Go Ads API for advertising delivery and management.
 - `spa-dev`: static Quasar/Vue build served by Nginx without root.
 - `spa-dslab`: static DSLab-themed Quasar/Vue build served by Nginx without root.
@@ -39,7 +39,7 @@ The local Compose starts Redis with the stack and configures API runs, generated
 
 By default, Compose mounts `deploy/content-demo` as the local demo content. The API mounts it read-only at `/app/.local`; the Manager mounts the same directory at `/content` with write access for local tests. To use another content directory, set `QUICKQUIZ_CONTENT_ROOT` in `deploy/compose.local/.env`. To exercise shared S3-compatible storage, set `QUESTION_STORAGE_PROVIDER=s3`, `ADS_STORAGE_PROVIDER=s3`, and `MANAGER_CONTENT_STORAGE_PROVIDER=s3`, then configure the shared `AWS_REGION`, `S3_BUCKET`, `S3_PREFIX`, `S3_ENDPOINT_URL`, and `S3_FORCE_PATH_STYLE` values.
 
-The Manager stores administrators and AI prompts in PostgreSQL. The local database
+The Manager stores administrators, AI prompts and selected authored content in PostgreSQL. The local database
 is available only on the internal Docker network and persists in the
 `manager-db-data` volume. Configure it with `MANAGER_DATABASE_URL` and the
 `MANAGER_DB_*` variables.
@@ -239,3 +239,14 @@ Docker Hub repositories from environment variables:
 - `DOCKERHUB_SPA_DSLAB_IMAGE`
 - `DOCKERHUB_MANAGER_FPM_IMAGE`
 - `DOCKERHUB_MANAGER_WEB_IMAGE`
+
+## PostgreSQL quiz runtime
+
+The opt-in `compose.local/compose.postgres.yml` overlay selects PostgreSQL question
+and prompt reads plus atomic Manager publication. It requires migrations, a
+separate reader credential and explicit backend activation; the overlay alone
+does not migrate an environment. Follow the [runbook](../docs/runbooks/postgresql-quiz-runtime.md)
+in a disposable project/volume for rehearsal. Defaults remain legacy. Database
+publication makes edits visible without an API restart; existing v2 runs retain
+their captured questions in Redis. Use `/readyz` for dependency checks and
+`/healthz` for liveness. This implementation does not itself change production.

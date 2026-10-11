@@ -10,27 +10,37 @@ import (
 )
 
 type Config struct {
-	HTTPAddr                string
-	HTTPReadHeaderTimeout   time.Duration
-	HTTPReadTimeout         time.Duration
-	HTTPWriteTimeout        time.Duration
-	HTTPIdleTimeout         time.Duration
-	CORSAllowedOrigins      []string
-	LogLevel                string
-	StorageStartupTimeout   time.Duration
-	RunQuestionLimit        int
-	RunStorageProvider      string
-	SolutionStorageProvider string
-	QuestionStorageProvider string
-	QuestionSource          string
-	FallbackLocale          string
-	SupportedLocales        []string
-	SessionTTL              time.Duration
-	SolutionTTL             time.Duration
-	ShutdownTimeout         time.Duration
-	Redis                   RedisConfig
-	S3                      S3Config
-	OpenAI                  OpenAIConfig
+	HTTPAddr                      string
+	HTTPReadHeaderTimeout         time.Duration
+	HTTPReadTimeout               time.Duration
+	HTTPWriteTimeout              time.Duration
+	HTTPIdleTimeout               time.Duration
+	CORSAllowedOrigins            []string
+	LogLevel                      string
+	StorageStartupTimeout         time.Duration
+	RunQuestionLimit              int
+	RunStorageProvider            string
+	SolutionStorageProvider       string
+	QuestionStorageProvider       string
+	SolutionPromptStorageProvider string
+	QuizDatabase                  QuizDatabaseConfig
+	QuestionSource                string
+	FallbackLocale                string
+	SupportedLocales              []string
+	SessionTTL                    time.Duration
+	SolutionTTL                   time.Duration
+	ShutdownTimeout               time.Duration
+	Redis                         RedisConfig
+	S3                            S3Config
+	OpenAI                        OpenAIConfig
+}
+
+type QuizDatabaseConfig struct {
+	URL            string
+	MaxConnections int
+	ConnectTimeout time.Duration
+	QueryTimeout   time.Duration
+	MaxIdleTime    time.Duration
 }
 
 type RedisConfig struct {
@@ -68,25 +78,33 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
-	return Config{
-		HTTPAddr:                getEnv("HTTP_ADDR", ":8080"),
-		HTTPReadHeaderTimeout:   getEnvDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
-		HTTPReadTimeout:         getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
-		HTTPWriteTimeout:        getEnvDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
-		HTTPIdleTimeout:         getEnvDuration("HTTP_IDLE_TIMEOUT", 60*time.Second),
-		CORSAllowedOrigins:      getEnvList("CORS_ALLOWED_ORIGINS", []string{"*"}),
-		LogLevel:                strings.ToLower(strings.TrimSpace(getEnv("LOG_LEVEL", "info"))),
-		StorageStartupTimeout:   getEnvDuration("STORAGE_STARTUP_TIMEOUT", 30*time.Second),
-		RunQuestionLimit:        getEnvInt("RUN_QUESTION_LIMIT", 10),
-		RunStorageProvider:      strings.ToLower(strings.TrimSpace(getEnv("RUN_STORAGE_PROVIDER", "memory"))),
-		SolutionStorageProvider: strings.ToLower(strings.TrimSpace(getEnv("SOLUTION_STORAGE_PROVIDER", "local"))),
-		QuestionStorageProvider: strings.ToLower(strings.TrimSpace(getEnv("QUESTION_STORAGE_PROVIDER", "local"))),
-		QuestionSource:          getEnv("QUESTION_SOURCE", ".local"),
-		FallbackLocale:          getEnv("FALLBACK_LOCALE", "en-US"),
-		SupportedLocales:        getEnvList("SUPPORTED_LOCALES", []string{"en-US", "pt-BR"}),
-		SessionTTL:              getEnvDuration("SESSION_TTL", 30*time.Minute),
-		SolutionTTL:             getEnvDuration("SOLUTION_TTL", 7*24*time.Hour),
-		ShutdownTimeout:         getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
+	cfg := Config{
+		HTTPAddr:                      getEnv("HTTP_ADDR", ":8080"),
+		HTTPReadHeaderTimeout:         getEnvDuration("HTTP_READ_HEADER_TIMEOUT", 5*time.Second),
+		HTTPReadTimeout:               getEnvDuration("HTTP_READ_TIMEOUT", 15*time.Second),
+		HTTPWriteTimeout:              getEnvDuration("HTTP_WRITE_TIMEOUT", 15*time.Second),
+		HTTPIdleTimeout:               getEnvDuration("HTTP_IDLE_TIMEOUT", 60*time.Second),
+		CORSAllowedOrigins:            getEnvList("CORS_ALLOWED_ORIGINS", []string{"*"}),
+		LogLevel:                      strings.ToLower(strings.TrimSpace(getEnv("LOG_LEVEL", "info"))),
+		StorageStartupTimeout:         getEnvDuration("STORAGE_STARTUP_TIMEOUT", 30*time.Second),
+		RunQuestionLimit:              getEnvInt("RUN_QUESTION_LIMIT", 10),
+		RunStorageProvider:            strings.ToLower(strings.TrimSpace(getEnv("RUN_STORAGE_PROVIDER", "memory"))),
+		SolutionStorageProvider:       strings.ToLower(strings.TrimSpace(getEnv("SOLUTION_STORAGE_PROVIDER", "local"))),
+		QuestionStorageProvider:       strings.ToLower(strings.TrimSpace(getEnv("QUESTION_STORAGE_PROVIDER", "local"))),
+		SolutionPromptStorageProvider: strings.ToLower(strings.TrimSpace(getEnv("SOLUTION_PROMPT_STORAGE_PROVIDER", getEnv("QUESTION_STORAGE_PROVIDER", "local")))),
+		QuizDatabase: QuizDatabaseConfig{
+			URL:            getEnv("QUIZ_DATABASE_URL", ""),
+			MaxConnections: getEnvInt("QUIZ_DATABASE_MAX_CONNECTIONS", 4),
+			ConnectTimeout: getEnvDuration("QUIZ_DATABASE_CONNECT_TIMEOUT", 5*time.Second),
+			QueryTimeout:   getEnvDuration("QUIZ_DATABASE_QUERY_TIMEOUT", 2*time.Second),
+			MaxIdleTime:    getEnvDuration("QUIZ_DATABASE_MAX_IDLE_TIME", 60*time.Second),
+		},
+		QuestionSource:   getEnv("QUESTION_SOURCE", ".local"),
+		FallbackLocale:   getEnv("FALLBACK_LOCALE", "en-US"),
+		SupportedLocales: getEnvList("SUPPORTED_LOCALES", []string{"en-US", "pt-BR"}),
+		SessionTTL:       getEnvDuration("SESSION_TTL", 30*time.Minute),
+		SolutionTTL:      getEnvDuration("SOLUTION_TTL", 7*24*time.Hour),
+		ShutdownTimeout:  getEnvDuration("SHUTDOWN_TIMEOUT", 10*time.Second),
 		Redis: RedisConfig{
 			Addr:              getEnv("REDIS_ADDR", "127.0.0.1:6379"),
 			ConnectTimeout:    getEnvDuration("REDIS_CONNECT_TIMEOUT", 5*time.Second),
@@ -113,7 +131,39 @@ func Load() (Config, error) {
 			SolutionPromptFile: getEnv("OPENAI_SOLUTION_PROMPT_FILE", ".local/{{theme}}/ai-prompts/question-solution-prompt.txt"),
 			Timeout:            getEnvDuration("OPENAI_TIMEOUT", 30*time.Second),
 		},
-	}, nil
+	}
+	if err := cfg.validateRuntime(); err != nil {
+		return Config{}, err
+	}
+	return cfg, nil
+}
+
+func (c Config) validateRuntime() error {
+	for _, provider := range []string{c.QuestionStorageProvider, c.SolutionPromptStorageProvider} {
+		switch provider {
+		case "local", "s3", "postgres":
+		default:
+			return fmt.Errorf("unsupported content storage provider")
+		}
+	}
+	if (c.QuestionStorageProvider == "postgres" || c.SolutionPromptStorageProvider == "postgres") && strings.TrimSpace(c.QuizDatabase.URL) == "" {
+		return fmt.Errorf("QUIZ_DATABASE_URL or QUIZ_DATABASE_URL__FILE is required for PostgreSQL")
+	}
+	for _, name := range []string{"QUIZ_DATABASE_CONNECT_TIMEOUT", "QUIZ_DATABASE_QUERY_TIMEOUT", "QUIZ_DATABASE_MAX_IDLE_TIME"} {
+		if raw := os.Getenv(name); raw != "" {
+			duration, err := time.ParseDuration(raw)
+			if err != nil || duration <= 0 {
+				return fmt.Errorf("%s must be a positive duration", name)
+			}
+		}
+	}
+	if raw := os.Getenv("QUIZ_DATABASE_MAX_CONNECTIONS"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n <= 0 || int64(n) > 2147483647 {
+			return fmt.Errorf("QUIZ_DATABASE_MAX_CONNECTIONS must be a positive 32-bit integer")
+		}
+	}
+	return nil
 }
 
 func loadFileEnvironment() error {

@@ -1,0 +1,2 @@
+{"BlockIO":"698MB / 6.23GB","CPUPerc":"0.16%","Container":"96e08c7bd7f8a4b43be6caed4308506e4558af19c0701ef81b67d7c8b7eb765e","ID":"96e08c7bd7f8","MemPerc":"42.13%","MemUsage":"593.1MiB / 1.375GiB","Name":"quickquiz-runtime-capacity-1613489-pg","NetIO":"25.2MB / 550MB","PIDs":"6"}
+{"BlockIO":"8.19kB / 0B","CPUPerc":"0.84%","Container":"53087ef3bbd0d6d847a350f25a56b96b54c3617a820dd37356a911b8f9bf1699","ID":"53087ef3bbd0","MemPerc":"25.96%","MemUsage":"66.46MiB / 256MiB","Name":"quickquiz-runtime-capacity-1613489-redis","NetIO":"313MB / 174MB","PIDs":"6"}

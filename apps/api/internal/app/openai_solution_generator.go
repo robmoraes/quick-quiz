@@ -3,6 +3,8 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +17,7 @@ import (
 const (
 	defaultOpenAIBaseURL       = "https://api.openai.com/v1"
 	defaultOpenAISolutionModel = "gpt-5.4-mini"
-	defaultSolutionPrompt      = "Explain the correct answer for a programming quiz question. Be concise, accurate, and answer in the requested locale."
+	DefaultSolutionPrompt      = "Explain the correct answer for a quiz question. Be concise, accurate, and answer in the requested locale."
 )
 
 type SolutionPromptSource interface {
@@ -62,14 +64,42 @@ func (g *OpenAISolutionGenerator) Model() string {
 	return strings.TrimSpace(g.config.Model)
 }
 
+// PrepareSolution captures the prompt/configuration used by both cache identity
+// and generation, even when a theme prompt changes during an in-flight request.
+func (g *OpenAISolutionGenerator) PrepareSolution(ctx context.Context, theme string) (SolutionGenerationContext, error) {
+	prompt := DefaultSolutionPrompt
+	if g.promptSource != nil {
+		configured, err := g.promptSource.Load(ctx, theme)
+		if err != nil {
+			return SolutionGenerationContext{}, err
+		}
+		if configured = strings.TrimSpace(configured); configured != "" {
+			prompt = configured
+		}
+	}
+	configuration, _ := json.Marshal(struct {
+		BaseURL, Model, Organization, Project string
+		MaxOutputTokens, ContractVersion      int
+	}{strings.TrimRight(g.config.BaseURL, "/"), g.Model(), strings.TrimSpace(g.config.Organization), strings.TrimSpace(g.config.Project), 700, 2})
+	return SolutionGenerationContext{Instructions: prompt, PromptDigest: hashText(prompt), GeneratorConfigDigest: hashText(string(configuration)), Model: g.Model()}, nil
+}
+
 func (g *OpenAISolutionGenerator) GenerateSolution(ctx context.Context, input GenerateSolutionInput) (string, error) {
 	if strings.TrimSpace(g.config.APIKey) == "" {
 		return "", errors.New("openai api key is not configured")
 	}
+	instructions := input.EffectiveInstructions
+	if instructions == "" {
+		prepared, err := g.PrepareSolution(ctx, input.Theme)
+		if err != nil {
+			return "", err
+		}
+		instructions = prepared.Instructions
+	}
 
 	payload := openAIResponseRequest{
 		Model:           g.Model(),
-		Instructions:    g.instructions(ctx, input),
+		Instructions:    instructions,
 		Input:           solutionPromptInput(input),
 		MaxOutputTokens: 700,
 	}
@@ -112,16 +142,9 @@ func (g *OpenAISolutionGenerator) GenerateSolution(ctx context.Context, input Ge
 	return explanation, nil
 }
 
-func (g *OpenAISolutionGenerator) instructions(ctx context.Context, input GenerateSolutionInput) string {
-	if g.promptSource != nil {
-		prompt, err := g.promptSource.Load(ctx, input.Theme)
-		if err == nil {
-			if prompt = strings.TrimSpace(prompt); prompt != "" {
-				return prompt
-			}
-		}
-	}
-	return defaultSolutionPrompt
+func hashText(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])
 }
 
 type openAIResponseRequest struct {
