@@ -1,8 +1,9 @@
 # Manager PostgreSQL migration record
 
-The later [Manager 0.12.0 deployment](manager-topic-tags-release.md) records the
-current image versions and backups after adding topic tags. This document
-retains the original PostgreSQL cutover evidence.
+Historical authoring cutover. For the current PostgreSQL player runtime,
+publication backend, versions, backups, and compatible rollback images, see
+the [2026-10-11 runtime release](postgresql-quiz-runtime-release.md).
+The S3 publication and older-image recovery steps below describe the prior model.
 
 ## Completed cutover on 2026-09-19
 

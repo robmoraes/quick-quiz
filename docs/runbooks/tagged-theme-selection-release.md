@@ -1,5 +1,10 @@
 # Tagged theme selection production release
 
+Historical record. For current quiz storage, versions, backups, and eligible
+rollback images, use the [2026-10-11 PostgreSQL runtime release](postgresql-quiz-runtime-release.md).
+The API `0.8.0` rollback below is not eligible for the PostgreSQL runtime.
+Any deliberate legacy-provider fallback must follow the current runbook.
+
 ## Deployment on 2026-10-10
 
 Deployed to `quickquiz-beta-ec2` (`i-043c1e8324ef79e4c`, `34.207.253.17`),

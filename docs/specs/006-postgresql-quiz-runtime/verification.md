@@ -1,9 +1,11 @@
 # Implementation verification — 2026-10-11
 
 Implementation branch: `feat/postgresql-quiz-runtime`. Spec/ADR approval is
-recorded separately from deployment. No remote access, production mutation,
-release tag, image push or change to the existing local preview was performed.
-All content and credentials below refer to disposable synthetic fixtures.
+recorded separately from deployment. During the implementation phase, no remote
+access, production mutation, release tag, image push or change to the existing
+local preview was performed.
+All implementation evidence below refers to disposable synthetic fixtures.
+The separately authorized production release is recorded in the final section.
 
 ## Functional checks
 
@@ -112,6 +114,29 @@ form/layout/assets with a synthetic literature fixture and PostgreSQL
 publication status. This is visual evidence, separate from the functional
 cross-service rehearsal above.
 
-Release preparation must still publish images, back up the authoritative
-database, rehearse the exact deployment configuration, retain compatible
-rollback images, and obtain the separately requested production authorization.
+Those release prerequisites were completed during the separately authorized
+production operation recorded below.
+
+## Production release — 2026-10-11
+
+After PR #47 merged, the API `0.9.0` and Manager `0.14.0` tagged workflows passed
+and the user authorized production deployment. The
+[production record](../../runbooks/postgresql-quiz-runtime-release.md) identifies
+the exact versions, configuration, cutover evidence, backups, and recovery path.
+
+The additive migration and dedicated reader were applied to the existing bank;
+no content reimport was performed. With writers stopped, the real Redis index
+pass found zero legacy-provider-dependent runs. Revisioned comparison against
+the verified S3 mirror allowed activation at revision 2262.
+
+An isolated administrative canary exercised live edits, deletion, both locales,
+and an API restart. All four captured runs preserved questions, option IDs and
+grading; new runs saw committed edits without a restart. The canary and its
+sessions were removed. Final revision 2270 was fully published; all ten authored
+table hashes and content counts matched the baseline, and S3 was unchanged.
+All service health checks and API readiness passed; the other six containers
+were not restarted.
+
+This is functional evidence for the current 18,007-question production bank,
+not the proposed 100k full-stack load budget. No fresh S3 fallback/reload was
+performed; that path requires a new verified export and v2-compatible images.
