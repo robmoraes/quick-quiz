@@ -339,8 +339,15 @@ body {
 
 .quiz-page {
   position: relative;
+  flex-direction: column;
   min-height: 100vh;
   padding: 10px 0;
+}
+
+.quiz-page__theme {
+  flex: 0 0 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .quiz-page--ad-interstitial {
@@ -988,7 +995,8 @@ body {
   .start-panel,
   .question-panel,
   .result-panel {
-    min-height: var(--game-min-height) !important;
+    flex: 1 1 auto;
+    min-height: 0 !important;
     overflow: visible;
   }
 }
@@ -1059,7 +1067,8 @@ body {
   .start-panel,
   .question-panel,
   .result-panel {
-    min-height: var(--game-min-height) !important;
+    flex: 1 1 auto;
+    min-height: 0 !important;
     overflow: visible;
   }
 
