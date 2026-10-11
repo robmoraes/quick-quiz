@@ -2,7 +2,7 @@
   <q-page class="quiz-page" :class="{ 'quiz-page--ad-interstitial': screen === 'fatalLoss' }">
     <div
       v-if="!welcomePanelVisible && screen !== 'start' && selectedThemeMetadata"
-      class="text-caption text-cyan-3 q-mb-sm"
+      class="quiz-page__theme text-caption text-cyan-3 q-mb-sm"
       aria-live="polite"
     >
       {{ t('themes.selected', { name: selectedThemeMetadata.name }) }}

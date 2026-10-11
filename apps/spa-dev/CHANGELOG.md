@@ -9,7 +9,14 @@ format.
 
 ## [Unreleased]
 
-Next planned release: `spa-dev/v0.9.0`.
+## [0.9.1] - 2026-10-11
+
+### Fixed
+
+- Keep the selected theme caption above the quiz panel on tablet and desktop,
+  preserving the panel width and viewport layout when theme names are long.
+
+## [0.9.0] - 2026-10-10
 
 ### Added
 
@@ -146,7 +153,9 @@ Next planned release: `spa-dev/v0.9.0`.
 - The SPA Dev release image repository is configurable through the
   `DOCKERHUB_SPA_DEV_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.8.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.9.1...HEAD
+[0.9.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.9.0...spa-dev%2Fv0.9.1
+[0.9.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.8.0...spa-dev%2Fv0.9.0
 [0.6.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.1...spa-dev%2Fv0.6.0
 [0.5.1]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.5.0...spa-dev%2Fv0.5.1
 [0.5.0]: https://github.com/robmoraes/quick-quiz/compare/spa-dev%2Fv0.4.0...spa-dev%2Fv0.5.0
