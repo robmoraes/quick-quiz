@@ -5,6 +5,10 @@ Docker Compose stack. Source: [PR #47](https://github.com/robmoraes/quick-quiz/p
 merge `fa83557deebef25b08aedb101acbc00c4bd3f4d7`.
 Final verification completed at `2026-10-11T18:51:42Z`.
 
+The subsequent [SPA Dev 0.9.1 patch](spa-dev-theme-caption-release.md) changed
+only the player frontend. The API, Manager and PostgreSQL runtime versions and
+recovery procedures recorded here remain applicable.
+
 Target: EC2 `i-043c1e8324ef79e4c`, `us-east-1d`, `34.207.253.17`,
 `t3.small` (2 vCPU / 2 GiB). Production commands use the existing secret overlay:
 
