@@ -1,9 +1,10 @@
 # Tasks: PostgreSQL Quiz Runtime
 
-Status: Approved and implemented locally; release gates remain below. References
-are to [spec.md](spec.md). This checklist does not authorize production changes
-or release publication. See [verification.md](verification.md) for functional
-evidence and the [capacity report](evidence/local-100k-200k/README.md) for measured limits.
+Status: Approved, implemented, and deployed on 2026-10-11 after separate user
+authorization; remaining capacity/fallback gates are identified below.
+References are to [spec.md](spec.md). See [verification.md](verification.md),
+the [deployment record](../../runbooks/postgresql-quiz-runtime-release.md),
+and the [capacity report](evidence/local-100k-200k/README.md) for measured limits.
 
 ## 1. Review and Contract Gate
 
@@ -114,17 +115,22 @@ evidence and the [capacity report](evidence/local-100k-200k/README.md) for measu
 
 - [x] Prepare API `0.9.0` and Manager `0.14.0` versions/changelogs for review.
       Public and Manager OpenAPI documents are versioned `0.4.0` and `0.5.0`.
-- [ ] After merge, publish compatible images from app-scoped tags and retain
+- [x] After merge, publish compatible images from app-scoped tags and retain
       v2-capable rollback images.
-- [ ] Verify the exact full-stack deployment on the target 2-vCPU/2-GiB node;
+- [ ] Verify the proposed 100k full-stack capacity budget on the target
+      2-vCPU/2-GiB node;
       local API/PG/Redis caps exclude Manager, Ads, SPAs, proxy and shared-host
-      effects. No production capacity approval is inferred from these results.
+      effects. Functional production verification passed with 18,007 canonical
+      questions; the proposed 100k full-stack capacity budget was not exercised.
 - [ ] If choosing S3 fallback, export to a fresh isolated target, verify its
       entire inventory and measure the actual legacy reload. The completed
       cross-service fallback rehearsal used local storage; no AWS resources
       were created in this implementation.
-- [ ] Back up production, schedule the write freeze/compatibility window, then
+- [x] Back up production, schedule the write freeze/compatibility window, then
       obtain explicit production release/deployment authorization.
+- [x] Perform the authorized coordinated cutover, verify live publication and
+      captured-run continuity, remove synthetic content, and record recovery
+      artifacts. No legacy-dependent Redis runs remained at the frozen index pass.
 
 ## Documentation Verification
 
@@ -143,5 +149,5 @@ Performed on 2026-10-11:
 
 These initial checks validated the documentation before implementation.
 Runtime tests, capacity measurements and disposable migration/recovery rehearsals
-are now recorded in [verification.md](verification.md). Production deployment
-and the release gates above remain separate.
+are now recorded in [verification.md](verification.md). The separately authorized
+production deployment is recorded independently; unchecked gates remain open.

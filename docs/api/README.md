@@ -63,5 +63,6 @@ guessing missing values.
 PostgreSQL runtime is opt-in and requires an explicitly activated backend plus a
 SELECT-only reader credential. New requests see committed edits immediately;
 existing v2 runs use Redis snapshots. The [migration runbook](../runbooks/postgresql-quiz-runtime.md)
-covers staged Redis compatibility, health, export and rollback. Production
-cutover is separate from implementation.
+covers staged Redis compatibility, health, export and rollback. The separately
+authorized [production cutover](../runbooks/postgresql-quiz-runtime-release.md)
+completed on 2026-10-11.

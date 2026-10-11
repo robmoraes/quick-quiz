@@ -59,7 +59,9 @@ not require installing Spec Kit or a shared specification service.
 - [006-postgresql-quiz-runtime/tasks.md](006-postgresql-quiz-runtime/tasks.md):
   implementation checklist and automated acceptance/capacity evidence.
 - [ADR 004](../architecture/adr/004-postgresql-quiz-runtime.md): accepted
-  replacement of the S3/runtime-snapshot publication boundary; deployment is separate.
+  replacement of the S3/runtime-snapshot publication boundary, deployed on 2026-10-11.
+- [PostgreSQL runtime deployment](../runbooks/postgresql-quiz-runtime-release.md):
+  production versions, cutover validation, backups, and recovery requirements.
 
 ## Archive
 

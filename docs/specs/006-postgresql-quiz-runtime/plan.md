@@ -1,7 +1,9 @@
 # Plan: PostgreSQL Quiz Runtime
 
-Status: Approved on 2026-10-11; implemented and verified locally; release gates pending for [spec.md](spec.md).
-Production rollout is a separately authorized operation.
+Status: Approved, implemented, and deployed on 2026-10-11 for [spec.md](spec.md).
+The separately authorized [production rollout](../../runbooks/postgresql-quiz-runtime-release.md)
+passed functional validation with the current bank. Full-stack 100k capacity
+acceptance remains separate.
 
 ## Architecture and Ownership
 

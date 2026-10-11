@@ -72,4 +72,5 @@ Quiz authoring can use PostgreSQL after a verified import. See the [PostgreSQL q
 
 [Topic tags](topic-tags.md) documents editing, the additive migration, and backup/rollback requirements.
 
-The [Manager 0.12.0 production record](../runbooks/manager-topic-tags-release.md) records the deployed images, migration, verification, and backups.
+The [current production record](../runbooks/postgresql-quiz-runtime-release.md)
+records the PostgreSQL publication backend, deployed images, verification, and backups.

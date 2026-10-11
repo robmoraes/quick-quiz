@@ -7,10 +7,10 @@ accounts. Manager authentication is separate from player sessions.
 
 ## Runtime Shape
 
-The accepted PostgreSQL runtime is implemented as an opt-in provider; production
-continues using the previous S3 startup snapshot until a separately authorized
-cutover. See [ADR 004](adr/004-postgresql-quiz-runtime.md) and the
-[migration runbook](../runbooks/postgresql-quiz-runtime.md).
+Production uses PostgreSQL reads and atomic publication after the separately
+authorized 2026-10-11 cutover. See [ADR 004](adr/004-postgresql-quiz-runtime.md),
+the [migration runbook](../runbooks/postgresql-quiz-runtime.md), and the
+[deployment record](../runbooks/postgresql-quiz-runtime-release.md).
 
 ```text
 Editor / protected administration API

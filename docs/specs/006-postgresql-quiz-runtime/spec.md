@@ -1,7 +1,9 @@
 # Feature: PostgreSQL Quiz Runtime
 
-Status: Approved on 2026-10-11; implemented and verified locally; release gates pending. Production still
-uses the S3 startup snapshot. This approval does not authorize deployment.
+Status: Approved, implemented, and deployed on 2026-10-11 after separate user
+authorization. Production uses PostgreSQL for quiz reads and publication; see
+the [deployment record](../../runbooks/postgresql-quiz-runtime-release.md).
+The full-stack 100k capacity gate remains unverified.
 
 ## Intent
 
@@ -13,8 +15,8 @@ On 2026-10-10, adding 32 themes and 439 topics brought the catalog to 18,007
 canonical questions and 36,014 localized questions. API startup read 36,117
 quiz JSON objects from S3 and took approximately 16 minutes 25 seconds. Settled
 API memory was about 50 MiB: the observed bottleneck was startup I/O, rather
-than demonstrated memory exhaustion. These measurements describe the existing
-deployment, not performance promised by this feature.
+than demonstrated memory exhaustion. These measurements describe the previous
+S3 deployment, not performance promised by this feature.
 
 Editors, players, API clients, and operators need indexed content access,
 updates without reload, stable quizzes, and a predictable recovery path.

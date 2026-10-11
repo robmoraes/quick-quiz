@@ -19,6 +19,8 @@ monorepo.
 - [Specs](specs/README.md): product and implementation specifications.
 - [Timeline](timeline/): short development log entries.
 - [Runbooks](runbooks/): operational recovery and manual release procedures.
+- [Current production deployment](runbooks/postgresql-quiz-runtime-release.md):
+  PostgreSQL runtime versions, validation, backups, and recovery.
 
 ## Stable Contracts
 
