@@ -119,13 +119,7 @@ final class AiPromptDefaults
                 'key' => self::QUESTION_SOLUTION,
                 'title' => 'Question solution explanation',
                 'description' => 'Explains why the correct answer is correct when the API lazily creates a solution.',
-                'defaultText' => implode("\n", [
-                    'You explain the correct answer for a programming quiz question.',
-                    'Use only the requested locale for natural language.',
-                    'Preserve code, identifiers, commands, APIs, and technical names exactly as they should appear.',
-                    'Explain why the correct answer is correct and briefly address the main misconception behind the wrong answers.',
-                    'Return only the final explanation text.',
-                ]),
+                'defaultText' => 'Explain the correct answer for a quiz question. Be concise, accurate, and answer in the requested locale.',
             ],
         ];
     }

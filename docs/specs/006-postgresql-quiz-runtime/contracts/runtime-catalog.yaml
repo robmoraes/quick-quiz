@@ -1,0 +1,177 @@
+# Custom runtime contract; this document is not OpenAPI or executable DDL.
+contract: quickquiz-runtime-catalog
+version: 1
+status: accepted
+schema: quiz_runtime_v1
+scope:
+  services: [api, manager]
+  excluded: [ads-api, spa-changes, public-topic-tags]
+  taxonomy: Any subject area; theme IDs and tags carry no Dev/IT restriction.
+read_views:
+  defaults: {nullable: false, visibility: active-theme-and-active-topic-parents}
+  state:
+    cardinality: exactly-one
+    visibility: catalog-state
+    columns: {current_revision: bigint, published_revision: bigint, publication_backend: text, contract_version: integer, fallback_locale: text, supported_locales: "text[]"}
+    constraints:
+      publication_backend: [content_storage, postgres]
+      contract_version: 1
+      revisions: 0 <= published_revision <= current_revision
+      locales: Manager/API locale configuration matches declared canonical and supported locales.
+    postgres_serving_requires: publication_backend=postgres AND current_revision=published_revision
+  themes:
+    key: [id]
+    visibility: active-themes
+    columns: {id: text, name: text, description: text, weight: integer, active: boolean, created_at: timestamptz, tags: "text[]"}
+    tags: {canonical: true, unique: true, order: ascii-ascending, empty: [], pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+  topics:
+    key: [theme_id, topic_key]
+    columns: {theme_id: text, topic_key: text, name: text, description: text, weight: integer, active: boolean, created_at: timestamptz}
+  topic_translations:
+    key: [theme_id, topic_key, locale]
+    columns: {theme_id: text, topic_key: text, locale: text, name: text, description: text}
+  question_keys:
+    key: &question_key [theme_id, topic_key, difficulty, question_id]
+    columns: {theme_id: text, topic_key: text, difficulty: smallint, question_id: text}
+  question_translations:
+    key: [theme_id, topic_key, difficulty, question_id, locale]
+    columns: {theme_id: text, topic_key: text, difficulty: smallint, question_id: text, locale: text, prompt: text}
+  answers:
+    key: [theme_id, topic_key, difficulty, question_id, locale, kind, answer_position]
+    columns: {theme_id: text, topic_key: text, difficulty: smallint, question_id: text, locale: text, kind: text, answer_position: integer, answer_text: text}
+    constraints: {kind: [correct, wrong], answer_position_minimum: 0}
+  solution_prompts:
+    key: [theme, prompt_key]
+    visibility: Retained question_solution rows for any theme, including inactive/deleted themes; no other prompt keys.
+    columns: {theme: text, prompt_key: text, prompt_text: text, updated_at: text}
+    constraints: {prompt_key: question_solution}
+invariants:
+  difficulty: [1, 2, 3, 4]
+  locale: Configured BCP 47 tags; FALLBACK_LOCALE defines canonical packages.
+  locale_parity: Every configured locale has exactly the canonical question keys; no exclusive or missing package.
+  identity: *question_key
+  question_validity: Existing validation and option counts remain mandatory before publication.
+  public_options: Choose one correct and 2/4/6/6 wrong options; never serialize correctness.
+  metadata_order: Preserve current theme and topic ordering and localized fallback behavior.
+  topic_tags: No new public field, filter, join requirement, or gameplay semantics.
+reader_permissions:
+  role: Operator-provisioned dedicated runtime reader; API never creates roles or grants.
+  allow:
+    - USAGE ON SCHEMA quiz_runtime_v1
+    - SELECT ON explicitly listed quiz_runtime_v1 read views
+  deny: [base-tables, manager-users, manager-sessions, ddl, writes, grant-option]
+  view_security: Expose only allowlisted columns; ownership/grants must prevent base-table access.
+operations:
+  postgres_read: {transaction: read-only, isolation: repeatable-read, deadline: QUIZ_DATABASE_QUERY_TIMEOUT}
+  state_gate: Validate backend, contract version, and revision equality inside each operation transaction.
+  candidate_selection:
+    scope: [theme_id, topic_key, difficulty]
+    exclude: Canonical IDs consumed by this session and scope, independent of locale.
+    result_limit: N <= RUN_QUESTION_LIMIT and N <= available canonical question count
+    sampling: Random sampling over candidate IDs without replacement; bounded hydrated payload.
+    prohibited: Fetching full question bundles or ordering full prompt/answer payloads by random().
+  hydrate:
+    scope: Selected IDs only, in the same transaction as selection/state checks.
+    locales: Batch fetch all configured locales, prompts, correct options, and wrong options.
+    consistency: Reject incomplete locale packages; never mix committed catalog revisions.
+  counts:
+    implementation: SQL aggregate counts grouped by requested themes/topics/difficulties.
+    consumed_ids: Batch load only this session and requested scopes from Redis indexes.
+    prohibited: Per-topic full payload reads and Redis glob SCAN in request hot paths.
+  lookup: Fetch question/prompt by full scoped key; never scan all topic questions for one ID.
+session_state:
+  provider: redis
+  exhaustion_key: [session_id, theme_id, topic_key, difficulty, question_id]
+  locale_in_exhaustion_key: false
+  mark_consumed: Only when presented; queued but unseen questions remain unconsumed.
+  reset: Preserve current session-plus-theme isolation and hardcore failure behavior.
+  hot_paths: Indexed scope reads; no global run scan for availability, create, answer, or reset.
+  run_v2:
+    size: At most RUN_QUESTION_LIMIT selected question packages, not the whole topic/catalog.
+    snapshots: All configured locales with prompt, correct/wrong options, content digest, and catalog provenance.
+    provenance:
+      postgres: Real committed catalog revision; never null or invented.
+      legacy: Provider local/s3, nullable revision, and deterministic fingerprint of the loaded dataset; no database required.
+    current_question: Preserve served option IDs, text, correct option ID, position, and total.
+    answered_questions: Retain snapshot content for explanations after edits or deletion.
+    continuity: Edits/deactivation/deletion affect new runs; existing v2 runs use saved snapshots.
+    serialization: Versioned internal Redis fields; snapshots and correctness never enter public payloads.
+  legacy_v1:
+    read: Existing unversioned JSON remains readable; no key-prefix change or Redis flush.
+    continuity: Preserve served question and option IDs through the documented legacy-provider compatibility stage.
+    limitation: Old answered records cannot reconstruct historical correct options; never substitute current content silently.
+  ttl: Preserve SESSION_TTL and existing refresh behavior; reads do not silently renew expiry.
+solutions:
+  source: Run snapshot for the requested canonical question and locale, not mutable catalog content.
+  prompt: Resolve current theme-specific question_solution at explanation time; absent custom prompt uses bundled subject-neutral default.
+  retirement: Theme retirement alone does not hide retained instruction rows; explicit customization deletion chooses the default.
+  creation: Playing/creating a run never requires the optional AI instruction provider.
+  cache_identity: [scoped-question-key, snapshot-digest, prompt-digest, generator-config-digest, model, locale, generation-contract-version]
+  cache_keys: Hash identities; no raw question, answer, or prompt text in Redis keys or logs.
+  errors: SQL outage/permission/timeout is not missing content and must not trigger a silent fallback.
+publication:
+  postgres:
+    mode: Atomic auto-publication in the same PostgreSQL CRUD transaction.
+    before_commit: Validate content, locales, active parent visibility, and published runtime invariants.
+    on_commit: Advance current_revision and published_revision together; publication_backend=postgres.
+    on_failure: Roll back mutation and publication together; previous committed state remains visible.
+    projection: Read views over authoring rows; no duplicated full-catalog runtime projection.
+    s3_dependency: None at commit; an S3 export failure cannot invalidate a PostgreSQL mutation.
+    metadata: {checksum: nullable, objectCount: nullable, apiReloadRequired: false}
+    skeletons: active=false retains unpublished themes/topics without exposing question content.
+  content_storage: Preserve existing local/S3 publication and reload semantics when selected.
+configuration:
+  secrets:
+    convention: ENV_NAME__FILE takes priority when present; ENV_NAME is the fallback.
+    file_failure: Unreadable/invalid configured secret file fails configuration; do not silently use ENV_NAME.
+  api:
+    QUESTION_STORAGE_PROVIDER: {values: [local, s3, postgres], default: local}
+    QUIZ_DATABASE_URL: {secret: true, file_variable: QUIZ_DATABASE_URL__FILE, required_when: postgres}
+    QUIZ_DATABASE_MAX_CONNECTIONS: {type: positive-integer, default: 4}
+    QUIZ_DATABASE_CONNECT_TIMEOUT: {type: positive-duration, default: 5s}
+    QUIZ_DATABASE_QUERY_TIMEOUT: {type: positive-duration, default: 2s}
+    QUIZ_DATABASE_MAX_IDLE_TIME: {type: positive-duration, default: 60s}
+    SOLUTION_PROMPT_STORAGE_PROVIDER:
+      values: [local, s3, postgres]
+      when_absent: Inherit QUESTION_STORAGE_PROVIDER, including postgres; preserve current local/S3 behavior.
+      explicit: Independently selects prompt storage; no implicit fallback after provider failure.
+  manager:
+    MANAGER_QUIZ_PUBLICATION_PROVIDER: {values: [content_storage, postgres], default: content_storage}
+  startup: Check connectivity, permissions, view contract and state; do not load all question payloads.
+  failure: Surface dependency unavailability distinctly from theme/question absence; never log database credentials.
+operator_commands:
+  legacy_export:
+    command: "manager:quiz:export --format=legacy-json --target=local|s3 --expected-revision=R --dry-run|--apply"
+    source: Manager-owned PostgreSQL authoring tables, including inactive parents/packages, in a read-only repeatable-read transaction at R.
+    implementation: Bounded streaming of legacy themes/index/question files with locale parity.
+    included: [theme-tags, inactive-content, required-solution-prompt-files]
+    excluded: [topic-tags, manager-users, manager-sessions, secrets, ads-objects]
+    target: Fresh isolated directory or S3 prefix from explicit export configuration; exact inventory, no stale files.
+    dry_run: Validate and report safe counts without target writes.
+    apply: Explicit operator action; expected revision mismatch fails before target writes.
+    effects: Export only; do not auto-publish, mutate catalog revisions, or switch publication backend.
+    verification: Report revision, target, logical checksums, counts, locale parity, and completion before rollback use.
+    report: --report=PATH outside target; --snapshot-reader-version=2 explicitly attests the compatible fallback image.
+    target_flags: --directory=ABSOLUTE for local; --bucket=NAME --prefix=FRESH_PREFIX for s3.
+    rollback_freeze: All authoring writes, including prompt and tag edits, remain frozen until the coordinated switch.
+    incomplete_export: Report failure; never present a partial target as a completed publication.
+  runtime_backend:
+    command: "manager:quiz:runtime-backend --provider=postgres|content_storage --expected-revision=R --verification-report=PATH --dry-run|--apply"
+    dry_run: Read-only validation of revision equality, complete comparison/export evidence, locale declaration, and selected runtime contract.
+    apply: With --writes-frozen attestation, recheck expected revision and evidence; atomically set backend/contract/locales without advancing content revision.
+    to_postgres: Require reconciled current_revision=published_revision, verified content comparison, and zero runs requiring the legacy question provider.
+    to_content_storage: Require verified complete latest-revision legacy export and a version-2-compatible S3/local reader.
+    coordination: Stop old writers; configure Manager/API providers together and verify candidate before routing traffic or unfreezing writes.
+  run_index_backfill:
+    command: "api migrate-run-index --dry-run|--apply [--confirm-legacy-writers-stopped] [--batch-size=N]"
+    source: Existing Redis run keys, preserving their ownership and remaining TTL.
+    scan: Explicit one-off migration permits scans; runtime request paths do not.
+    dry_run: Read-only counts and validation, no index writes or TTL renewal.
+    apply: Idempotent scoped index writes; never rewrite run content or revive expired sessions.
+    completion_gate: Stop all pre-index API writers; compatible atomic-index writers only before final scan/marker.
+    incomplete: Gate index-dependent player operations explicitly; never report incomplete consumption as empty.
+compatibility:
+  public_api: Preserve existing routes/headers/success shapes/locales/run limits; add readiness and dependency errors.
+  legacy_storage: Local/S3 question loading remains available for development and deliberate rollback.
+  rollback: Coordinate publication backend/revision, a completed legacy export, and a version-2-compatible reader; no automatic outage fallback.
+  ads: Ads storage and ads-api behavior are unchanged.

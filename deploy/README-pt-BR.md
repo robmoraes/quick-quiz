@@ -8,7 +8,7 @@ Empacotamento Docker para executar e testar o QuickQuiz Dev localmente com uma e
 
 - `api`: API Go compilada estaticamente em imagem multi-stage, rodando sem root.
 - `redis`: armazenamento efêmero de runs/sessões e cache de soluções geradas, limitado a 256 MiB de dados e 384 MiB de memória do container.
-- `manager-db`: PostgreSQL para administradores e prompts de IA do Manager.
+- `manager-db`: PostgreSQL para administradores, prompts de IA e conteúdo autoral quando selecionado.
 - `ads-api`: API Go de publicidade para entrega e gerenciamento de anúncios.
 - `spa-dev`: build estático Quasar/Vue servido por Nginx sem root.
 - `spa-dslab`: build estático Quasar/Vue com tema DSLab servido por Nginx sem root.
@@ -39,7 +39,7 @@ O Compose local inicia o Redis junto com a stack e configura os runs da API, as 
 
 Por padrão, o Compose monta `deploy/content-demo` como conteúdo local de demonstração. A API monta esse conteúdo como somente leitura em `/app/.local`; o Manager monta a mesma pasta em `/content` com escrita para testes locais. Para usar outra pasta de conteúdo, ajuste `QUICKQUIZ_CONTENT_ROOT` em `deploy/compose.local/.env`. Para testar armazenamento S3 compatível compartilhado, defina `QUESTION_STORAGE_PROVIDER=s3`, `ADS_STORAGE_PROVIDER=s3` e `MANAGER_CONTENT_STORAGE_PROVIDER=s3`, depois configure os mesmos valores de `AWS_REGION`, `S3_BUCKET`, `S3_PREFIX`, `S3_ENDPOINT_URL` e `S3_FORCE_PATH_STYLE`.
 
-O Manager guarda administradores e prompts de IA no PostgreSQL. O banco local
+O Manager guarda administradores, prompts de IA e conteúdo autoral no PostgreSQL quando configurado. O banco local
 fica disponível somente na rede interna do Docker e persiste no volume
 `manager-db-data`. Configure-o com `MANAGER_DATABASE_URL` e as variáveis
 `MANAGER_DB_*`.
@@ -242,3 +242,15 @@ Hub das variáveis do environment:
 - `DOCKERHUB_SPA_DSLAB_IMAGE`
 - `DOCKERHUB_MANAGER_FPM_IMAGE`
 - `DOCKERHUB_MANAGER_WEB_IMAGE`
+
+## Runtime de quizzes no PostgreSQL
+
+O overlay opt-in `compose.local/compose.postgres.yml` seleciona leitura de questões
+e prompts no PostgreSQL e publicação atômica pelo Manager. Exige migrações,
+credencial separada de leitura e ativação explícita do backend; adicionar o
+overlay sozinho não migra o ambiente. Siga o [runbook](../docs/runbooks/postgresql-quiz-runtime.md)
+em um projeto/volume descartável para ensaio. Os padrões continuam legados.
+Com publicação PostgreSQL, novas requisições veem edições sem reiniciar a API;
+runs v2 existentes preservam as questões capturadas no Redis. Use `/readyz` para
+verificar dependências e `/healthz` para liveness. Produção não é alterada por
+essa implementação.

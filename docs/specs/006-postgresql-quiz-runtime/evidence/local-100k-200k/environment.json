@@ -1,0 +1,32 @@
+{
+  "host": {
+    "architecture": "x86_64",
+    "kernel": "6.8.0-146-generic",
+    "logical_cpus": 12,
+    "memory": {
+      "MemTotal_bytes": 16517279744,
+      "MemAvailable_bytes": 9123172352,
+      "SwapTotal_bytes": 2147479552,
+      "SwapFree_bytes": 12582912
+    }
+  },
+  "docker_server_version": "29.8.1",
+  "images": {
+    "postgres:17-alpine": {
+      "id": "sha256:1bea307dfb3ee30541a7acf7de14b58bcd6948da98e5d31a04c627c4d35ec64b",
+      "repo_digests": [
+        "postgres@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73"
+      ],
+      "architecture": "amd64"
+    },
+    "redis:7.4-alpine": {
+      "id": "sha256:5509c0097c6064aa8a3b1df58f1d950e67090fffa6678ae8f3f1dc2385f12deb",
+      "repo_digests": [
+        "redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf"
+      ],
+      "architecture": "amd64"
+    }
+  },
+  "resource_model": "API, PostgreSQL, Redis share cpuset 0,1 by default; caps sum to 2GiB; host and I/O are shared, and Manager/ads/proxy/SPAs are excluded.",
+  "dedicated_target_node": false
+}

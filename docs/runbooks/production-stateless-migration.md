@@ -1,5 +1,8 @@
 # Production stateless migration
 
+For current application versions, runtime overrides, and recovery backups,
+see the [2026-10-10 tagged theme selection release](tagged-theme-selection-release.md).
+
 This runbook records the migration of the single-node QuickQuiz beta environment
 from local runtime state to S3, Redis, and PostgreSQL.
 

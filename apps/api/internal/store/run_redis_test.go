@@ -166,6 +166,9 @@ func newTestRedisRunStore(t *testing.T, ttl time.Duration) (*RedisRunStore, *min
 	redisServer := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
 	runStore := newRedisRunStore(client, "test:runs:", ttl)
+	if err := runStore.bootstrapIndex(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
 		_ = runStore.Close()
 	})

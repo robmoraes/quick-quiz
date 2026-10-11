@@ -66,3 +66,16 @@ func TestNewRedisSolutionStoreValidatesConfiguration(t *testing.T) {
 		t.Fatal("expected empty solution TTL to fail")
 	}
 }
+
+func TestRedisSolutionStoreReadinessDistinguishesDependencyFailure(t *testing.T) {
+	ctx := context.Background()
+	server := miniredis.RunT(t)
+	s := newRedisSolutionStore(redis.NewClient(&redis.Options{Addr: server.Addr()}), "test:solutions:", time.Hour)
+	if err := s.Ready(ctx); err != nil {
+		t.Fatalf("healthy solution Redis not ready: %v", err)
+	}
+	s.Close()
+	if err := s.Ready(ctx); !errors.Is(err, domain.ErrStorageUnavailable) {
+		t.Fatalf("solution Redis outage missing availability sentinel: %v", err)
+	}
+}

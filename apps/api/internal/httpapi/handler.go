@@ -202,6 +202,9 @@ func (h *Handler) QuestionSolution(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) writeAppError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, domain.ErrStorageUnavailable):
+		h.logAppError(r, "storage_unavailable", http.StatusServiceUnavailable, domain.ErrStorageUnavailable)
+		writeError(w, http.StatusServiceUnavailable, "storage_unavailable", "Storage unavailable")
 	case errors.Is(err, domain.ErrInvalidTag):
 		writeError(w, http.StatusBadRequest, "invalid_tag", "Invalid tag")
 	case errors.Is(err, app.ErrThemeRequired):

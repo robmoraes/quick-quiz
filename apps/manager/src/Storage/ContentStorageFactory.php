@@ -7,6 +7,14 @@ use RuntimeException;
 
 final class ContentStorageFactory
 {
+    public static function deferred(
+        string $provider, string $contentRoot, string $region, string $bucket,
+        string $prefix, string $endpointUrl, bool $forcePathStyle,
+    ): ContentStorage {
+        return new LazyContentStorage(static fn (): ContentStorage => self::create(
+            $provider, $contentRoot, $region, $bucket, $prefix, $endpointUrl, $forcePathStyle));
+    }
+
     public static function create(
         string $provider,
         string $contentRoot,

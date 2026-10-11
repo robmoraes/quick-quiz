@@ -9,7 +9,28 @@ format.
 
 ## [Unreleased]
 
-Next planned release: `manager/v0.13.0`.
+Next planned release: `manager/v0.14.0`.
+
+### Added
+
+- Opt-in atomic PostgreSQL quiz publication: authoring and publication commit
+  together, and the API sees changes without a content reload or S3 writes.
+- Additive runtime views and explicit SELECT-only API reader-role provisioning.
+- Revision-checked backend activation and streamed, verified legacy exports for
+  deliberate recovery with a snapshot-compatible API image.
+- Automated PostgreSQL integration checks and a staged cutover/recovery runbook.
+
+### Changed
+
+- PostgreSQL publication responses report `apiReloadRequired: false`, with null
+  export checksum/count; legacy publication remains available and unchanged.
+- Instantiate content storage only when required; database-mode quiz and prompt
+  operations no longer require an S3 bucket or a question-directory mount.
+- Use subject-neutral explanation defaults and clarify theme-context guidance.
+
+## Released through [0.13.0]
+
+Cumulative notes retained from earlier releases.
 
 ### Added
 
@@ -142,10 +163,11 @@ Next planned release: `manager/v0.13.0`.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.12.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.13.0...HEAD
 [0.6.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.5.0...manager%2Fv0.6.0
 [0.5.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.4.0...manager%2Fv0.5.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.3.0...manager%2Fv0.4.0
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.2.0...manager%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.1.0...manager%2Fv0.2.0
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/manager%2Fv0.1.0
+[0.13.0]: https://github.com/robmoraes/quick-quiz/releases/tag/manager%2Fv0.13.0

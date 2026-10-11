@@ -27,8 +27,11 @@ final class PostgresQuizAuthoringService implements QuizAuthoringService
             'status' => $status['status'],
             'checksum' => $status['checksum'],
             'objectCount' => $status['objectCount'],
-            'apiReloadRequired' => $status['status'] === 'published',
-            'reason' => 'The Quiz API loads quiz content during startup.',
+            'backend' => $status['backend'],
+            'currentRevision' => $status['currentRevision'],
+            'publishedRevision' => $status['publishedRevision'],
+            'apiReloadRequired' => $status['apiReloadRequired'],
+            'reason' => $status['backend'] === 'postgres' ? 'New operations read the committed PostgreSQL revision.' : 'The Quiz API loads quiz content during startup.',
         ];
     }
 
@@ -39,7 +42,7 @@ final class PostgresQuizAuthoringService implements QuizAuthoringService
 
     public function retryPublication(): array
     {
-        return $this->publication->publishPending();
+        return ['provider' => 'postgres'] + $this->publication->publishPending();
     }
 
     public function contentRoot(): string

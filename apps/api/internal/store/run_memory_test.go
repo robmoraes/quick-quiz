@@ -2,11 +2,48 @@ package store
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"quickquiz/api/internal/domain"
 )
+
+func TestMemoryRunStoreSnapshotIsolationAndIndexedConsumption(t *testing.T) {
+	ctx := context.Background()
+	s := NewMemoryRunStore(time.Hour)
+	revision := int64(42)
+	run := indexTestRun("snapshot", "session")
+	run.Version, run.CatalogRevision = 2, &revision
+	run.QuestionSnapshots = []domain.QuestionSnapshot{{Translations: map[string]domain.Question{"en-US": {Prompt: "original", CorrectOptions: []string{"correct"}, WrongOptions: []string{"wrong"}}}}}
+	if err := s.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	*run.CatalogRevision = 99
+	question := run.QuestionSnapshots[0].Translations["en-US"]
+	question.CorrectOptions[0] = "mutated caller"
+	question.WrongOptions[0] = "mutated caller"
+	run.QuestionSnapshots[0].Translations["en-US"] = question
+	loaded, err := s.Get(ctx, run.ID)
+	if err != nil || *loaded.CatalogRevision != 42 || loaded.QuestionSnapshots[0].Translations["en-US"].CorrectOptions[0] != "correct" || loaded.QuestionSnapshots[0].Translations["en-US"].WrongOptions[0] != "wrong" {
+		t.Fatalf("caller changed persisted snapshot: %v", err)
+	}
+	delete(loaded.QuestionSnapshots[0].Translations, "en-US")
+	*loaded.CatalogRevision = 100
+	loaded, _ = s.Get(ctx, run.ID)
+	if *loaded.CatalogRevision != 42 || len(loaded.QuestionSnapshots[0].Translations) != 1 {
+		t.Fatal("Get returned aliased snapshot state")
+	}
+	if consumed, err := s.ConsumedBySession(ctx, "session", "dev"); err != nil || len(consumed["go"][domain.DifficultyEasy]) != 1 {
+		t.Fatalf("memory canonical consumption: %#v, %v", consumed, err)
+	}
+	if count, err := s.CountLegacyDependent(ctx); err != nil || count != 0 {
+		t.Fatalf("v2 memory run marked legacy: %d, %v", count, err)
+	}
+	if _, err := s.Get(ctx, "absent"); !errors.Is(err, domain.ErrRunNotFound) {
+		t.Fatalf("missing run sentinel: %v", err)
+	}
+}
 
 func TestMemoryRunStoreTracksSolutionRequestsUpToLimit(t *testing.T) {
 	runStore := NewMemoryRunStore(time.Hour)

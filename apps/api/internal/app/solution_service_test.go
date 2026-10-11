@@ -14,16 +14,11 @@ import (
 
 func TestSolutionServiceReturnsCachedSolution(t *testing.T) {
 	question := solutionTestQuestion("en-US")
-	cached := domain.QuestionSolution{
-		Theme:        question.Theme,
-		Locale:       question.Locale,
-		Topic:        question.Topic,
-		Difficulty:   question.Difficulty,
-		QuestionID:   question.ID,
-		Explanation:  "Cached explanation",
-		QuestionHash: questionHash(question),
-	}
 	generator := &countingSolutionGenerator{}
+	prepared, _ := prepareSolution(context.Background(), generator, "dev")
+	cached := solutionKeyFromSnapshot(question, solutionTestSnapshot().Digest, prepared)
+	cached.Explanation = "Cached explanation"
+	cached.QuestionHash = questionHash(question)
 	runStore := store.NewMemoryRunStore(time.Hour)
 	createSolutionTestRun(t, runStore, "run_solution_001", false)
 	service := NewSolutionService(
@@ -239,13 +234,15 @@ func createSolutionTestRun(t *testing.T, runStore *store.MemoryRunStore, runID s
 	t.Helper()
 	now := time.Now().UTC()
 	err := runStore.Create(context.Background(), &domain.Run{
-		ID:            runID,
-		SessionID:     "session_solution_001",
-		Theme:         "dev",
-		Locale:        "en-US",
-		Topic:         "go",
-		Difficulty:    domain.DifficultyEasy,
-		QuestionLimit: 1,
+		Version:           2,
+		QuestionSnapshots: []domain.QuestionSnapshot{solutionTestSnapshot()},
+		ID:                runID,
+		SessionID:         "session_solution_001",
+		Theme:             "dev",
+		Locale:            "en-US",
+		Topic:             "go",
+		Difficulty:        domain.DifficultyEasy,
+		QuestionLimit:     1,
 		UsedQuestionIDs: map[string]bool{
 			"go-easy-001": true,
 		},
@@ -262,4 +259,13 @@ func createSolutionTestRun(t *testing.T, runStore *store.MemoryRunStore, runID s
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
+}
+
+func solutionTestSnapshot() domain.QuestionSnapshot {
+	snapshot := domain.QuestionSnapshot{
+		Key:          domain.QuestionKey{Theme: "dev", Topic: "go", Difficulty: domain.DifficultyEasy, QuestionID: "go-easy-001"},
+		Translations: map[string]domain.Question{"en-US": solutionTestQuestion("en-US"), "pt-BR": solutionTestQuestion("pt-BR")},
+	}
+	snapshot.Digest = domain.SnapshotDigest(snapshot)
+	return snapshot
 }

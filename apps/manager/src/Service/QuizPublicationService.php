@@ -15,6 +15,7 @@ final class QuizPublicationService
         private readonly ManagerDatabase $database,
         private readonly QuizProjectionRenderer $renderer,
         private readonly QuizProjectionPublisher $publisher,
+        private readonly string $publicationProvider = 'content_storage',
     ) {
     }
 
@@ -37,6 +38,18 @@ final class QuizPublicationService
             if ($revision <= $previous['currentRevision']) {
                 throw new RuntimeException('Quiz mutation did not create a new revision.');
             }
+            if ($this->publicationProvider === 'postgres') {
+                $status = $this->status();
+                if ($status['publishedRevision'] !== $revision || $status['currentRevision'] !== $revision) {
+                    throw new RuntimeException('PostgreSQL mutation did not publish atomically.');
+                }
+                return ['result' => $result, 'publication' => [
+                    'backend' => 'postgres', 'revision' => $revision, 'status' => 'published',
+                    'currentRevision' => $revision, 'publishedRevision' => $revision,
+                    'checksum' => null, 'objectCount' => null, 'durationMs' => $status['durationMs'],
+                    'apiReloadRequired' => false, 'reason' => 'New operations read the committed PostgreSQL revision.',
+                ]];
+            }
             $selected = $previous['currentRevision'] === $previous['publishedRevision'] ? $scope($result) : null;
             return ['result' => $result, 'publication' => $this->publishRevision($revision, $selected)];
         });
@@ -47,7 +60,7 @@ final class QuizPublicationService
     {
         return $this->locked(function (): array {
             $status = $this->status();
-            if ($status['currentRevision'] === $status['publishedRevision'] && $status['status'] === 'published') {
+            if ($this->publicationProvider === 'postgres' || ($status['currentRevision'] === $status['publishedRevision'] && $status['status'] === 'published')) {
                 return $status;
             }
             return $this->publishRevision($status['currentRevision'], null);
@@ -59,7 +72,7 @@ final class QuizPublicationService
     {
         return $this->locked(function () use ($theme): array {
             $status = $this->status();
-            if ($status['currentRevision'] === 0) {
+            if ($this->publicationProvider === 'postgres' || $status['currentRevision'] === 0) {
                 return $status;
             }
             if ($theme !== null) {
@@ -85,7 +98,7 @@ final class QuizPublicationService
     public function status(): array
     {
         $db = $this->database->connection();
-        $state = $db->query('SELECT current_revision,published_revision FROM quiz_catalog_state WHERE singleton=1')->fetch(PDO::FETCH_ASSOC);
+        $state = $db->query('SELECT current_revision,published_revision,publication_backend FROM quiz_catalog_state WHERE singleton=1')->fetch(PDO::FETCH_ASSOC);
         if (!is_array($state)) {
             throw new RuntimeException('Quiz catalog state is missing; run database migrations.');
         }
@@ -99,12 +112,16 @@ final class QuizPublicationService
         $publication = $statement->fetch(PDO::FETCH_ASSOC) ?: [];
         $current = (int) $state['current_revision'];
         $published = (int) $state['published_revision'];
+        $postgres = $state['publication_backend'] === 'postgres';
+        $status = $postgres ? 'published' : ($publication['status'] ?? ($current === $published ? 'published' : 'pending'));
         return [
+            'backend' => $state['publication_backend'],
+            'apiReloadRequired' => !$postgres && $status === 'published',
             'currentRevision' => $current,
             'publishedRevision' => $published,
-            'status' => $publication['status'] ?? ($current === $published ? 'published' : 'pending'),
-            'checksum' => $publication['content_checksum'] ?? null,
-            'objectCount' => ($publication['object_count'] ?? null) === null ? null : (int) $publication['object_count'],
+            'status' => $status,
+            'checksum' => $postgres ? null : ($publication['content_checksum'] ?? null),
+            'objectCount' => $postgres || ($publication['object_count'] ?? null) === null ? null : (int) $publication['object_count'],
             'failureSummary' => $publication['failure_summary'] ?? null,
             'startedAt' => $publication['started_at'] ?? null,
             'finishedAt' => $publication['finished_at'] ?? null,
@@ -152,6 +169,7 @@ final class QuizPublicationService
                 ]);
             });
             return [
+                'backend' => 'content_storage',
                 'revision' => $revision,
                 'status' => 'published',
                 'checksum' => $result['checksum'],
@@ -192,6 +210,11 @@ final class QuizPublicationService
         $db = $this->database->connection();
         QuizCatalogLock::session($db);
         try {
+            $state = $this->status();
+            if ($state['backend'] !== $this->publicationProvider
+                || ($this->publicationProvider === 'postgres' && $state['currentRevision'] !== $state['publishedRevision'])) {
+                throw new RuntimeException('Configured quiz publication backend or revisions disagree with stored state.');
+            }
             return $operation();
         } finally {
             QuizCatalogLock::release($db);

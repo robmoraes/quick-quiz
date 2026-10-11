@@ -1,65 +1,73 @@
 # Architecture Overview
 
-QuickQuiz Dev is a small fullstack quiz system built around explicit service
-boundaries and a file-based content contract.
-
-The MVP avoids infrastructure that is not needed yet: there is no player
-account system or player authentication. PostgreSQL stores authored quiz content;
-the player API reads its published JSON projection. The
-architecture still separates user interface, HTTP API, business rules, content
-validation, and content storage so the project can evolve without turning the
-MVP into a tightly coupled prototype.
-
-## Goals
-
-- Provide a fast quiz experience for developers.
-- Keep backend rules testable outside HTTP handlers.
-- Keep the player SPA focused on game flow and presentation.
-- Let the manager validate quiz packs before the API serves them.
-- Keep quiz content portable as JSON files.
-- Support locale-specific content without localizing machine-readable values.
+QuickQuiz is a quiz system with separate player clients, game logic, content
+authoring and storage. Subjects are unrestricted; the Dev SPA's `dev` audience
+tag controls discovery, while DSLab keeps its fixed theme. There are no player
+accounts. Manager authentication is separate from player sessions.
 
 ## Runtime Shape
 
-```text
-Player browser
-  |
-  | Quasar/Vue SPA
-  v
-Go API
-  |
-  | reads validated quiz packs
-  v
-Local files or S3-compatible storage
+The accepted PostgreSQL runtime is implemented as an opt-in provider; production
+continues using the previous S3 startup snapshot until a separately authorized
+cutover. See [ADR 004](adr/004-postgresql-quiz-runtime.md) and the
+[migration runbook](../runbooks/postgresql-quiz-runtime.md).
 
-Content editor
-  |
-  | Symfony Manager
-  v
-PostgreSQL authoring -> publication -> local or S3-compatible storage
+```text
+Editor / protected administration API
+  -> Symfony Manager (sole content writer)
+     -> PostgreSQL authored content + atomic live publication
+        -> SELECT-only versioned views -> Go Quiz API -> Player SPAs
+                                           |
+                                           -> bounded run snapshots -> Redis
+
+Explicit operator export -> legacy JSON -> local / S3
+Ads API -> its existing local / S3 storage
 ```
+
+With PostgreSQL runtime, the API reads theme/topic metadata and aggregate counts
+by scope, selects question IDs, and hydrates only the selected run packages.
+There is no whole-bank startup download. Each operation uses a consistent
+read-only transaction and a dedicated reader credential. Manager validates and
+commits content plus publication in one transaction; new requests see updates
+without restarting the API.
+
+Runs capture their selected questions, translations and served options in Redis.
+Edits, deletion or retirement affect new runs; an existing captured run continues
+with its saved content. Session consumption uses per-session/theme indexes.
+Generated explanations use the captured question and current optional theme
+instructions; their cache identity includes content and generator settings.
+
+The legacy local/S3 question provider and content-storage publication remain
+available for staged compatibility and deliberate rollback. They preserve the
+JSON contract and startup/reload behavior; fallback requires an explicit fresh
+verified export and a v2-compatible reader image. There is no automatic storage
+fallback after an outage.
 
 ## Core Boundaries
 
-The SPA is a player client. It renders catalog choices, starts runs, submits
-answers, shows results, and sends locale/theme/session headers.
+The SPAs render choices, runs and results. They send the selected theme, locale
+and session headers, and never receive answer correctness or database access.
 
-The API is the game authority. It validates run state, selects questions,
-checks answers, enforces session exhaustion, and hides unpublished content.
+The Go API owns game rules, selection, grading, exhaustion and results. Redis
+holds session/run state and explanation cache; PostgreSQL holds live quiz content
+when selected. OpenAI is optional for explanations, not gameplay.
 
-The manager is the content editing tool. It stores canonical quiz content in
-PostgreSQL and publishes quiz pack JSON objects through local or S3-compatible
-storage, preserving the canonical file contract.
+Manager owns authoring, validation, administration authentication, migrations,
+publication and explicit export. PostgreSQL also stores Manager accounts and
+AI instructions; Manager login sessions use Redis. The API reader can only SELECT
+allowlisted runtime views, not Manager users, sessions or base tables.
 
-The quiz pack is the player-facing content projection. It is not application
-code and must not contain secrets or runtime-only metadata. Published theme tags
-support public discovery; topic tags remain private authoring metadata. See
-[ADR 003](adr/003-tagged-theme-discovery.md).
+Theme tags support discovery. Topic tags remain private authoring metadata and
+are absent from player responses and legacy JSON. Inactive themes/topics retain
+unpublished content. JSON exports remain portable content artifacts, not code or
+secrets. See [ADR 003](adr/003-tagged-theme-discovery.md).
 
-## Non-Goals For The MVP
+Ads API remains an independent service. Its storage and target metadata are not
+migrated by the quiz runtime change.
 
-- Public player accounts.
-- Persistent player score history.
-- Real advertising provider integration.
-- Real question banks committed to the public repository.
+## Non-Goals
 
+- Public player accounts or persistent player score history.
+- Real question banks or secrets committed to the repository.
+- Additional nodes, Kubernetes or managed database infrastructure in this change.
+- Frontend redesign, public topic tags or editorial approval workflows.

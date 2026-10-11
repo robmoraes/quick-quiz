@@ -40,7 +40,10 @@ final class QuizCatalogImporter
 
         $revision = $this->database->transactional(function (PDO $db) use ($snapshot, $sourceObjects, $replace): ?int {
             QuizCatalogLock::transaction($db);
-            $db->query('SELECT current_revision FROM quiz_catalog_state WHERE singleton=1 FOR UPDATE')->fetchColumn();
+            $backend = $db->query('SELECT publication_backend FROM quiz_catalog_state WHERE singleton=1 FOR UPDATE')->fetchColumn();
+            if ($backend !== 'content_storage') {
+                throw new RuntimeException('Legacy catalog import is disabled while PostgreSQL runtime publication is active.');
+            }
             $current = $this->renderer->render();
             if ($this->comparator->compare($sourceObjects, $current)['equal']) {
                 return null;

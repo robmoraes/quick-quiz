@@ -97,6 +97,10 @@ Rollback and staged migration are described in the feature plan.
 
 ## References
 
+- Accepted evolution: [ADR 004](004-postgresql-quiz-runtime.md) replaces only
+  the startup-snapshot/read-source constraint for PostgreSQL runtime mode;
+  audience tags and discovery behavior remain. The deployed read source changes
+  only during the separately authorized cutover.
 - [Feature specification](../../specs/005-tagged-theme-selection/spec.md)
 - [Implementation plan](../../specs/005-tagged-theme-selection/plan.md)
 - [Manager-owned administration](001-manager-owned-quiz-admin-api.md)

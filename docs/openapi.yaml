@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: QuickQuiz Dev API
-  version: 0.3.0
+  version: 0.4.0
   description: QuickQuiz Dev MVP API.
 servers:
   - url: http://localhost:8080
@@ -13,6 +13,25 @@ tags:
   - name: Runs
   - name: Solutions
 paths:
+  /readyz:
+    get:
+      summary: Checks configured runtime dependencies and, in database mode, the PostgreSQL
+        contract.
+      operationId: getReadiness
+      security: []
+      responses:
+        '200':
+          description: Configured runtime dependencies and contract are ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ready'
+        '503':
+          description: A configured runtime dependency or contract is not ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotReady'
   /api/themes:
     get:
       operationId: listThemes
@@ -39,6 +58,12 @@ paths:
             pattern: '^[ \t\r\n\f\v]*[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*[ \t\r\n\f\v]*$'
           example: dev
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         '200':
           description: Active themes matching the optional tag, possibly empty.
           content:
@@ -105,6 +130,12 @@ paths:
         - $ref: "#/components/parameters/Locale"
         - $ref: "#/components/parameters/AcceptLanguage"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Catalog is available.
           content:
@@ -125,6 +156,12 @@ paths:
         - $ref: "#/components/parameters/Theme"
         - $ref: "#/components/parameters/SessionID"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Session reset.
           content:
@@ -156,6 +193,12 @@ paths:
         - $ref: "#/components/parameters/AcceptLanguage"
         - $ref: "#/components/parameters/Topic"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Session difficulty availability is available.
           content:
@@ -180,6 +223,12 @@ paths:
         - $ref: "#/components/parameters/Locale"
         - $ref: "#/components/parameters/AcceptLanguage"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Session topic availability is available.
           content:
@@ -199,6 +248,12 @@ paths:
       description: Returns non-expired run sessions visible to the API at request time, including finished runs until session TTL cleanup removes them. This endpoint is open for now and only returns operational metadata.
       operationId: getActiveSessions
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Active sessions are available.
           content:
@@ -226,6 +281,12 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateRunRequest"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "201":
           description: Run created with the first question.
           content:
@@ -255,6 +316,12 @@ paths:
             schema:
               $ref: "#/components/schemas/AnswerRequest"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Answer validated.
           content:
@@ -284,6 +351,12 @@ paths:
         - $ref: "#/components/parameters/Theme"
         - $ref: "#/components/parameters/RunID"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Run finished.
           content:
@@ -308,6 +381,12 @@ paths:
         - $ref: "#/components/parameters/Theme"
         - $ref: "#/components/parameters/RunID"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Run state.
           content:
@@ -331,6 +410,12 @@ paths:
         - $ref: "#/components/parameters/Theme"
         - $ref: "#/components/parameters/RunID"
       responses:
+        "503":
+          description: Required content/session storage is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "200":
           description: Run result.
           content:
@@ -441,6 +526,26 @@ components:
       example: go-easy-001
 
   schemas:
+    Ready:
+      type: object
+      required:
+      - status
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+          - ok
+    NotReady:
+      type: object
+      required:
+      - status
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+          - not_ready
     ThemeList:
       type: object
       required: [themes]

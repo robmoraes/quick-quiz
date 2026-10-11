@@ -1,0 +1,54 @@
+{
+  "baseline_canonical": 100000,
+  "doubled_canonical": 200000,
+  "hot_scope_unchanged": true,
+  "rss_comparison_method": "maximum phase p95 RSS, independently started API processes, same endpoint schedule",
+  "baseline_steady_rss_bytes": 24682496,
+  "doubled_steady_rss_bytes": 24723456,
+  "steady_rss_delta_bytes": 40960,
+  "observed_delta_under_16mib": true,
+  "total_measured_http_operations": 24000,
+  "total_errors": 0,
+  "captured_state_and_answer_sql_queries": {
+    "100000": {
+      "state": 0,
+      "answer": 0
+    },
+    "200000": {
+      "state": 0,
+      "answer": 0
+    }
+  },
+  "bounded_hydration": {
+    "100000": [
+      {
+        "max_locales_per_package": 2,
+        "max_selected_packages": 5,
+        "max_snapshot_json_bytes": 11891,
+        "run_question_limit": 5
+      },
+      {
+        "max_locales_per_package": 2,
+        "max_selected_packages": 10,
+        "max_snapshot_json_bytes": 23781,
+        "run_question_limit": 10
+      }
+    ],
+    "200000": [
+      {
+        "max_locales_per_package": 2,
+        "max_selected_packages": 5,
+        "max_snapshot_json_bytes": 11891,
+        "run_question_limit": 5
+      },
+      {
+        "max_locales_per_package": 2,
+        "max_selected_packages": 10,
+        "max_snapshot_json_bytes": 23781,
+        "run_question_limit": 10
+      }
+    ]
+  },
+  "dedicated_target_node_approval": false,
+  "one_million_experiment": "not run; no claim for current production node"
+}

@@ -18,6 +18,13 @@ func (s *RunService) Themes(ctx context.Context, tag *string) ([]domain.Theme, e
 			return nil, err
 		}
 	}
+	if reader, ok := s.questions.(RuntimeQuestionReader); ok {
+		var normalized *string
+		if tag != nil {
+			normalized = &filter
+		}
+		return reader.ListThemesByTag(ctx, normalized)
+	}
 	themes, err := s.questions.ListThemes(ctx)
 	if err != nil {
 		return nil, err

@@ -1,0 +1,92 @@
+name: Validate quiz runtime
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quiz-runtime-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API tests with PostgreSQL and Redis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: quickquiz_runtime_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d quickquiz_runtime_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      QUICKQUIZ_POSTGRES_TEST_URL: postgres://postgres:synthetic-ci-only@127.0.0.1:5432/quickquiz_runtime_test?sslmode=disable
+      QUICKQUIZ_TEST_REDIS_ADDR: 127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+      - name: Test API, runtime views and Redis index
+        working-directory: apps/api
+        run: go test -race ./...
+
+  manager:
+    name: Manager tests with PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: quickquiz_manager_runtime_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d quickquiz_manager_runtime_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # Existing integration suites also use MANAGER_DATABASE_URL. Both point
+      # only to this job's ephemeral database; the new runtime suite adds its
+      # explicit opt-in and exact database-name guard.
+      MANAGER_DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/quickquiz_manager_runtime_test
+      QUICKQUIZ_MANAGER_POSTGRES_TEST_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/quickquiz_manager_runtime_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: json, pdo, pdo_pgsql, pdo_sqlite
+          tools: composer:v2
+          coverage: none
+      - name: Install Manager dependencies
+        working-directory: apps/manager
+        run: composer install --prefer-dist --no-interaction --no-progress
+      - name: Test Manager and atomic runtime publication
+        working-directory: apps/manager
+        run: composer test

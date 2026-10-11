@@ -1,6 +1,6 @@
 # Tasks: Tagged Theme Selection
 
-Status: Approved and implemented locally on 2026-10-10. Automated verification complete; not deployed to production.
+Status: Approved, implemented, verified, and deployed to production on 2026-10-10. See the [deployment record](../../runbooks/tagged-theme-selection-release.md).
 
 Requirements and acceptance examples refer to [spec.md](spec.md). Implement
 in small trunk-based slices after approval; do not treat this list as a release
@@ -99,10 +99,10 @@ Additional captures remain in the ignored local directory `_temp/spec-005/screen
 desktop, locked session, empty/error/no-topic states, and Manager theme list.
 These are review captures, not a manual QA deliverable. No real question bank was added.
 
-Release versions are prepared below. Migration of production data and production
-deployment remain separate follow-up steps. Before releasing SPA Dev, explicitly tag the
-intended production themes and publish/reload the compatible API as described
-in [plan.md](plan.md#rollout-compatibility-and-rollback).
+Release versions were prepared below after local verification. Production
+deployment was subsequently completed in the separate step recorded at the end
+of this document, including explicit audience assignment and publication/API
+reload as described in [plan.md](plan.md#rollout-compatibility-and-rollback).
 
 
 ## Approved Follow-up: Automatic Session Closure — A16 / R6
@@ -144,3 +144,17 @@ OpenAPI document versions remain independently versioned: public API `0.3.0`
 and Manager administration `0.4.0`, already incremented for this feature.
 Historical release records, SPA DSLab, Ads API, and dependency versions were
 not changed. No release tag was created or pushed during version preparation.
+
+## Production Deployment — 2026-10-10
+
+- [x] Merge PR #46, create the three release tags on `4d1c42e`, and push them
+      individually, waiting for each release workflow to pass.
+- [x] Back up PostgreSQL, published S3 content, and Compose; apply migration 0003.
+- [x] Deploy Manager 0.13.0, explicitly tag the existing Dev theme, and confirm
+      revision 23 is published before updating API 0.8.0 and SPA Dev 0.9.0.
+- [x] Set the production API startup budget to 120 seconds after an observed
+      S3-load timeout; verify clean startup and Redis session continuity.
+- [x] Verify public endpoints, protected Manager operations, browser behavior,
+      unchanged question content, and preservation of unrelated containers.
+- [x] Record backups, digests, runtime configuration, and rollback/recovery in
+      the [release runbook](../../runbooks/tagged-theme-selection-release.md).

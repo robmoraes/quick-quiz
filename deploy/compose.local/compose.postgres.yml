@@ -1,0 +1,17 @@
+# Opt-in local PostgreSQL runtime. Bootstrap/reconcile the database and reader
+# credential first; see docs/runbooks/postgresql-quiz-runtime.md.
+# Use a separate project/volume when rehearsing, never an existing preview bank.
+services:
+  api:
+    environment:
+      QUESTION_STORAGE_PROVIDER: postgres
+      SOLUTION_PROMPT_STORAGE_PROVIDER: postgres
+      QUIZ_DATABASE_URL: ${QUIZ_DATABASE_URL:-postgresql://quickquiz_runtime:quickquiz-reader-local@manager-db:5432/quickquiz_manager}
+    depends_on:
+      manager-db:
+        condition: service_healthy
+    volumes: !reset []
+  manager-fpm:
+    environment:
+      MANAGER_QUIZ_PERSISTENCE_PROVIDER: postgres
+      MANAGER_QUIZ_PUBLICATION_PROVIDER: postgres

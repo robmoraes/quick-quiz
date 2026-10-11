@@ -5,17 +5,27 @@ namespace App\Repository;
 use App\Exception\QuizDatabaseException;
 use App\Service\QuizContentRules;
 use App\Service\QuizTags;
+use App\Service\QuizRuntimeCatalog;
 use DateTimeImmutable;
 use DateTimeZone;
 use PDO;
 use PDOException;
 use RuntimeException;
 
-/** Transactional quiz authoring. Publication consumes the pending revision separately. */
+/** Transactional authoring; PostgreSQL runtime publication shares the write transaction. */
 final class QuizContentWriter
 {
-    public function __construct(private readonly ManagerDatabase $database, private readonly QuizContentRules $rules)
-    {
+    private readonly QuizRuntimeCatalog $runtime;
+
+    public function __construct(
+        private readonly ManagerDatabase $database,
+        private readonly QuizContentRules $rules,
+        private readonly string $publicationProvider = 'content_storage',
+    ) {
+        if (!in_array($publicationProvider, ['content_storage', 'postgres'], true)) {
+            throw new RuntimeException('Unsupported quiz publication provider.');
+        }
+        $this->runtime = new QuizRuntimeCatalog($rules);
     }
 
     /** @param array<string,mixed> $input */
@@ -28,7 +38,7 @@ final class QuizContentWriter
         }
         $tags = array_key_exists('tags', $input) ? QuizTags::normalize($input['tags']) : null;
         return $this->mutate($id, function (PDO $db) use ($id, $name, $input, $tags): void {
-            $old = $this->one($db, 'SELECT created_at FROM quiz_themes WHERE id = :id', ['id' => $id]);
+            $old = $this->one($db, 'SELECT created_at,active FROM quiz_themes WHERE id = :id', ['id' => $id]);
             $this->sql($db, 'INSERT INTO quiz_themes (id,name,description,weight,active,created_at,updated_at)
                 VALUES (:id,:name,:description,:weight,:active,:created_at,:updated_at)
                 ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, description=EXCLUDED.description,
@@ -42,6 +52,10 @@ final class QuizContentWriter
                 'created_at' => $this->createdAt($input['createdAt'] ?? null, $old['created_at'] ?? null),
                 'updated_at' => $this->now(),
             ]);
+            if ($this->publicationProvider === 'postgres' && $this->bool($input['active'] ?? false) === 'true'
+                && ($old === null || !in_array($old['active'], [true, 1, '1', 't', 'true'], true))) {
+                $this->runtime->assertIntegrity($db, $id, activeOnly: true);
+            }
             if ($tags !== null) {
                 $this->sql($db, 'DELETE FROM quiz_theme_tags WHERE theme_id=:theme', ['theme' => $id]);
                 foreach ($tags as $tag) {
@@ -147,6 +161,10 @@ final class QuizContentWriter
             }
             if ($tags !== null) {
                 $this->replaceTopicTags($db, $identity, $tags);
+            }
+            if ($this->publicationProvider === 'postgres' && $fields['active'] === 'true'
+                && ($old === null || !in_array($old['active'], [true, 1, '1', 't', 'true'], true))) {
+                $this->runtime->assertIntegrity($db, $theme, $key, activeOnly: true);
             }
             return ['revision' => $this->recordRevision($db, $theme), 'publicationRequired' => true];
         });
@@ -336,10 +354,13 @@ final class QuizContentWriter
 
     private function recordRevision(PDO $db, ?string $theme): int
     {
-        $revision = (int) $db->query('UPDATE quiz_catalog_state SET current_revision=current_revision+1,
-            updated_at=CURRENT_TIMESTAMP WHERE singleton=1 RETURNING current_revision')->fetchColumn();
-        $this->sql($db, 'INSERT INTO quiz_publications (revision,affected_theme_id,status) VALUES (:revision,:theme,:status)', [
-            'revision' => $revision, 'theme' => $theme, 'status' => 'pending',
+        $postgres = $this->publicationProvider === 'postgres';
+        $revision = (int) $db->query('UPDATE quiz_catalog_state SET current_revision=current_revision+1,'
+            .($postgres ? ' published_revision=current_revision+1,' : '')
+            .' updated_at=CURRENT_TIMESTAMP WHERE singleton=1 RETURNING current_revision')->fetchColumn();
+        $this->sql($db, 'INSERT INTO quiz_publications (revision,affected_theme_id,status,started_at,finished_at)
+            VALUES (:revision,:theme,:status,'.($postgres ? 'CURRENT_TIMESTAMP,CURRENT_TIMESTAMP' : 'NULL,NULL').')', [
+            'revision' => $revision, 'theme' => $theme, 'status' => $postgres ? 'published' : 'pending',
         ]);
         return $revision;
     }
@@ -349,7 +370,8 @@ final class QuizContentWriter
         try {
             return $this->database->transactional(function (PDO $db) use ($operation): mixed {
                 QuizCatalogLock::transaction($db);
-                $db->query('SELECT current_revision FROM quiz_catalog_state WHERE singleton=1 FOR UPDATE')->fetchColumn();
+                $this->runtime->state($db, true);
+                $this->runtime->assertBackend($db, $this->publicationProvider);
                 return $operation($db);
             });
         } catch (PDOException) {

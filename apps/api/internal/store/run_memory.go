@@ -146,6 +146,21 @@ func cloneRun(run *domain.Run) *domain.Run {
 	}
 
 	cloned.Answers = append([]domain.AnswerRecord(nil), run.Answers...)
+	if run.CatalogRevision != nil {
+		revision := *run.CatalogRevision
+		cloned.CatalogRevision = &revision
+	}
+	cloned.QuestionSnapshots = make([]domain.QuestionSnapshot, len(run.QuestionSnapshots))
+	for i, snapshot := range run.QuestionSnapshots {
+		copy := snapshot
+		copy.Translations = make(map[string]domain.Question, len(snapshot.Translations))
+		for locale, question := range snapshot.Translations {
+			question.CorrectOptions = append([]string(nil), question.CorrectOptions...)
+			question.WrongOptions = append([]string(nil), question.WrongOptions...)
+			copy.Translations[locale] = question
+		}
+		cloned.QuestionSnapshots[i] = copy
+	}
 
 	if run.CurrentQuestion != nil {
 		current := *run.CurrentQuestion
@@ -161,3 +176,5 @@ type errRunNotFound struct{}
 func (errRunNotFound) Error() string {
 	return "run not found"
 }
+
+func (errRunNotFound) Is(target error) bool { return target == domain.ErrRunNotFound }

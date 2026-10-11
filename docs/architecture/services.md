@@ -15,20 +15,24 @@ Responsibilities:
 - create and edit themes and their published tags;
 - create and edit topic catalogs;
 - create and edit localized topic metadata;
-- create and edit questions and publish the JSON projection;
+- create and edit questions and publish atomically to PostgreSQL, or through the legacy JSON provider;
 - create and edit advertising entries through the Ads API;
 - validate quiz pack structure before saving;
 - optionally use OpenAI-assisted question recommendation and localization.
 
 The manager is not the player API. It may have admin authentication for editing
-content, but that does not imply player accounts. Login sessions are stored in Redis. Admin accounts and AI prompts are stored in PostgreSQL. Published content is read and written through a configurable local or S3-compatible storage backend.
+content, but that does not imply player accounts. Login sessions are stored in Redis. Admin accounts and AI prompts are stored in PostgreSQL. The selected publication backend is independent of authoring persistence: PostgreSQL commits live content and publication together; `content_storage` keeps the local/S3 JSON projection. JSON export is explicit in database runtime mode.
 
 ## API
 
 Path: `apps/api/`
 
-The API is a Go service that serves the player SPA. It loads active quiz pack
-content from local files or S3-compatible storage. Run/session state and generated solutions can use Redis.
+The API is a Go service that serves the player SPAs. With the opt-in PostgreSQL
+runtime it reads active content through scoped, SELECT-only runtime views and
+captures bounded run snapshots in Redis. Local/S3 startup loading remains a
+legacy provider for staged migration and deliberate rollback. Generated
+solutions can use Redis. See [the migration runbook](../runbooks/postgresql-quiz-runtime.md);
+this implementation does not itself change production.
 
 Responsibilities:
 
@@ -83,7 +87,7 @@ Responsibilities:
 Path in local development: `apps/api/.local/`
 
 Quiz pack data is not part of the public repository. It is documented because
-the API and manager both depend on the same contract.
+the legacy providers and explicit database export preserve the same contract.
 
 Responsibilities:
 

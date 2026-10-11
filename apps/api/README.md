@@ -17,7 +17,7 @@ go run ./cmd/api
 
 ## Building
 
-Build the API binary from apps/api:
+Use Go 1.25 or newer. Build the API binary from apps/api:
 
 ```sh
 mkdir -p bin
@@ -52,9 +52,12 @@ stop startup. Trailing CR/LF characters are removed.
 - `LOG_LEVEL`: structured log threshold: `debug`, `info`, `warn`, or `error`. Default: `info`.
 - `CORS_ALLOWED_ORIGINS`: comma-separated browser origins or `*`. Default: `*`.
 - `HTTP_READ_HEADER_TIMEOUT`, `HTTP_READ_TIMEOUT`, `HTTP_WRITE_TIMEOUT`, `HTTP_IDLE_TIMEOUT`: HTTP server timeouts. Defaults: `5s`, `15s`, `15s`, and `60s`.
-- `STORAGE_STARTUP_TIMEOUT`: startup deadline for loading S3-backed content. Default: `30s`.
+- `STORAGE_STARTUP_TIMEOUT`: startup deadline for loading legacy content and checking the selected runtime/legacy-run gate. Default: `30s`.
 - `RUN_QUESTION_LIMIT`: fixed maximum number of questions per run. Default: `10`.
-- `QUESTION_STORAGE_PROVIDER`: question storage backend, `local` or `s3`. Default: `local`.
+- `QUESTION_STORAGE_PROVIDER`: question storage backend, `local`, `s3`, or `postgres`. Default: `local`.
+- `QUIZ_DATABASE_URL` / `QUIZ_DATABASE_URL__FILE`: dedicated SELECT-only runtime credential, required for PostgreSQL questions or prompts; never use the Manager writer credential.
+- `QUIZ_DATABASE_MAX_CONNECTIONS`, `QUIZ_DATABASE_CONNECT_TIMEOUT`, `QUIZ_DATABASE_QUERY_TIMEOUT`, `QUIZ_DATABASE_MAX_IDLE_TIME`: positive bounded-pool settings. Defaults: `4`, `5s`, `2s`, `60s`.
+- `SOLUTION_PROMPT_STORAGE_PROVIDER`: `local`, `s3`, or `postgres`; when absent, inherits the question provider.
 - `QUESTION_SOURCE`: local content root with `themes.json` and theme folders. Default: `.local`.
 - `FALLBACK_LOCALE`: fallback BCP 47 content locale. Default: `en-US`.
 - `SUPPORTED_LOCALES`: comma-separated supported BCP 47 locales. Default: `en-US,pt-BR`.
@@ -70,14 +73,15 @@ stop startup. Trailing CR/LF characters are removed.
 - `OPENAI_BASE_URL`: OpenAI API base URL. Default: `https://api.openai.com/v1`.
 - `OPENAI_MODEL`: OpenAI model used to generate question solutions. Default: `gpt-5.4-mini`.
 - `OPENAI_ORGANIZATION`, `OPENAI_PROJECT`: optional OpenAI organization/project headers.
-- `OPENAI_SOLUTION_PROMPT_FILE`: local prompt path used with `QUESTION_STORAGE_PROVIDER=local`. The path may include `{{theme}}`. Default: `.local/{{theme}}/ai-prompts/question-solution-prompt.txt`.
+- `OPENAI_SOLUTION_PROMPT_FILE`: local prompt path used with `SOLUTION_PROMPT_STORAGE_PROVIDER=local`. The path may include `{{theme}}`. Default: `.local/{{theme}}/ai-prompts/question-solution-prompt.txt`.
 - `OPENAI_TIMEOUT`: OpenAI request timeout. Default: `30s`.
 - `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`: AWS credentials/config for S3.
 - `S3_BUCKET`, `S3_PREFIX`, `S3_ENDPOINT_URL`, `S3_FORCE_PATH_STYLE`: S3 question catalog settings. `S3_BUCKET` is required for the `s3` provider.
 
 ## Endpoints
 
-- `GET /healthz`
+- `GET /healthz` (process liveness)
+- `GET /readyz` (selected dependency/contract readiness)
 - `GET /api/catalog`
 - `POST /api/session/reset`
 - `POST /api/runs`
@@ -89,16 +93,22 @@ stop startup. Trailing CR/LF characters are removed.
 
 Run and session state can be stored in process memory or Redis. The repository-wide local Docker Compose uses Redis by default; direct `go run` execution keeps the `memory` default. Each Redis run key expires according to `SESSION_TTL`.
 
-The API selects local or S3 question loading at startup. The S3 provider reads the same object layout below under `S3_PREFIX`; `local` remains the default and requires no AWS access.
+With `QUESTION_STORAGE_PROVIDER=postgres`, the API reads scoped metadata/counts and selected packages through `quiz_runtime_v1` views; it does not preload the bank. Manager commits content and live publication atomically, so new requests see updates without an API restart. Configure the backend and reader using the [migration runbook](../../docs/runbooks/postgresql-quiz-runtime.md). Existing v2 runs retain bounded question snapshots in Redis, including all configured locales and served option identities. PostgreSQL outages fail new content requests with `503 storage_unavailable`, while captured runs can continue with Redis.
+
+The legacy API providers select local or S3 question loading at startup. The S3 provider reads the same object layout below under `S3_PREFIX`; `local` remains the default and requires no AWS access.
 
 For local development, use `.local/themes.json` to publish themes, `.local/<theme>/index.json` to publish topics for a theme, and `.local/<theme>/<locale>/<topic>/<difficulty>/<question-id>.json` for question files. Example: `.local/dev/en-US/php/1/php-1-001.json`. This folder is ignored by Git.
 
 Question JSON files contain only `prompt`, `correctOptions`, and `wrongOptions`. The loader derives `theme`, `id`, `locale`, `topic`, and `difficulty` from the path, and only loads active themes from `themes.json` and active topics listed in the theme `index.json`.
 
-The S3 provider covers the read-only question catalog. Generated question solutions use `SOLUTION_STORAGE_PROVIDER`: `local` stores derived artifacts under `.local/<theme>/.solutions/<locale>/<topic>/<difficulty>/<question-id>.json`, `memory` keeps them for the API process lifetime, and `redis` stores them under `REDIS_SOLUTION_KEY_PREFIX` for `SOLUTION_TTL`. The Docker Compose profiles use Redis, so generated solutions survive API restarts without creating API filesystem state. Losing the cache only causes a missing solution to be generated again. A solution can only be requested for a question that was answered incorrectly in the requested run.
+The S3 provider covers the read-only question catalog. Generated question solutions use `SOLUTION_STORAGE_PROVIDER`: `local` stores derived artifacts under `.local/<theme>/.solutions/` with content/prompt/configuration-specific identities, `memory` keeps them for the API process lifetime, and `redis` stores them under `REDIS_SOLUTION_KEY_PREFIX` for `SOLUTION_TTL`. The Docker Compose profiles use Redis, so generated solutions survive API restarts without creating API filesystem state. Losing the cache only causes a missing solution to be generated again. A solution can only be requested for a question that was answered incorrectly in the requested run.
 
-The solution-generation prompt follows the question content backend. The local provider reads `OPENAI_SOLUTION_PROMPT_FILE`; the S3 provider reads `<S3_PREFIX>/<theme>/ai-prompts/question-solution-prompt.txt` from `S3_BUCKET` on demand. The Manager writes the same object when the `question_solution` AI prompt is saved, restored, or imported. If no custom prompt can be loaded, the generator uses its built-in prompt.
+The solution-generation prompt has its own provider. The local provider reads `OPENAI_SOLUTION_PROMPT_FILE`; S3 reads `<S3_PREFIX>/<theme>/ai-prompts/question-solution-prompt.txt`; PostgreSQL reads the restricted `solution_prompts` view. Instructions are resolved at explanation time, including for retired themes. Missing customization uses the shared subject-neutral default; dependency failures return storage unavailable and do not silently fall back. Creating/playing a quiz does not require the optional instruction source. Cache identity includes captured question content, instructions, generator settings, model and locale. Historical answered v1 records without provable old content return `solution_unavailable`.
 
 ## Localization
 
 Question content is scoped by the required `X-QuickQuiz-Theme` header and selected by BCP 47 `locale`. API precedence is explicit `locale`, `X-QuickQuiz-Locale`, `Accept-Language`, then `FALLBACK_LOCALE`. Keep machine-readable codes, enum values, logs, and metrics stable across locales.
+
+## Existing Redis compatibility
+
+Deploy the snapshot-compatible API with the legacy question provider first. Stop pre-index writers, run `quickquiz-api migrate-run-index --dry-run`, then `quickquiz-api migrate-run-index --apply --confirm-legacy-writers-stopped`. Apply preserves remaining TTL and run JSON. New/session-index operations are gated until migration completes. PostgreSQL startup requires zero remaining legacy-provider-dependent runs; do not flush Redis. See the [runbook](../../docs/runbooks/postgresql-quiz-runtime.md) for explicit export and v2-compatible rollback.

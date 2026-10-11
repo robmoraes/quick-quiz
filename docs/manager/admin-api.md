@@ -4,8 +4,11 @@ The Manager exposes a JSON API for trusted automation clients, including a
 Codex session running on the operator's computer. It discovers themes and
 topics and persists complete localized question sets. In the `legacy` mode it
 writes the configured local or S3-compatible content store directly. In the
-`postgres` mode it writes PostgreSQL transactionally and publishes the same
-JSON layout to that content store.
+`postgres` persistence mode it writes PostgreSQL transactionally. Publication is
+selected separately with `MANAGER_QUIZ_PUBLICATION_PROVIDER`: `content_storage`
+keeps the JSON projection, while `postgres` commits content and live publication
+together without JSON/S3 access. Enabling the runtime backend requires the
+[explicit migration procedure](../runbooks/postgresql-quiz-runtime.md).
 
 The contract is [docs/openapi-manager-admin.yaml](../openapi-manager-admin.yaml).
 
@@ -141,17 +144,21 @@ Question creation accepts up to 50 sets. Omitting `id` allocates the next
 `<topic>-<difficulty>-<sequence>` value. Every question must include exactly
 the locales reported by the catalog.
 
-Successful playable-content mutations return `publication.apiReloadRequired=true`. The
-Manager writes the content immediately, but the Quiz API reads it at startup;
-restart only the Quiz API after finishing a publication batch.
+With `content_storage` publication, successful playable-content mutations return
+`publication.apiReloadRequired=true`. The Quiz API loads JSON at startup;
+restart it after the publication batch. In PostgreSQL persistence mode, a failed
+JSON publication keeps the authored revision and returns `503 publication_failed`.
+Inspect `GET /api/admin/quiz/publication` and retry with
+`POST /api/admin/quiz/publication` before reloading. Both require the same token.
 
-In PostgreSQL mode, successful playable-content mutations include `publication.revision` and
-`publication.status=published`. A committed revision whose storage publication
-fails returns HTTP 503 with `error.code=publication_failed` and
-`publication.apiReloadRequired=false`. Check `GET /api/admin/quiz/publication`
-and retry with `POST /api/admin/quiz/publication` after fixing the storage
-failure. Both endpoints require the same administrative Bearer token. Restart
-only the Quiz API after publication succeeds.
+With `postgres` publication, successful mutations return
+`publication.backend=postgres`, `status=published`, `apiReloadRequired=false`,
+and the committed `revision`. Content and publication advance in the same
+transaction; a failure rolls both back. The next database-backed player request
+sees the update without restarting the API. Status has equal `currentRevision`
+and `publishedRevision`; export-only `checksum` and `objectCount` are null.
+Publication POSTs are idempotent and do not render or export the bank. Existing
+runs retain their captured questions and answers in Redis.
 
 ## Topic tags (PostgreSQL)
 
@@ -178,7 +185,9 @@ This `publication` object describes only that operation. It does not clear or
 retry earlier pending/failed publications. Tags-only saves do not access S3,
 create revisions, change published JSON, or require a Quiz API reload. Changing
 published topic metadata alongside tags follows the ordinary publication flow;
-if it fails, the committed tags remain saved and the existing 503 response applies.
+under `content_storage`, a failed JSON publication retains the committed tags.
+Under `postgres`, metadata, tags, revision and publication roll back together
+if the transaction fails.
 
 Legacy mode omits tags from reads and rejects any supplied `tags`, including an
 empty array, with `409 topic_tags_unavailable`. Existing clients omitting tags

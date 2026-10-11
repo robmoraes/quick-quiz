@@ -1,5 +1,9 @@
 # Manager 0.12.0 production release
 
+For the current Manager/API/SPA Dev versions and recovery backups after the
+2026-10-10 rollout, see [tagged theme selection release](tagged-theme-selection-release.md).
+This document records the earlier topic-tags deployment.
+
 ## Deployment on 2026-09-19
 
 Manager FPM and Web now run `v0.12.0` on `quickquiz-beta-ec2`

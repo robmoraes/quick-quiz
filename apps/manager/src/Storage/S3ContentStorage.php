@@ -6,7 +6,7 @@ use Aws\Exception\AwsException;
 use Aws\S3\S3Client;
 use RuntimeException;
 
-final class S3ContentStorage implements ContentStorage
+final class S3ContentStorage implements IterableContentStorage
 {
     public function __construct(
         private readonly S3Client $client,
@@ -96,12 +96,19 @@ final class S3ContentStorage implements ContentStorage
 
     public function list(string $prefix): array
     {
+        $keys = iterator_to_array($this->iterate($prefix), false);
+        sort($keys);
+
+        return array_values(array_unique($keys));
+    }
+
+    public function iterate(string $prefix): iterable
+    {
         $objectPrefix = $this->objectKey($prefix);
         if ($objectPrefix !== '') {
             $objectPrefix = rtrim($objectPrefix, '/').'/';
         }
 
-        $keys = [];
         $continuationToken = null;
         try {
             do {
@@ -118,7 +125,7 @@ final class S3ContentStorage implements ContentStorage
                     $objectKey = (string) ($object['Key'] ?? '');
                     $logicalKey = $this->logicalKey($objectKey);
                     if ($logicalKey !== '') {
-                        $keys[] = $logicalKey;
+                        yield $logicalKey;
                     }
                 }
                 $continuationToken = filter_var($result['IsTruncated'] ?? false, FILTER_VALIDATE_BOOL)
@@ -128,10 +135,6 @@ final class S3ContentStorage implements ContentStorage
         } catch (AwsException $error) {
             throw $this->storageError('list', $prefix, $error);
         }
-
-        sort($keys);
-
-        return array_values(array_unique($keys));
     }
 
     private function objectKey(string $key): string

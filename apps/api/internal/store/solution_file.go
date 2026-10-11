@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -54,7 +56,7 @@ func (s *FileSolutionStore) Save(_ context.Context, solution domain.QuestionSolu
 		return fmt.Errorf("create solution directory %s: %w", dir, err)
 	}
 
-	file, err := os.CreateTemp(dir, solution.QuestionID+".*.tmp")
+	file, err := os.CreateTemp(dir, "solution.*.tmp")
 	if err != nil {
 		return fmt.Errorf("create temporary solution file: %w", err)
 	}
@@ -82,46 +84,53 @@ func (s *FileSolutionStore) Save(_ context.Context, solution domain.QuestionSolu
 }
 
 type storedSolutionRecord struct {
-	Theme        string            `json:"theme"`
-	Locale       string            `json:"locale"`
-	Topic        string            `json:"topic"`
-	Difficulty   domain.Difficulty `json:"difficulty"`
-	QuestionID   string            `json:"questionId"`
-	Explanation  string            `json:"explanation"`
-	Model        string            `json:"model,omitempty"`
-	QuestionHash string            `json:"questionHash"`
-	GeneratedAt  string            `json:"generatedAt,omitempty"`
+	Theme         string            `json:"theme"`
+	Locale        string            `json:"locale"`
+	Topic         string            `json:"topic"`
+	Difficulty    domain.Difficulty `json:"difficulty"`
+	QuestionID    string            `json:"questionId"`
+	Explanation   string            `json:"explanation"`
+	Model         string            `json:"model,omitempty"`
+	QuestionHash  string            `json:"questionHash"`
+	CacheIdentity string            `json:"cacheIdentity,omitempty"`
+	GeneratedAt   string            `json:"generatedAt,omitempty"`
 }
 
 func storedSolutionRecordFromDomain(solution domain.QuestionSolution) storedSolutionRecord {
 	return storedSolutionRecord{
-		Theme:        solution.Theme,
-		Locale:       solution.Locale,
-		Topic:        solution.Topic,
-		Difficulty:   solution.Difficulty,
-		QuestionID:   solution.QuestionID,
-		Explanation:  solution.Explanation,
-		Model:        solution.Model,
-		QuestionHash: solution.QuestionHash,
-		GeneratedAt:  solution.GeneratedAt,
+		Theme:         solution.Theme,
+		Locale:        solution.Locale,
+		Topic:         solution.Topic,
+		Difficulty:    solution.Difficulty,
+		QuestionID:    solution.QuestionID,
+		Explanation:   solution.Explanation,
+		Model:         solution.Model,
+		QuestionHash:  solution.QuestionHash,
+		CacheIdentity: solution.CacheIdentity,
+		GeneratedAt:   solution.GeneratedAt,
 	}
 }
 
 func (r storedSolutionRecord) toDomain() domain.QuestionSolution {
 	return domain.QuestionSolution{
-		Theme:        r.Theme,
-		Locale:       r.Locale,
-		Topic:        r.Topic,
-		Difficulty:   r.Difficulty,
-		QuestionID:   r.QuestionID,
-		Explanation:  r.Explanation,
-		Model:        r.Model,
-		QuestionHash: r.QuestionHash,
-		GeneratedAt:  r.GeneratedAt,
+		Theme:         r.Theme,
+		Locale:        r.Locale,
+		Topic:         r.Topic,
+		Difficulty:    r.Difficulty,
+		QuestionID:    r.QuestionID,
+		Explanation:   r.Explanation,
+		Model:         r.Model,
+		QuestionHash:  r.QuestionHash,
+		CacheIdentity: r.CacheIdentity,
+		GeneratedAt:   r.GeneratedAt,
 	}
 }
 
 func (s *FileSolutionStore) path(solution domain.QuestionSolution) (string, error) {
+	if solution.CacheIdentity != "" {
+		sum := sha256.Sum256([]byte(solutionKey(solution)))
+		return filepath.Join(s.root, ".solutions", "v2", hex.EncodeToString(sum[:])+".json"), nil
+	}
 	theme, err := cleanPathComponent(solution.Theme)
 	if err != nil {
 		return "", fmt.Errorf("invalid theme path component: %w", err)

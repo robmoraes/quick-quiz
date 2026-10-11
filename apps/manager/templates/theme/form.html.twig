@@ -34,7 +34,7 @@
           <input class="form-control" id="tags" name="tags" aria-describedby="tags-help"
                  {% if quizPublication.provider|default('legacy') != 'postgres' %}disabled{% endif %}
                  value="{{ theme.tags is defined and theme.tags is iterable ? theme.tags|join(', ') : theme.tags|default('') }}">
-          <div class="form-text" id="tags-help">Separate tags with commas, for example: dev, cloud. Up to 20 tags, 50 characters each. Use letters, digits, and hyphens. Requires PostgreSQL authoring; publication and API reload apply.</div>
+          <div class="form-text" id="tags-help">Separate tags with commas, for example: dev, cloud. Up to 20 tags, 50 characters each. Use letters, digits, and hyphens. Requires PostgreSQL authoring. {% if quizPublication and quizPublication.backend|default('content_storage') == 'postgres' %}Changes are published on save; new quizzes see them without an API restart.{% else %}Publication and API reload apply.{% endif %}</div>
         </div>
         <div class="row align-items-end">
           <div class="col-md-6 mb-3">

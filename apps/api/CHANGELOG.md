@@ -8,7 +8,29 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
-Next planned release: `api/v0.8.0`.
+Next planned release: `api/v0.9.0`.
+
+### Added
+
+- Opt-in PostgreSQL runtime reads through a dedicated view-only credential,
+  bounded queries and connection pool, without loading the question bank at startup.
+- Version-2 Redis run snapshots preserving localized questions, served options,
+  grading and explanations across content edits, deletion, and API restarts.
+- Scoped session-consumption indexes, an explicit legacy-run index migration,
+  and a cutover guard while runs still depend on the local/S3 provider.
+- Independent PostgreSQL explanation prompts, subject-neutral defaults, and
+  content/prompt/config/model/locale-aware explanation cache identities.
+- `/readyz` dependency checks, disposable integration CI, and a reproducible
+  synthetic capacity benchmark with recorded 100k/200k-question evidence.
+
+### Changed
+
+- Require Go 1.25 for the PostgreSQL driver; keep CGO-free amd64/arm64 builds.
+- Preserve local/S3 provider defaults for the staged compatibility release.
+
+## Released through [0.8.0]
+
+Cumulative notes retained from earlier releases.
 
 ### Added
 
@@ -93,10 +115,11 @@ Next planned release: `api/v0.8.0`.
 - The API release image repository is configurable through the
   `DOCKERHUB_API_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.7.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.8.0...HEAD
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.2...api%2Fv0.4.0
 [0.3.2]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.1...api%2Fv0.3.2
 [0.3.1]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.0...api%2Fv0.3.1
 [0.3.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.2.0...api%2Fv0.3.0
 [0.2.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.1.0...api%2Fv0.2.0
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/api%2Fv0.1.0
+[0.8.0]: https://github.com/robmoraes/quick-quiz/releases/tag/api%2Fv0.8.0

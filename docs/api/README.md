@@ -10,7 +10,7 @@ The API service lives in `apps/api/` and is implemented in Go.
 - Validate answers.
 - Track session exhaustion through the configured run store.
 - Return run results.
-- Read quiz packs from local files or S3-compatible storage.
+- Read live PostgreSQL content by scope, or quiz packs through legacy local/S3 providers.
 
 ## Local Development
 
@@ -39,7 +39,8 @@ go test ./...
 
 Important endpoints:
 
-- `GET /healthz`
+- `GET /healthz` (liveness)
+- `GET /readyz` (configured dependency and contract readiness)
 - `GET /api/catalog`
 - `GET /api/session/topics`
 - `GET /api/session/difficulties`
@@ -58,3 +59,9 @@ Do not bypass the [quiz pack contract](../quiz-pack-contract.md). The API
 derives content metadata from paths and rejects invalid packages instead of
 guessing missing values.
 
+
+PostgreSQL runtime is opt-in and requires an explicitly activated backend plus a
+SELECT-only reader credential. New requests see committed edits immediately;
+existing v2 runs use Redis snapshots. The [migration runbook](../runbooks/postgresql-quiz-runtime.md)
+covers staged Redis compatibility, health, export and rollback. Production
+cutover is separate from implementation.
