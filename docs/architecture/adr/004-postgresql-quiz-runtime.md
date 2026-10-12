@@ -8,7 +8,12 @@
 - **Supersedes:** the S3 runtime/publication boundary in
   [ADR 002](002-postgresql-quiz-authoring-s3-publication.md) and the startup
   snapshot constraints in [ADR 003](003-tagged-theme-discovery.md), partially
-- **Superseded by:** none
+- **Superseded by:** [ADR 005](005-generic-quiz-web.md), partially, for the
+  accepted future public topic-tag discovery boundary
+
+Accepted follow-up: [ADR 005](005-generic-quiz-web.md) extends topic tags into
+public discovery for the new generic Web. That follow-up is not implemented
+yet; the deployed runtime and recovery behavior recorded here remain current.
 
 ## Context
 
