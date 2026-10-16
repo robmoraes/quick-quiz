@@ -5,6 +5,10 @@ authoring and storage. Subjects are unrestricted; the Dev SPA's `dev` audience
 tag controls discovery, while DSLab keeps its fixed theme. There are no player
 accounts. Manager authentication is separate from player sessions.
 
+The generic [Nuxt Web](adr/005-generic-quiz-web.md) is implemented and verified
+locally. It adds server-rendered public discovery and a separate quiz player;
+its production rollout remains outside the current runtime described below.
+
 ## Runtime Shape
 
 Production uses PostgreSQL reads and atomic publication after the separately
@@ -57,10 +61,13 @@ publication and explicit export. PostgreSQL also stores Manager accounts and
 AI instructions; Manager login sessions use Redis. The API reader can only SELECT
 allowlisted runtime views, not Manager users, sessions or base tables.
 
-Theme tags support discovery. Topic tags remain private authoring metadata and
-are absent from player responses and legacy JSON. Inactive themes/topics retain
-unpublished content. JSON exports remain portable content artifacts, not code or
-secrets. See [ADR 003](adr/003-tagged-theme-discovery.md).
+Theme tags support discovery. Topic tags are public navigation metadata in the
+new PostgreSQL-backed `/api/discovery` contract; they remain absent from legacy
+gameplay responses and JSON exports. The deployed API predates this additive
+discovery feature. Inactive themes/topics retain unpublished content. JSON
+exports remain portable content artifacts, not code or secrets. See
+[ADR 003](adr/003-tagged-theme-discovery.md) and
+[ADR 005](adr/005-generic-quiz-web.md).
 
 Ads API remains an independent service. Its storage and target metadata are not
 migrated by the quiz runtime change.
@@ -70,4 +77,4 @@ migrated by the quiz runtime change.
 - Public player accounts or persistent player score history.
 - Real question banks or secrets committed to the repository.
 - Additional nodes, Kubernetes or managed database infrastructure in this change.
-- Frontend redesign, public topic tags or editorial approval workflows.
+- Replacing the specialized SPAs or adding editorial approval workflows.

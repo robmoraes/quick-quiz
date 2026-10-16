@@ -1,6 +1,7 @@
 # ADR-005: Add a Nuxt Web Service for Generic Quiz Discovery and Play
 
-- **Status:** accepted direction (2026-10-11); implementation pending
+- **Status:** accepted, implemented and verified locally (2026-10-11);
+  see [verification](../../specs/007-generic-quiz-web/verification.md)
 - **Date:** 2026-10-11
 - **Decision owners:** QuickQuiz maintainers
 - **Scope:** new generic Web, public metadata discovery and local runtime

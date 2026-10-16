@@ -62,14 +62,16 @@ not require installing Spec Kit or a shared specification service.
   replacement of the S3/runtime-snapshot publication boundary, deployed on 2026-10-11.
 - [PostgreSQL runtime deployment](../runbooks/postgresql-quiz-runtime-release.md):
   production versions, cutover validation, backups, and recovery requirements.
-- [007-generic-quiz-web/spec.md](007-generic-quiz-web/spec.md): accepted generic
+- [007-generic-quiz-web/spec.md](007-generic-quiz-web/spec.md): implemented generic
   Web direction with topic tags, Nuxt, locale-aware discovery, SEO and local play.
 - [007-generic-quiz-web/plan.md](007-generic-quiz-web/plan.md): public discovery,
   reader permissions, SSR/player boundaries and local Compose implementation.
-- [007-generic-quiz-web/tasks.md](007-generic-quiz-web/tasks.md): ordered work and
-  pending automated verification; no implementation evidence is claimed yet.
+- [007-generic-quiz-web/tasks.md](007-generic-quiz-web/tasks.md): completed local
+  implementation checklist.
+- [007-generic-quiz-web/verification.md](007-generic-quiz-web/verification.md):
+  automated checks, screenshots, isolated local runtime and capacity limits.
 - [ADR 005](../architecture/adr/005-generic-quiz-web.md): accepted Nuxt service
-  and public topic-tag discovery decision; implementation remains pending.
+  and public topic-tag discovery decision, implemented and verified locally.
 
 ## Archive
 

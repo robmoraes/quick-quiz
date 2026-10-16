@@ -1,7 +1,7 @@
 # Plan: Generic Quiz Web and Tagged Discovery
 
-Status: Accepted direction consolidated for local implementation; no code or
-runtime verification is claimed. See [spec.md](spec.md), [tasks.md](tasks.md),
+Status: Implemented and verified locally; no remote runtime verification is
+claimed. See [verification.md](verification.md), [spec.md](spec.md), [tasks.md](tasks.md),
 [ADR 005](../../architecture/adr/005-generic-quiz-web.md) and the
 [feature API contract](contracts/discovery.openapi.yaml).
 
@@ -113,8 +113,11 @@ Topics. Use one page parameter for the active kind and reset it on tab/filter
 changes. An exact theme filter selects Topics; switching to Themes clears that
 filter while preserving applicable search/tag/difficulty filters. Construct
 endpoint-specific query objects: never forward Web-only `kind` or unsupported
-`theme` to the theme-list API. Tag-directory scope follows the visible result
-kind. Detail pages paginate their own topic list, without a competing theme list.
+`theme` to the theme-list API. Each on-demand tag picker requests its explicit
+scope and paginates 24 options at a time. The picker matching the visible result
+kind retains search/count context; the opposite scope omits `q`, explains that
+difference and hides counts. Other filters still intersect. Detail pages
+paginate their own topic list, without a competing theme list.
 
 Filtered/paginated detail variants are noindex and excluded from the sitemap;
 their canonical identifies the unfiltered resource. The unfiltered theme page

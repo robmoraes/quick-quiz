@@ -1,8 +1,7 @@
 # Feature: Generic Quiz Web and Tagged Discovery
 
-Status: Product direction and technology recommendations accepted on
-2026-10-11. This specification records those choices and the implementation
-defaults below. Implementation and verification are pending. This work is
+Status: Accepted, implemented and verified locally (2026-10-11).
+See [verification.md](verification.md) for evidence and limits. This work is
 local only; production deployment is a separate future decision.
 
 ## Intent
@@ -40,7 +39,7 @@ Out of scope:
   discovery and gameplay experience is established.
 - Production deployment, DNS changes or remote infrastructure changes.
 
-## Current Foundation
+## Foundation Before This Feature
 
 - `GET /api/themes` exposes active themes and theme tags, with an optional
   single-tag filter. It can also return an active theme with no playable topics.
@@ -252,7 +251,8 @@ research result is claimed before validation.
   A confirmed reset/new-session action is available before another start.
 
 These examples guide automated verification; no separate manual QA artifacts
-are required. Implementation evidence remains pending.
+are required. Delivered implementation evidence is recorded in
+[verification.md](verification.md).
 
 ## Accepted Technical Direction
 
@@ -264,7 +264,8 @@ runtime and service-boundary decision.
 
 The [technical plan](plan.md), [tasks](tasks.md) and
 [discovery contract](contracts/discovery.openapi.yaml) define the first
-implementation slices. They do not constitute verification of delivered code.
+implementation slices. Verification is recorded separately in
+[verification.md](verification.md).
 
 ## Decision State
 

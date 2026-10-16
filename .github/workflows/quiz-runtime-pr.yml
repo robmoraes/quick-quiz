@@ -12,6 +12,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  web:
+    name: Web lint, types, tests and SSR build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install Web dependencies
+        working-directory: apps/web
+        run: npm ci --no-audit --no-fund
+      - name: Validate Web
+        working-directory: apps/web
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
+          npm run build
+      - name: Validate file-backed Web configuration
+        run: node --test deploy/docker/web/config-files.test.mjs
+
   api:
     name: API tests with PostgreSQL and Redis
     runs-on: ubuntu-latest

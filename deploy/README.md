@@ -14,6 +14,8 @@ Docker packaging for running and testing QuickQuiz Dev locally with a production
 - `spa-dslab`: static DSLab-themed Quasar/Vue build served by Nginx without root.
 - `manager-fpm`: Symfony manager app with production Composer dependencies, PHP-FPM, OPcache, and PDO PostgreSQL.
 - `manager-web`: lightweight Nginx frontend for the manager through FastCGI.
+- `web` (optional profile): Nuxt SSR discovery and generic quiz UI; see the
+  [local Web runbook](../docs/runbooks/generic-quiz-web-local.md).
 
 ## Local Run
 

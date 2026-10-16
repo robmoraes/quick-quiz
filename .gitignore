@@ -29,6 +29,9 @@ pnpm-debug.log*
 # Dependencies and generated caches
 **/node_modules/
 **/.cache/
+apps/web/.nuxt/
+apps/web/.output/
+apps/web/coverage/
 
 # Local scratch files
 _temp/
