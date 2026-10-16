@@ -232,7 +232,7 @@ services:
     mem_limit: ${MANAGER_DB_MEMORY_LIMIT:-256m}
     restart: unless-stopped
     volumes:
-      - manager-db-data:/var/lib/postgresql/data
+      - ${MANAGER_DB_STORAGE:-manager-db-data}:/var/lib/postgresql/data
 
   manager-fpm:
     image: ${QUICKQUIZ_IMAGE_MANAGER_FPM:-quickquiz-manager-fpm:local}

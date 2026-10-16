@@ -46,6 +46,17 @@ is available only on the internal Docker network and persists in the
 `manager-db-data` volume. Configure it with `MANAGER_DATABASE_URL` and the
 `MANAGER_DB_*` variables.
 
+To keep local database files inside the workspace, set `MANAGER_DB_STORAGE` in
+`deploy/compose.local/.env`, for example
+`MANAGER_DB_STORAGE=../../.local/services/postgres/quickquiz-dev`. Relative paths
+resolve from `deploy/compose.local`. The root `.local/` directory is ignored by
+Git; use `.local/backups/postgres/` for logical backups. Give each database/Compose
+project a separate directory. Changing this setting does not migrate an existing
+named volume: export with `pg_dump` and restore into the new database first.
+Leave it unset to keep the existing `manager-db-data` named volume. Stop PostgreSQL
+before copying its data directory; use `pg_dump` for backups while it is running.
+Redis remains ephemeral.
+
 Create a local manager admin:
 
 ```sh

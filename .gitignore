@@ -26,6 +26,9 @@ pnpm-debug.log*
 !.env.sample
 !.env.template
 
+# Local service data and backups
+/.local/
+
 # Dependencies and generated caches
 **/node_modules/
 **/.cache/

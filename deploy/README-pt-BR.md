@@ -44,6 +44,16 @@ fica disponível somente na rede interna do Docker e persiste no volume
 `manager-db-data`. Configure-o com `MANAGER_DATABASE_URL` e as variáveis
 `MANAGER_DB_*`.
 
+Para guardar os arquivos do banco dentro do workspace, defina `MANAGER_DB_STORAGE`
+em `deploy/compose.local/.env`, por exemplo
+`MANAGER_DB_STORAGE=../../.local/services/postgres/quickquiz-dev`. Caminhos relativos
+partem de `deploy/compose.local`. A pasta `.local/` da raiz é ignorada pelo Git;
+use `.local/backups/postgres/` para backups lógicos. Cada banco/projeto Compose
+deve ter sua própria pasta. Alterar essa configuração não migra um volume existente:
+exporte com `pg_dump` e restaure no novo banco primeiro. Sem essa variável, permanece
+o volume nomeado `manager-db-data`. Pare o PostgreSQL antes de copiar sua pasta de
+dados; use `pg_dump` para backups com o banco em execução. O Redis continua efêmero.
+
 Crie um admin local do manager:
 
 ```sh
