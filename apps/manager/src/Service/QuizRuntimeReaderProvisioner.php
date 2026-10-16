@@ -9,7 +9,7 @@ use RuntimeException;
 /** Operator-only provisioning; never called during application startup. */
 final class QuizRuntimeReaderProvisioner
 {
-    public const VIEWS = ['state', 'themes', 'topics', 'topic_translations', 'question_keys', 'question_translations', 'answers', 'solution_prompts'];
+    public const VIEWS = ['state', 'themes', 'topics', 'topic_tags', 'topic_translations', 'question_keys', 'question_translations', 'answers', 'solution_prompts'];
 
     public function __construct(private readonly ManagerDatabase $database) {}
 

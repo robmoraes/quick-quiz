@@ -173,7 +173,8 @@ Fallback to local/S3 requires a fresh, full, verified export of the latest
 revision and an explicitly attested v2-compatible reader image. Freeze **all**
 authoring, prompt and tag writes through export, provider switch and validation.
 The export includes inactive retained content, theme tags and explanation
-prompts; topic tags stay private in PostgreSQL. Failed or partial targets must
+prompts; topic tags remain in PostgreSQL and are omitted from legacy JSON
+(the new public discovery API can expose them). Failed or partial targets must
 not be used. Retry into a fresh directory/prefix.
 
 ```sh

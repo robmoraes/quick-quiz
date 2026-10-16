@@ -3,13 +3,13 @@ info:
   title: QuickQuiz Public Discovery Additions
   version: 0.1.0
   description: >-
-    Planned additive public contract for spec 007. Merge these operations into
-    docs/openapi.yaml during implementation; this file does not claim deployed
-    behavior. Existing discovery/gameplay endpoints, headers, envelopes and
+    Additive public contract implemented and verified locally for spec 007,
+    incorporated into docs/openapi.yaml. This file does not claim production
+    deployment. Existing discovery/gameplay endpoints, headers, envelopes and
     legacy JSON formats remain unchanged. Discovery reads published metadata
     from PostgreSQL with the API's scoped reader; it never returns question
     prompts, options, answer correctness, administrative context or player state.
-x-status: planned-implementation-pending
+x-status: implemented-verified-locally
 x-canonical-contract: docs/openapi.yaml
 x-invariants:
   - No administrative token, session ID, or theme/locale header is required.

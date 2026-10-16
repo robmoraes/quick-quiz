@@ -79,7 +79,7 @@ func TestPostgresRuntimeIntegration(t *testing.T) {
 	}
 	if _, err = admin.Exec(ctx, `DO $$BEGIN IF NOT EXISTS(SELECT FROM pg_roles WHERE rolname='runtime_reader_test') THEN CREATE ROLE runtime_reader_test LOGIN PASSWORD 'reader-test-only' NOINHERIT; END IF; END$$;
  GRANT USAGE ON SCHEMA quiz_runtime_v1 TO runtime_reader_test;
- GRANT SELECT ON quiz_runtime_v1.state,quiz_runtime_v1.themes,quiz_runtime_v1.topics,quiz_runtime_v1.topic_translations,quiz_runtime_v1.question_keys,quiz_runtime_v1.question_translations,quiz_runtime_v1.answers,quiz_runtime_v1.solution_prompts TO runtime_reader_test;
+ GRANT SELECT ON quiz_runtime_v1.state,quiz_runtime_v1.themes,quiz_runtime_v1.topics,quiz_runtime_v1.topic_translations,quiz_runtime_v1.topic_tags,quiz_runtime_v1.question_keys,quiz_runtime_v1.question_translations,quiz_runtime_v1.answers,quiz_runtime_v1.solution_prompts TO runtime_reader_test;
  REVOKE TEMP ON DATABASE quickquiz_runtime_test FROM PUBLIC;`); err != nil {
 		t.Fatal(err)
 	}
@@ -228,6 +228,7 @@ func TestPostgresRuntimeIntegration(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("public web discovery", func(t *testing.T) { testPostgresDiscovery(t, ctx, admin, reader) })
 	t.Logf("PostgreSQL integration completed; queries=%d poolMax=%d", reader.QueryCount(), reader.PoolStats().MaxConns())
 }
 

@@ -158,6 +158,7 @@ func (s *PostgresQuestionStore) Ready(ctx context.Context) error {
 			{`SELECT id,name,description,weight,active,created_at,tags FROM quiz_runtime_v1.themes LIMIT 0`, []uint32{pgtype.TextOID, pgtype.TextOID, pgtype.TextOID, pgtype.Int4OID, pgtype.BoolOID, pgtype.TimestamptzOID, pgtype.TextArrayOID}},
 			{`SELECT theme_id,topic_key,name,description,weight,active,created_at FROM quiz_runtime_v1.topics LIMIT 0`, []uint32{pgtype.TextOID, pgtype.TextOID, pgtype.TextOID, pgtype.TextOID, pgtype.Int4OID, pgtype.BoolOID, pgtype.TimestamptzOID}},
 			{`SELECT theme_id,topic_key,locale,name,description FROM quiz_runtime_v1.topic_translations LIMIT 0`, []uint32{pgtype.TextOID, pgtype.TextOID, pgtype.TextOID, pgtype.TextOID, pgtype.TextOID}},
+			{`SELECT theme_id,topic_key,tag_slug FROM quiz_runtime_v1.topic_tags LIMIT 0`, []uint32{pgtype.TextOID, pgtype.TextOID, pgtype.TextOID}},
 			{`SELECT theme_id,topic_key,difficulty,question_id FROM quiz_runtime_v1.question_keys LIMIT 0`, []uint32{pgtype.TextOID, pgtype.TextOID, pgtype.Int2OID, pgtype.TextOID}},
 			{`SELECT theme_id,topic_key,difficulty,question_id,locale,prompt FROM quiz_runtime_v1.question_translations LIMIT 0`, []uint32{pgtype.TextOID, pgtype.TextOID, pgtype.Int2OID, pgtype.TextOID, pgtype.TextOID, pgtype.TextOID}},
 			{`SELECT theme_id,topic_key,difficulty,question_id,locale,kind,answer_position,answer_text FROM quiz_runtime_v1.answers LIMIT 0`, []uint32{pgtype.TextOID, pgtype.TextOID, pgtype.Int2OID, pgtype.TextOID, pgtype.TextOID, pgtype.TextOID, pgtype.Int4OID, pgtype.TextOID}},
