@@ -8,7 +8,23 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
-Next planned release: `api/v0.9.0`.
+## [0.10.0] - 2026-10-22
+
+### Added
+
+- Public PostgreSQL-backed discovery endpoints for themes, topics and tags,
+  with search, pagination, independent tag filters and localized topic metadata.
+- Bounded, active-only discovery reads through the dedicated runtime reader,
+  without exposing question prompts, answers or unpublished content.
+
+### Changed
+
+- PostgreSQL readiness checks include the public topic-tag view. Apply the
+  companion Manager migration `0005` and reconcile reader grants before rollout.
+- Existing local/S3 gameplay remains compatible; discovery reports
+  `503 discovery_unavailable` when PostgreSQL runtime is not selected.
+
+## [0.9.0] - 2026-10-11
 
 ### Added
 
@@ -115,7 +131,9 @@ Cumulative notes retained from earlier releases.
 - The API release image repository is configurable through the
   `DOCKERHUB_API_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.8.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.10.0...HEAD
+[0.10.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.9.0...api%2Fv0.10.0
+[0.9.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.8.0...api%2Fv0.9.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.2...api%2Fv0.4.0
 [0.3.2]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.1...api%2Fv0.3.2
 [0.3.1]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.0...api%2Fv0.3.1
