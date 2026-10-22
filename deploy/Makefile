@@ -21,7 +21,7 @@ SPA_DSLAB_REPOSITORY ?= robmoraes/quick-quiz-dslab
 MANAGER_FPM_REPOSITORY ?= robmoraes/quick-quiz-manager-fpm
 MANAGER_WEB_REPOSITORY ?= robmoraes/quick-quiz-manager-web
 PHP_BASE_REPOSITORY ?= robmoraes/quick-quiz-php-base
-WEB_REPOSITORY ?= quickquiz-web
+WEB_REPOSITORY ?= robmoraes/quick-quiz-web
 PHP_BASE_IMAGE ?= $(PHP_BASE_REPOSITORY):$(PHP_BASE_TAG)
 
 API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/api/Dockerfile
@@ -34,9 +34,9 @@ WEB_DOCKERFILE := $(ROOT_DIR)/deploy/docker/web/Dockerfile
 
 .PHONY: build-images api ads-api spa-dev spa-dslab manager-fpm manager-web web php-base validate-output dist-dir
 
-build-images: api ads-api spa-dev spa-dslab manager-fpm manager-web
+build-images: api ads-api spa-dev spa-dslab manager-fpm manager-web web
 
-# Optional Web is local-only for now; deliberately outside release/build-images.
+# Web image publication is independent of environment deployment.
 web: validate-output dist-dir
 	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
 		--platform "$(PLATFORM)" \

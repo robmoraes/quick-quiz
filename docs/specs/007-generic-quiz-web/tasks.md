@@ -82,3 +82,13 @@ Source of truth: [spec.md](spec.md), [plan.md](plan.md),
   verification, distinguishing functional evidence from production capacity.
 - [x] Update service/local-development documentation and deliver a local URL for
   review. Keep deployment, registry publication, tags and DNS outside this phase.
+
+## 5. Image Publication Follow-up — 2026-10-22
+
+- [x] Add independent `web/vMAJOR.MINOR.PATCH` classification and image configuration
+  to the existing release workflow, preserving main-reachability and app isolation.
+- [x] Validate Web in Node 24 Docker before multiarch build/push, using existing
+  Docker Hub credential secrets and `DOCKERHUB_WEB_IMAGE` configuration.
+- [x] Include Web in the Makefile image targets and document release/deployment
+  boundaries. Validate shell classification, configuration failures, old release
+  paths and Makefile commands without publishing images or tags.

@@ -204,7 +204,11 @@ content through a browser; capture screenshots without committing a real bank.
 Provide a Web Dockerfile with a maintained Node LTS base available for amd64
 and arm64, multi-stage dependency/build/runtime separation, non-root runtime
 and a Nitro Node-server output. Build scripts must not assume an amd64 binary.
-No registry push, release tag or production workflow is part of this phase.
+The original local phase did not include registry push, release tags or a
+production workflow. The authorized 2026-10-22 follow-up adds Web image
+publication to the existing release workflow: `web/vMAJOR.MINOR.PATCH`,
+`DOCKERHUB_WEB_IMAGE`, Node 24 validation and amd64/arm64 build/push. It does
+not execute a release or deploy. See the [image release guide](../../runbooks/generic-quiz-web-image-release.md).
 
 Add an opt-in `web` service/profile to local Compose and document invocation
 with the existing `compose.postgres.yml` overlay. Reuse current database/Redis

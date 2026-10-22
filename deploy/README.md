@@ -126,6 +126,7 @@ robmoraes/quick-quiz-dev
 robmoraes/quick-quiz-dslab
 robmoraes/quick-quiz-manager-fpm
 robmoraes/quick-quiz-manager-web
+robmoraes/quick-quiz-web
 robmoraes/quick-quiz-php-base
 ```
 
@@ -138,6 +139,7 @@ SPA_DEV_REPOSITORY=example/spa
 SPA_DSLAB_REPOSITORY=example/spa-dslab
 MANAGER_FPM_REPOSITORY=example/manager-fpm
 MANAGER_WEB_REPOSITORY=example/manager-web
+WEB_REPOSITORY=example/web
 PHP_BASE_REPOSITORY=example/php-base
 ```
 
@@ -180,7 +182,7 @@ The default tag is `8.3.33-alpine3.24-r1`; pushing also updates `latest`.
 PHP, Alpine, or package security updates require reviewing the Dockerfile,
 incrementing the revision, and rebuilding both architectures.
 
-Export all six images as OCI artifacts under `deploy/dist`:
+Export all seven application images as OCI artifacts under `deploy/dist`:
 
 ```sh
 make -C deploy build-images \
@@ -188,7 +190,7 @@ make -C deploy build-images \
   OUTPUT=oci
 ```
 
-Push all six images with the same tag:
+Push all seven application images with the same tag:
 
 ```sh
 make -C deploy build-images \
@@ -224,7 +226,7 @@ make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
 
-Build all six images with different tags:
+Build all seven application images with different tags:
 
 ```sh
 make -C deploy build-images \
@@ -234,6 +236,7 @@ make -C deploy build-images \
   SPA_DSLAB_TAG=v0.1.0-dslab \
   MANAGER_FPM_TAG=v0.1.2-fpm \
   MANAGER_WEB_TAG=v0.1.2-web \
+  WEB_TAG=v0.1.0-web \
   OUTPUT=push
 ```
 
@@ -255,6 +258,12 @@ Docker Hub repositories from environment variables:
 - `DOCKERHUB_SPA_DSLAB_IMAGE`
 - `DOCKERHUB_MANAGER_FPM_IMAGE`
 - `DOCKERHUB_MANAGER_WEB_IMAGE`
+- `DOCKERHUB_WEB_IMAGE`
+
+Web releases use independent tags such as `web/v0.1.0` and publish the configured
+Web repository with the version plus `latest` for both architectures. Node 24
+validation runs before the image push. See the [Web image release guide](../docs/runbooks/generic-quiz-web-image-release.md).
+Publishing an image does not deploy it to an environment.
 
 ## PostgreSQL quiz runtime
 

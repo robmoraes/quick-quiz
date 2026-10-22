@@ -35,7 +35,8 @@ The [PostgreSQL runtime guide](runbooks/postgresql-quiz-runtime.md) documents
 application configuration, reader grants, compatibility, export and rollback.
 Its disposable local examples are not a production deployment recipe. The
 [generic Web guide](runbooks/generic-quiz-web-local.md) covers the optional
-local Web profile.
+local Web profile. The [Web image release guide](runbooks/generic-quiz-web-image-release.md)
+documents `web/vX.Y.Z` publication; it does not deploy a production Web service.
 
 Maintainer-specific cloud files were transferred out of this working tree on
 2026-10-22. Older document paths retain relocation notices for existing links.

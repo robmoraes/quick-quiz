@@ -107,4 +107,30 @@ started; only API/public metadata configuration differs by runtime environment.
 Observed Web memory after synthetic browser requests was about 42 MiB, with a
 384 MiB container limit and 256 MiB heap ceiling. This small fixture does not
 establish headroom for a production host. Production capacity, routing and
-rollout remain a separate decision.
+rollout remain a separate decision. Image release preparation is recorded below.
+
+## Image release preparation — 2026-10-22
+
+The authorized follow-up adds independent `web/vMAJOR.MINOR.PATCH` image
+publication to the existing release workflow. `DOCKERHUB_WEB_IMAGE` is configured
+in the GitHub `production` environment as `robmoraes/quick-quiz-web`; existing
+Docker Hub credential secrets are reused. The workflow validates Web in Node 24
+Docker before publishing amd64/arm64 images with version and `latest` tags.
+The Makefile's aggregate application-image target also includes Web.
+
+Local verification passed 24 workflow checks: six valid app classifiers,
+twelve invalid tags, absent Web image configuration rejection, old release
+paths without a Web image configured, main-reachability acceptance/rejection
+against an isolated Git fixture, step ordering and a dry-run of the actual
+Web build/push command. YAML duplicate-key checks and ShellCheck passed.
+The dry-run executed no Docker build, registry operation or real Git fetch.
+These checks do not claim a GitHub-hosted workflow run or registry manifest.
+
+Web lint, typecheck, all 48 Vitest tests, Nitro build and both file-configuration
+tests were rerun successfully in cached Node 24 Docker with the existing
+installed dependencies. No dependency installation occurred on the host.
+Raw workflow fixtures and logs remain ignored under `_temp/web-release-validation/`.
+
+No release tag, image publication or production deploy was performed. The
+[release guide](../../runbooks/generic-quiz-web-image-release.md) documents
+the remaining merge/tag/publication process and the separate deployment boundary.

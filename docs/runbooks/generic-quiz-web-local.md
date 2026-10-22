@@ -1,8 +1,9 @@
 # Generic Quiz Web: local operation
 
-Scope: local-only implementation of [spec 007](../specs/007-generic-quiz-web/spec.md).
-Existing SPA Dev/DSLab and production routes remain separate. No Web release
-tag, registry publication, DNS or production capacity decision is included.
+Scope: local operation of [spec 007](../specs/007-generic-quiz-web/spec.md).
+Existing SPA Dev/DSLab and production routes remain separate. Image publication
+uses the [independent Web release workflow](generic-quiz-web-image-release.md);
+this local procedure does not publish images or decide production capacity/DNS.
 
 ## Prerequisite: PostgreSQL quiz runtime
 
@@ -85,12 +86,13 @@ output and runs the final service as the `node` user on a read-only filesystem.
 Manual local build:
 
 ```sh
-make -C deploy web PLATFORM=linux/amd64 OUTPUT=load
+make -C deploy web WEB_REPOSITORY=quickquiz-web PLATFORM=linux/amd64 OUTPUT=load
 ```
 
-The Web is deliberately outside `build-images` and image-release workflows
-until its production rollout is planned. PR validation runs lint, type checks,
-tests and an SSR production build.
+Web is included in `build-images` and supports independent `web/vX.Y.Z` image
+releases. The release workflow validates Web with Node 24 before publishing
+amd64/arm64 images. PR validation also runs lint, type checks, tests and an SSR
+production build. Image publication and production rollout are separate steps.
 
 ## Recovery
 

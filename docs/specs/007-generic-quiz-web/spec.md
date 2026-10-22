@@ -1,8 +1,9 @@
 # Feature: Generic Quiz Web and Tagged Discovery
 
 Status: Accepted, implemented and verified locally (2026-10-11).
-See [verification.md](verification.md) for evidence and limits. This work is
-local only; production deployment is a separate future decision.
+See [verification.md](verification.md) for evidence and limits. The original
+implementation was local only. An authorized follow-up on 2026-10-22 prepares
+independent Web image publication; production deployment remains separate.
 
 ## Intent
 
