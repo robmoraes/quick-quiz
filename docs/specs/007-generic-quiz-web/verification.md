@@ -92,29 +92,13 @@ Operator wrappers, protected environment/backup files and raw browser reports
 remain ignored under `_temp/`; they are not release artifacts. Reproducible
 setup and configuration are in the [local runbook](../../runbooks/generic-quiz-web-local.md).
 
-### Subsequent local content refresh — 2026-10-12
+### Additional local preview verification
 
-At the user's request, the Web preview's demonstration bank was replaced with
-a consistent read-only snapshot of remote PostgreSQL revision 2270: 34 themes,
-473 topics and 18,007 canonical questions, including translations, answers,
-theme/topic tag associations and AI instructions. Eleven content/state tables
-were restored atomically after a full local backup and disposable rehearsal;
-per-table row counts and SHA-256 fingerprints matched before commit.
-
-Local administrators, credentials, schema, reader grants and Redis were retained.
-No remote users, secrets or sessions were copied, and no remote content changed.
-Temporary SSH ingress was restricted to the current IP and removed afterward.
-The source has no topic-tag associations; its publication states were preserved.
-Private dumps/manifests and new UI evidence stay ignored under
-`_temp/web-preview/sync-20261012/` and `_temp/web-validation/`. Screenshots and
-synthetic test evidence above predate this refresh. This is a snapshot, not
-continuous synchronization or a channel for publishing local edits remotely.
-
-Post-refresh read-only browser verification passed 22 page/states in both
-locales: initial SSR without JavaScript, discovery, actual theme tags, empty
-topic-tag directory, large theme/topic details, client navigation and 320 px
-reflow. No HTTP, console, hydration or overflow errors were observed. Reports
-remain ignored under `_temp/web-validation/remote-content/`.
+A separate user-requested content snapshot refresh was verified locally,
+including atomic restore rehearsal and read-only browser checks in both locales.
+Private operational details and reports belong to the infrastructure workspace;
+see [deployment responsibilities](../../deployment.md). No secrets or question
+content are shipped with this specification's synthetic evidence.
 
 Web runs non-root with a read-only filesystem, no persistent volume or direct
 database/admin credentials. amd64 and arm64 images were built and locally
@@ -122,5 +106,5 @@ started; only API/public metadata configuration differs by runtime environment.
 
 Observed Web memory after synthetic browser requests was about 42 MiB, with a
 384 MiB container limit and 256 MiB heap ceiling. This small fixture does not
-establish headroom for the production 2 GiB node. Production capacity, routing,
-image-release integration and rollout remain a separate decision.
+establish headroom for a production host. Production capacity, routing and
+rollout remain a separate decision.

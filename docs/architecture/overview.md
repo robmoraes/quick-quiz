@@ -12,9 +12,10 @@ its production rollout remains outside the current runtime described below.
 ## Runtime Shape
 
 Production uses PostgreSQL reads and atomic publication after the separately
-authorized 2026-10-11 cutover. See [ADR 004](adr/004-postgresql-quiz-runtime.md),
-the [migration runbook](../runbooks/postgresql-quiz-runtime.md), and the
-[deployment record](../runbooks/postgresql-quiz-runtime-release.md).
+authorized 2026-10-11 cutover. See [ADR 004](adr/004-postgresql-quiz-runtime.md)
+and the [migration runbook](../runbooks/postgresql-quiz-runtime.md).
+Environment-specific deployment records belong to the infrastructure workspace;
+see [deployment responsibilities](../deployment.md).
 
 ```text
 Editor / protected administration API

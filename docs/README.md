@@ -21,11 +21,11 @@ monorepo.
   editing risks.
 - [Specs](specs/README.md): product and implementation specifications.
 - [Timeline](timeline/): short development log entries.
-- [Runbooks](runbooks/): operational recovery and manual release procedures.
-- [PostgreSQL runtime deployment and recovery](runbooks/postgresql-quiz-runtime-release.md):
-  PostgreSQL runtime versions, validation, backups, and recovery.
-- [Latest SPA Dev release](runbooks/spa-dev-theme-caption-release.md):
-  version 0.9.1, layout correction, deployment checks, and SPA-only rollback.
+- [Runbooks](runbooks/): reusable application procedures and manual image builds.
+- [Deployment responsibilities](deployment.md): public application artifacts
+  and independently maintained private infrastructure.
+- [PostgreSQL runtime guide](runbooks/postgresql-quiz-runtime.md): configuration,
+  compatibility, export and rollback contracts.
 
 ## Stable Contracts
 

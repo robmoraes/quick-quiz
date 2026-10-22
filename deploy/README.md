@@ -159,7 +159,10 @@ export BUILDER=multiarch
 Docker Desktop already provides emulation, so only the builder creation and
 `BUILDER` export are normally required there.
 
-For the optional cloud publishing flow using AWS EC2, Docker Compose, Traefik, and the project domains, see [Cloud Publishing](./CLOUD-PUBLISHING.md).
+Maintainer-specific cloud configuration and operational records live in a
+separate private infrastructure workspace. See
+[deployment responsibilities](../docs/deployment.md) for the boundary between
+application image publication and environment deployment.
 
 ### Manager PHP base
 

@@ -158,7 +158,10 @@ export BUILDER=multiarch
 O Docker Desktop já fornece emulação; normalmente basta criar o builder e
 exportar `BUILDER`.
 
-Para o fluxo opcional de publicação em nuvem usando AWS EC2, Docker Compose, Traefik e os domínios do projeto, consulte [Cloud Publishing](./CLOUD-PUBLISHING.md).
+As configurações específicas de produção e seus registros operacionais ficam
+em um workspace privado de infraestrutura. Consulte
+[as responsabilidades de deploy](../docs/deployment.md) para a separação entre
+publicar imagens da aplicação e implantar um ambiente.
 
 ### Base PHP do Manager
 

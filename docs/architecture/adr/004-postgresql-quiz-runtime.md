@@ -1,7 +1,7 @@
 # ADR-004: Read Playable Quiz Content From PostgreSQL
 
-- **Status:** accepted, implemented and deployed (2026-10-11); see the
-  [production record](../../runbooks/postgresql-quiz-runtime-release.md)
+- **Status:** accepted, implemented and deployed (2026-10-11); operational records
+  are maintained separately under the [deployment boundary](../../deployment.md)
 - **Date:** 2026-10-11
 - **Decision owners:** QuickQuiz maintainers
 - **Scope:** Manager publication, Quiz API content reads, and migration operations

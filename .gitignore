@@ -52,3 +52,11 @@ deploy/content-demo/.manager/
 docs/.local
 
 .tmp
+
+# Infrastructure state and workstation leftovers after the private handoff
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan
