@@ -1,0 +1,732 @@
+openapi: 3.0.3
+info:
+  title: QuickQuiz Public Discovery Additions
+  version: 0.1.0
+  description: >-
+    Additive public contract implemented and verified locally for spec 007,
+    incorporated into docs/openapi.yaml. This file does not claim production
+    deployment. Existing discovery/gameplay endpoints, headers, envelopes and
+    legacy JSON formats remain unchanged. Discovery reads published metadata
+    from PostgreSQL with the API's scoped reader; it never returns question
+    prompts, options, answer correctness, administrative context or player state.
+x-status: implemented-verified-locally
+x-canonical-contract: docs/openapi.yaml
+x-invariants:
+  - No administrative token, session ID, or theme/locale header is required.
+  - Every operation requires one supported locale query parameter.
+  - All success and error responses send Cache-Control no-store.
+  - Only active themes and active topics under active themes are visible.
+  - Each response reads metadata, tag associations, counts and pagination totals from one short consistent database snapshot.
+  - Topic-tag edits are visible on the next request after commit without a service restart, independently of the gameplay publication revision.
+  - Counts use distinct canonical question keys, never translation rows or answer rows, and never reflect a player's session consumption.
+  - Discovery does not fetch question bodies or expand the complete bank into application memory.
+  - New discovery operations return discovery_unavailable in local/S3 mode; existing APIs and readiness keep their existing behavior.
+servers:
+  - url: http://localhost:8080
+    description: Local API development; the Web uses a runtime-configured base URL.
+security: []
+tags:
+  - name: Discovery
+    description: Public metadata discovery without player or administrative context.
+paths:
+  /api/discovery/themes:
+    get:
+      tags: [Discovery]
+      operationId: discoverThemes
+      summary: List active themes and scoped metadata aggregates
+      description: >-
+        q matches canonical theme name or description, not descendant topics.
+        Theme names/descriptions are not translated by this feature. themeTag
+        matches the parent theme; topicTag narrows its active topics; difficulty
+        narrows canonical question keys. All supplied filters combine with AND.
+        With neither topicTag nor difficulty, active empty themes remain visible.
+        topicTag requires at least one matching active topic (even if empty).
+        difficulty requires at least one matching question at that difficulty.
+        Aggregates include only descendants and questions matching these filters.
+        Results are ordered by theme weight ascending, then case-sensitive
+        canonical theme ID in ASCII order. A valid unknown tag returns an empty
+        list. The response contains no nested unpaginated topic catalog.
+      parameters:
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/ThemeTag'
+        - $ref: '#/components/parameters/TopicTag'
+        - $ref: '#/components/parameters/Difficulty'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Matching themes, including an empty page when there are no matches.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemePage'
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/discovery/themes/{theme}:
+    get:
+      tags: [Discovery]
+      operationId: getDiscoveryTheme
+      summary: Get an active theme with full active-descendant aggregates
+      description: >-
+        Returns canonical theme metadata, tags and aggregates across all active
+        descendant topics and canonical question packages. Active themes without
+        questions return 200 with playable false. No listing/search/tag/difficulty
+        filters are accepted here. Read the paginated topic list with theme set
+        to this theme ID to obtain its topics. Missing and inactive themes are
+        indistinguishable public 404 responses.
+      parameters:
+        - $ref: '#/components/parameters/ThemePath'
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Active theme metadata; the response does not embed its entire topic list.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThemeDetail'
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/discovery/topics:
+    get:
+      tags: [Discovery]
+      operationId: discoverTopics
+      summary: Discover active topics across themes
+      description: >-
+        q matches the displayed topic label or description after locale fallback;
+        it does not match parent names, tag slugs, prompts or answers. theme is an
+        exact case-sensitive parent ID. themeTag matches the parent theme and
+        topicTag matches the topic itself. All supplied filters combine with AND.
+        Without difficulty, active topics without questions remain visible with
+        playable false. difficulty includes only topics with canonical questions
+        at that difficulty and restricts questionCount/difficulties to that level.
+        All identity and tag metadata remains complete for a matching resource.
+        Results are ordered by topic weight ascending, then canonical theme ID
+        and topic ID in ASCII order. Valid unknown theme/tag filters return an
+        empty list; they are not errors and are not missing detail resources.
+      parameters:
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/ThemeFilter'
+        - $ref: '#/components/parameters/ThemeTag'
+        - $ref: '#/components/parameters/TopicTag'
+        - $ref: '#/components/parameters/Difficulty'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Matching topics and their parent identity, possibly empty.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicPage'
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/discovery/themes/{theme}/topics/{topic}:
+    get:
+      tags: [Discovery]
+      operationId: getDiscoveryTopic
+      summary: Get an active topic within its active parent theme
+      description: >-
+        Returns complete metadata, public topic tags and counts at all populated
+        difficulties for this canonical theme/topic pair. Active topics without
+        questions return 200 with questionCount 0, difficulties [] and playable
+        false. No listing filters are accepted. An inactive/missing parent
+        returns theme_not_found; an inactive/missing topic under an active parent
+        returns topic_not_found. Both are public 404 responses without disclosing
+        inactive content. Topic IDs are scoped to the canonical parent ID.
+      parameters:
+        - $ref: '#/components/parameters/ThemePath'
+        - $ref: '#/components/parameters/TopicPath'
+        - $ref: '#/components/parameters/Locale'
+      responses:
+        '200':
+          description: Active topic metadata and aggregate availability, without question bodies.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TopicDetail'
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/discovery/tags:
+    get:
+      tags: [Discovery]
+      operationId: discoverTags
+      summary: List attached public tags with scoped counts
+      description: >-
+        scope selects separate theme or topic tag associations; no inheritance
+        or hierarchy is inferred. For scope=theme, q matches canonical theme
+        name/description and the eligible resource set follows theme discovery,
+        additionally narrowed by the optional exact theme ID. For scope=topic,
+        q matches resolved topic label/description and the eligible resource set
+        follows topic discovery. This q searches resource metadata, not tag slugs
+        or the Web's friendly tag labels. Each returned tag is attached to at
+        least one eligible active resource. Counts add that candidate tag to all
+        selected filters, including any same-scope selected tag; facets are
+        intersecting, not self-excluding. themeCount counts distinct eligible
+        parent themes, topicCount counts distinct eligible (theme,topic) pairs,
+        and questionCount counts their filtered canonical question packages.
+        For theme scope, counts include eligible descendants of themes carrying
+        the candidate theme tag. For topic scope, counts include only eligible
+        topics carrying the candidate topic tag. Empty active resources may
+        contribute theme/topic counts but never question counts. Orphan tags and
+        inactive associations are absent. Results are ordered by canonical slug
+        in ascending ASCII order; tag slugs can exist in both scopes separately.
+      parameters:
+        - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/TagScope'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/ThemeFilter'
+        - $ref: '#/components/parameters/ThemeTag'
+        - $ref: '#/components/parameters/TopicTag'
+        - $ref: '#/components/parameters/Difficulty'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Attached tags in the requested scope and filter context, possibly empty.
+          headers:
+            Cache-Control:
+              $ref: '#/components/headers/NoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TagPage'
+        '400':
+          $ref: '#/components/responses/InvalidQuery'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  headers:
+    NoStore:
+      description: Required on every success and error response; no shared or browser response cache.
+      schema:
+        type: string
+        enum: [no-store]
+  parameters:
+    Locale:
+      name: locale
+      in: query
+      required: true
+      description: >-
+        Exactly one configured supported BCP 47 locale, e.g. pt-BR or en-US.
+        Case-insensitive matching returns the configured canonical spelling.
+        Missing, empty, repeated, malformed or unsupported values return
+        invalid_locale; no Accept-Language or X-QuickQuiz-Locale negotiation is
+        performed on these operations. Topic text follows existing field-wise
+        requested translation -> fallback translation -> canonical metadata
+        resolution. An explicit empty translated description remains empty.
+        Theme text and tag slugs remain canonical and locale-neutral. locale in
+        the response identifies the requested supported locale; it does not
+        claim every metadata field has a translation in that locale.
+      schema:
+        type: string
+        minLength: 2
+        maxLength: 35
+        pattern: '^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$'
+      example: pt-BR
+    Search:
+      name: q
+      in: query
+      required: false
+      description: >-
+        One UTF-8 search string, maximum 200 Unicode characters / 800 UTF-8 bytes
+        before trimming surrounding Unicode whitespace. Omit to disable search;
+        empty, whitespace-only, invalid UTF-8, repeated or oversized input returns
+        invalid_query. Match a literal case-insensitive substring of the endpoint's
+        described resolved metadata fields; percent and underscore are literal,
+        not wildcard operators. No token expansion, accent folding, stemming,
+        question-body search or tag-label translation search is implied.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+      example: containers
+    ThemeFilter:
+      name: theme
+      in: query
+      required: false
+      description: >-
+        Exactly one canonical parent theme ID; case is preserved. Empty, repeated
+        or malformed values return invalid_query. A valid unknown/inactive ID
+        produces no list matches. This is a query filter, not a theme header.
+      schema:
+        $ref: '#/components/schemas/Identifier'
+      example: kubernetes
+    ThemePath:
+      name: theme
+      in: path
+      required: true
+      description: Exact canonical theme ID; case-sensitive, without slug rewriting.
+      schema:
+        $ref: '#/components/schemas/Identifier'
+    TopicPath:
+      name: topic
+      in: path
+      required: true
+      description: Exact canonical topic ID within the specified theme; case-sensitive.
+      schema:
+        $ref: '#/components/schemas/Identifier'
+    ThemeTag:
+      name: themeTag
+      in: query
+      required: false
+      description: >-
+        One exact theme-tag membership filter; no inheritance from topic tags.
+        Trim surrounding ASCII whitespace and lowercase ASCII letters using the
+        existing Manager/API normalization. Empty, repeated, non-ASCII, malformed
+        or raw values longer than 50 ASCII bytes return invalid_tag. A valid
+        unknown slug yields no matches. Combine with other filters using AND.
+      schema:
+        $ref: '#/components/schemas/TagInput'
+      example: dev
+    TopicTag:
+      name: topicTag
+      in: query
+      required: false
+      description: >-
+        One exact topic-tag membership filter, independent of themeTag. Same
+        normalization and validation as themeTag; invalid input returns
+        invalid_tag. A valid unknown slug yields no matches. Combine with other
+        filters using AND; a topic need not carry its parent's theme tags.
+      schema:
+        $ref: '#/components/schemas/TagInput'
+      example: seguranca
+    Difficulty:
+      name: difficulty
+      in: query
+      required: false
+      description: >-
+        One numeric difficulty. Require canonical questions at that difficulty
+        and narrow questionCount/difficulties to that level. Repeated, empty,
+        non-integer or out-of-range values return invalid_query. Existing session
+        availability endpoints remain authoritative for a player's remaining
+        questions. No player-specific availability is returned here.
+      schema:
+        $ref: '#/components/schemas/Difficulty'
+    TagScope:
+      name: scope
+      in: query
+      required: true
+      description: Exactly one association scope; missing, empty, repeated or unknown input returns invalid_query.
+      schema:
+        type: string
+        enum: [theme, topic]
+    Page:
+      name: page
+      in: query
+      required: false
+      description: >-
+        One positive integer from 1 through 1000; default 1. Repeated, empty,
+        fractional or out-of-range values return invalid_query. A valid page
+        beyond totalPages returns an empty item array with the actual totals.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: >-
+        One positive integer from 1 through 100; default 24. Repeated, empty,
+        fractional or out-of-range values return invalid_query. Never fetch all
+        resources when a page limit was requested or imposed by default.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 24
+  schemas:
+    Identifier:
+      type: string
+      minLength: 1
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+      description: Existing canonical identifier format; retain its case and punctuation.
+    Locale:
+      type: string
+      minLength: 2
+      maxLength: 35
+      example: pt-BR
+    TagInput:
+      type: string
+      minLength: 1
+      maxLength: 50
+      pattern: '^[ \t\r\n\f\v]*[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*[ \t\r\n\f\v]*$'
+    Tag:
+      type: string
+      minLength: 1
+      maxLength: 50
+      pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+      description: Canonical stored slug; friendly localized labels belong to the Web i18n registry.
+      example: seguranca
+    Tags:
+      type: array
+      maxItems: 20
+      uniqueItems: true
+      description: Complete tag set for this resource, sorted by ASCII slug; never null or omitted.
+      items:
+        $ref: '#/components/schemas/Tag'
+    Difficulty:
+      type: integer
+      format: int32
+      enum: [1, 2, 3, 4]
+      description: Existing values 1=easy, 2=normal, 3=hard, 4=hardcore.
+    DifficultyCount:
+      type: object
+      required: [id, questionCount]
+      additionalProperties: false
+      properties:
+        id:
+          $ref: '#/components/schemas/Difficulty'
+        questionCount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Distinct canonical packages at this difficulty in the response's filter scope.
+    Difficulties:
+      type: array
+      maxItems: 4
+      description: >-
+        Only populated difficulties, ordered by numeric ID without duplicate IDs.
+        Empty when questionCount is zero. Counts sum exactly to questionCount.
+        With a difficulty filter this array contains at most that one difficulty.
+      items:
+        $ref: '#/components/schemas/DifficultyCount'
+    ThemeIdentity:
+      type: object
+      required: [id, name, description, weight, tags]
+      additionalProperties: false
+      properties:
+        id:
+          $ref: '#/components/schemas/Identifier'
+        name:
+          type: string
+          minLength: 1
+          description: Canonical theme name; theme translations are outside this feature.
+        description:
+          type: string
+          description: Canonical theme description; may be empty.
+        weight:
+          type: integer
+          format: int32
+        tags:
+          $ref: '#/components/schemas/Tags'
+    Theme:
+      type: object
+      required: [id, name, description, weight, tags, topicCount, playableTopicCount, questionCount, difficulties, playable]
+      additionalProperties: false
+      properties:
+        id:
+          $ref: '#/components/schemas/Identifier'
+        name:
+          type: string
+          minLength: 1
+          description: Canonical theme name; not translated by this feature.
+        description:
+          type: string
+          description: Canonical theme description; may be empty.
+        weight:
+          type: integer
+          format: int32
+        tags:
+          $ref: '#/components/schemas/Tags'
+        topicCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Distinct matching active topics, including empty topics when difficulty is absent.
+        playableTopicCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Matching topics with at least one scoped canonical question; never greater than topicCount.
+        questionCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Scoped distinct canonical question keys among matching active descendant topics.
+        difficulties:
+          $ref: '#/components/schemas/Difficulties'
+        playable:
+          type: boolean
+          description: True exactly when scoped questionCount is greater than zero; does not promise session availability.
+    Topic:
+      type: object
+      required: [theme, id, label, description, weight, tags, questionCount, difficulties, playable]
+      additionalProperties: false
+      properties:
+        theme:
+          $ref: '#/components/schemas/ThemeIdentity'
+        id:
+          $ref: '#/components/schemas/Identifier'
+        label:
+          type: string
+          minLength: 1
+          description: Existing requested/fallback/canonical topic-name resolution.
+        description:
+          type: string
+          description: Existing requested/fallback/canonical description resolution; may be empty.
+        weight:
+          type: integer
+          format: int32
+        tags:
+          $ref: '#/components/schemas/Tags'
+        questionCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Distinct canonical question keys in this topic and selected difficulty scope.
+        difficulties:
+          $ref: '#/components/schemas/Difficulties'
+        playable:
+          type: boolean
+          description: True exactly when scoped questionCount is greater than zero; session exhaustion is not considered.
+    TagCounts:
+      type: object
+      required: [slug, themeCount, topicCount, questionCount]
+      additionalProperties: false
+      properties:
+        slug:
+          $ref: '#/components/schemas/Tag'
+        themeCount:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Distinct eligible active parent themes under all supplied filters and this candidate tag.
+        topicCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Distinct eligible active theme/topic pairs under all supplied filters and this candidate tag.
+        questionCount:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Scoped distinct canonical packages; never counts translations, answers or inactive resources.
+    Pagination:
+      type: object
+      required: [page, pageSize, total, totalPages]
+      additionalProperties: false
+      description: >-
+        total is the number of matching top-level resources before pagination;
+        totalPages is ceil(total/pageSize), or zero for no matches. page and
+        pageSize echo resolved defaults/validated inputs. Each request is
+        internally consistent, but separate pages may observe intervening
+        content edits; no cross-request snapshot cursor is promised.
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          format: int64
+          minimum: 0
+    ThemePage:
+      type: object
+      required: [locale, fallbackLocale, themes, pagination]
+      additionalProperties: false
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        fallbackLocale:
+          $ref: '#/components/schemas/Locale'
+        themes:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Theme'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    ThemeDetail:
+      type: object
+      required: [locale, fallbackLocale, theme]
+      additionalProperties: false
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        fallbackLocale:
+          $ref: '#/components/schemas/Locale'
+        theme:
+          $ref: '#/components/schemas/Theme'
+    TopicPage:
+      type: object
+      required: [locale, fallbackLocale, topics, pagination]
+      additionalProperties: false
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        fallbackLocale:
+          $ref: '#/components/schemas/Locale'
+        topics:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Topic'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    TopicDetail:
+      type: object
+      required: [locale, fallbackLocale, topic]
+      additionalProperties: false
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        fallbackLocale:
+          $ref: '#/components/schemas/Locale'
+        topic:
+          $ref: '#/components/schemas/Topic'
+    TagPage:
+      type: object
+      required: [locale, fallbackLocale, scope, tags, pagination]
+      additionalProperties: false
+      properties:
+        locale:
+          $ref: '#/components/schemas/Locale'
+        fallbackLocale:
+          $ref: '#/components/schemas/Locale'
+        scope:
+          type: string
+          enum: [theme, topic]
+        tags:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/TagCounts'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    ErrorResponse:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              enum: [invalid_query, invalid_tag, invalid_locale, theme_not_found, topic_not_found, discovery_unavailable, storage_unavailable, internal_error]
+              description: Stable machine-readable error code; never localized.
+            message:
+              type: string
+              description: Nonlocalized summary without SQL, credentials, question data or infrastructure internals.
+  responses:
+    InvalidQuery:
+      description: >-
+        invalid_locale for a missing, repeated, malformed or unsupported locale;
+        invalid_tag for malformed/repeated tag filters; invalid_query for other
+        malformed, empty, repeated or unsupported query parameters/path IDs.
+        Unknown query parameter names are rejected, not silently ignored. Every
+        parameter is single-valued; arrays and repeated keys are unsupported.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: invalid_query
+              message: Invalid discovery query
+    NotFound:
+      description: >-
+        theme_not_found for a missing/inactive parent; topic_not_found for a
+        missing/inactive topic under an active parent. Applies to new detail
+        endpoints only; existing API error statuses remain unchanged.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: topic_not_found
+              message: Topic not found
+    Unavailable:
+      description: >-
+        discovery_unavailable when the configured content provider is local/S3
+        and cannot expose PostgreSQL discovery/topic-tag metadata. Existing
+        endpoints/readiness remain usable according to their contracts.
+        storage_unavailable when PostgreSQL, its discovery reader contract,
+        publication gate or required reader permissions are unavailable or
+        incompatible. Never convert these failures into an empty result or 404.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unsupportedProvider:
+              value:
+                error:
+                  code: discovery_unavailable
+                  message: Discovery unavailable for the configured content provider
+            databaseUnavailable:
+              value:
+                error:
+                  code: storage_unavailable
+                  message: Storage unavailable
+    InternalError:
+      description: Unexpected server failure; dependency/contract failures use the explicit 503 response.
+      headers:
+        Cache-Control:
+          $ref: '#/components/headers/NoStore'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error:
+              code: internal_error
+              message: Internal error

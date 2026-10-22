@@ -50,6 +50,7 @@ where knowledge can be found, then come back and beat the challenge.
 
 ## What Is In The Monorepo
 
+- `apps/web/`: generic Nuxt/Vue Web with server-rendered discovery, local-only.
 - `apps/spa-dev/`: Quasar/Vue player SPA for the `dev` theme.
 - `apps/api/`: Go API for catalogs, runs, answers, and results.
 - `apps/manager/`: Symfony app for quiz pack editing, validation, localization, and

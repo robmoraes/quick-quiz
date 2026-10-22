@@ -1,0 +1,36 @@
+# Opt-in generic Web. Include after compose.postgres.yml once migrations and
+# SELECT-only reader grants are reconciled; no extra database/search service.
+services:
+  web:
+    profiles: [web]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/web/Dockerfile
+    image: ${QUICKQUIZ_IMAGE_WEB:-quickquiz-web:local}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: ${WEB_MEMORY_LIMIT:-384m}
+    environment:
+      NUXT_API_BASE_URL: ${WEB_API_BASE_URL:-http://api:8080}
+      NUXT_API_BASE_URL__FILE: ${WEB_API_BASE_URL__FILE:-}
+      NUXT_API_TIMEOUT_MS: ${WEB_API_TIMEOUT_MS:-5000}
+      NUXT_API_TIMEOUT_MS__FILE: ${WEB_API_TIMEOUT_MS__FILE:-}
+      NUXT_PUBLIC_API_BASE_URL: ${WEB_PUBLIC_API_BASE_URL:-http://localhost:8080}
+      NUXT_PUBLIC_API_BASE_URL__FILE: ${WEB_PUBLIC_API_BASE_URL__FILE:-}
+      NUXT_PUBLIC_SITE_URL: ${WEB_SITE_URL:-http://localhost:8085}
+      NUXT_PUBLIC_SITE_URL__FILE: ${WEB_SITE_URL__FILE:-}
+      NUXT_PUBLIC_DEFAULT_LOCALE: ${WEB_DEFAULT_LOCALE:-pt-BR}
+      NUXT_PUBLIC_DEFAULT_LOCALE__FILE: ${WEB_DEFAULT_LOCALE__FILE:-}
+      NUXT_PUBLIC_SUPPORTED_LOCALES: ${WEB_SUPPORTED_LOCALES:-en-US,pt-BR}
+      NUXT_PUBLIC_SUPPORTED_LOCALES__FILE: ${WEB_SUPPORTED_LOCALES__FILE:-}
+      NUXT_PUBLIC_INDEXABLE: ${WEB_INDEXABLE:-false}
+      NUXT_PUBLIC_INDEXABLE__FILE: ${WEB_INDEXABLE__FILE:-}
+    ports:
+      - ${WEB_HTTP_PORT:-127.0.0.1:8085}:3000
+    depends_on:
+      api:
+        condition: service_healthy

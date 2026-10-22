@@ -1,8 +1,9 @@
 # PostgreSQL quiz runtime
 
-Status: deployed on 2026-10-11 with API `0.9.0` and Manager `0.14.0` after separate
-authorization. PostgreSQL is the production quiz runtime/publication backend;
-see the [deployment and recovery record](postgresql-quiz-runtime-release.md).
+This guide documents the application's PostgreSQL runtime/publication contract
+and disposable local rehearsal. Environment-specific configuration, selected
+versions and deployment/recovery records belong to the infrastructure workspace;
+see [deployment responsibilities](../deployment.md).
 See [spec 006](../specs/006-postgresql-quiz-runtime/spec.md)
 and [ADR 004](../architecture/adr/004-postgresql-quiz-runtime.md).
 
@@ -173,7 +174,8 @@ Fallback to local/S3 requires a fresh, full, verified export of the latest
 revision and an explicitly attested v2-compatible reader image. Freeze **all**
 authoring, prompt and tag writes through export, provider switch and validation.
 The export includes inactive retained content, theme tags and explanation
-prompts; topic tags stay private in PostgreSQL. Failed or partial targets must
+prompts; topic tags remain in PostgreSQL and are omitted from legacy JSON
+(the new public discovery API can expose them). Failed or partial targets must
 not be used. Retry into a fresh directory/prefix.
 
 ```sh
@@ -229,5 +231,5 @@ separate reproducible operator check, not a pull-request CI workload.
 Functional receipts are in [implementation verification](../specs/006-postgresql-quiz-runtime/verification.md).
 Capacity evidence uses synthetic data; see the spec's acceptance budget and its
 `evidence/` artifacts. Passing functional tests alone does not prove the proposed
-2-vCPU/2-GiB capacity budget. The production record verifies the current bank
-and complete running stack; it does not establish the proposed 100k load budget.
+2-vCPU/2-GiB capacity budget. Functional checks of a deployed bank do not establish
+the proposed 100k load budget; capacity evidence must match the target environment.

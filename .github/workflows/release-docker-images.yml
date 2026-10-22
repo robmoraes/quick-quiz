@@ -7,6 +7,7 @@ on:
       - "ads-api/**"
       - "spa-dev/**"
       - "spa-dslab/**"
+      - "web/**"
       - "manager/**"
       - "v*"
 
@@ -27,6 +28,7 @@ jobs:
       DOCKERHUB_ADS_API_IMAGE: ${{ vars.DOCKERHUB_ADS_API_IMAGE }}
       DOCKERHUB_SPA_DEV_IMAGE: ${{ vars.DOCKERHUB_SPA_DEV_IMAGE }}
       DOCKERHUB_SPA_DSLAB_IMAGE: ${{ vars.DOCKERHUB_SPA_DSLAB_IMAGE }}
+      DOCKERHUB_WEB_IMAGE: ${{ vars.DOCKERHUB_WEB_IMAGE }}
       DOCKERHUB_MANAGER_FPM_IMAGE: ${{ vars.DOCKERHUB_MANAGER_FPM_IMAGE }}
       DOCKERHUB_MANAGER_WEB_IMAGE: ${{ vars.DOCKERHUB_MANAGER_WEB_IMAGE }}
       DOCKER_PLATFORMS: linux/amd64,linux/arm64
@@ -86,6 +88,16 @@ jobs:
           elif [[ "${tag}" =~ ^spa-dslab/ ]]; then
             app="spa-dslab"
             message="SPA DSLab release tags must use spa-dslab/vMAJOR.MINOR.PATCH."
+          elif [[ "${tag}" =~ ^web/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            valid=true
+            implemented=true
+            app="web"
+            version="${tag#web/}"
+            image="${DOCKERHUB_WEB_IMAGE}"
+            message="Web release tag accepted."
+          elif [[ "${tag}" =~ ^web/ ]]; then
+            app="web"
+            message="Web release tags must use web/vMAJOR.MINOR.PATCH."
           elif [[ "${tag}" =~ ^manager/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             valid=true
             implemented=true
@@ -97,9 +109,9 @@ jobs:
             app="manager"
             message="Manager release tags must use manager/vMAJOR.MINOR.PATCH."
           elif [[ "${tag}" =~ ^v ]]; then
-            message="Repository-wide release tags are unsupported. Use api/vMAJOR.MINOR.PATCH, ads-api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
+            message="Repository-wide release tags are unsupported. Use api/vMAJOR.MINOR.PATCH, ads-api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, web/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
           else
-            message="Unsupported release tag. Use api/vMAJOR.MINOR.PATCH, ads-api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
+            message="Unsupported release tag. Use api/vMAJOR.MINOR.PATCH, ads-api/vMAJOR.MINOR.PATCH, spa-dev/vMAJOR.MINOR.PATCH, spa-dslab/vMAJOR.MINOR.PATCH, web/vMAJOR.MINOR.PATCH, or manager/vMAJOR.MINOR.PATCH."
           fi
 
           {
@@ -168,6 +180,10 @@ jobs:
 
           if [[ "${{ steps.tag.outputs.app }}" == "spa-dslab" && -z "${DOCKERHUB_SPA_DSLAB_IMAGE}" ]]; then
             missing+=("DOCKERHUB_SPA_DSLAB_IMAGE")
+          fi
+
+          if [[ "${{ steps.tag.outputs.app }}" == "web" && -z "${DOCKERHUB_WEB_IMAGE}" ]]; then
+            missing+=("DOCKERHUB_WEB_IMAGE")
           fi
 
           if [[ "${{ steps.tag.outputs.app }}" == "manager" ]]; then
@@ -272,6 +288,22 @@ jobs:
         working-directory: apps/manager
         run: composer test
 
+      - name: Validate Web in Node 24 Docker
+        if: steps.tag.outputs.app == 'web'
+        shell: bash
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -e HOME=/tmp -e CI=true \
+            -v "${GITHUB_WORKSPACE}:/workspace" -w /workspace/apps/web \
+            node:24-bookworm-slim sh -ec '
+              npm ci --no-audit --no-fund
+              npm run lint
+              npm run typecheck
+              npm test
+              npm run build
+              node --test /workspace/deploy/docker/web/config-files.test.mjs
+            '
+
       - name: Set up QEMU
         if: steps.tag.outputs.implemented == 'true'
         uses: docker/setup-qemu-action@v3
@@ -318,6 +350,12 @@ jobs:
         env:
           MANAGER_FPM_TAG: ${{ steps.tag.outputs.version }}
         run: make -C deploy manager-fpm MANAGER_FPM_TAG="${MANAGER_FPM_TAG}" MANAGER_FPM_REPOSITORY="${DOCKERHUB_MANAGER_FPM_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
+
+      - name: Build and push Web image
+        if: steps.tag.outputs.app == 'web'
+        env:
+          WEB_TAG: ${{ steps.tag.outputs.version }}
+        run: make -C deploy web WEB_TAG="${WEB_TAG}" WEB_REPOSITORY="${DOCKERHUB_WEB_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
 
       - name: Build and push manager web image
         if: steps.tag.outputs.app == 'manager'
@@ -404,4 +442,20 @@ jobs:
             echo "- \`${DOCKERHUB_MANAGER_FPM_IMAGE}:latest\`"
             echo "- \`${DOCKERHUB_MANAGER_WEB_IMAGE}:${MANAGER_TAG}\`"
             echo "- \`${DOCKERHUB_MANAGER_WEB_IMAGE}:latest\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Summarize Web image push
+        if: steps.tag.outputs.app == 'web'
+        env:
+          WEB_TAG: ${{ steps.tag.outputs.version }}
+          WEB_IMAGE: ${{ steps.tag.outputs.image }}
+        shell: bash
+        run: |
+          {
+            echo ""
+            echo "## Published images"
+            echo ""
+            echo "- Platforms: \`${DOCKER_PLATFORMS}\`"
+            echo "- \`${WEB_IMAGE}:${WEB_TAG}\`"
+            echo "- \`${WEB_IMAGE}:latest\`"
           } >> "${GITHUB_STEP_SUMMARY}"

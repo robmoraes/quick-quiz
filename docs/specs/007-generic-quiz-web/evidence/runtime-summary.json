@@ -1,0 +1,25 @@
+{
+  "checks": [
+    "Same image: __FILE origin priority, default locale, indexable SSR and no internal API URL leak",
+    "Filtered and personal pages remain noindex under indexable runtime",
+    "Sitemap index and both chunk types return valid bounded XML; invalid routes are no-store JSON404",
+    "Localized HTML404/503 and dependency readiness failures preserve no-store; liveness stays200",
+    "New Web/API/Manager and preserved API/Manager/SPA Dev are serving200"
+  ],
+  "passed": true,
+  "arm64": {
+    "built": true,
+    "started": true,
+    "processArch": "arm64",
+    "uid": 1000,
+    "readOnly": true,
+    "healthReadySsrStatus": 200
+  },
+  "tagRemoval": {
+    "passed": true,
+    "allTagsRemovedVisible": true,
+    "originalTagsRestored": true,
+    "gameplayRevisionUnchanged": true
+  },
+  "readerMemberships": 0
+}

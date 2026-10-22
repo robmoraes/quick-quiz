@@ -171,6 +171,26 @@ final class QuizRuntimeIntegrationTest extends TestCase
         $saved = $this->writer->saveTopicSet($this->theme, ['key' => 'topic', 'name' => 'Topic', 'active' => true, 'tags' => ['memory']]);
         self::assertFalse($saved['publicationRequired']);
         self::assertSame($before, $this->publication->status()['publishedRevision']);
+        self::assertSame(1, $this->viewCount('topic_tags'));
+        $this->writer->saveTopicSet($this->theme, ['key' => 'topic', 'name' => 'Topic', 'active' => true, 'tags' => []]);
+        self::assertSame(0, $this->viewCount('topic_tags'));
+        self::assertSame($before, $this->publication->status()['currentRevision']);
+        self::assertSame($before, $this->publication->status()['publishedRevision']);
+    }
+
+    public function testDiscoveryTagsFollowActiveTopicsAndParentsWithoutChangingRuntimeViews(): void
+    {
+        $this->seed();
+        $this->writer->saveTopicSet($this->theme, ['key' => 'topic', 'name' => 'Topic', 'active' => true, 'tags' => ['memory']]);
+        self::assertSame(1, $this->viewCount('topic_tags'));
+        $this->writer->saveTopicSet($this->theme, ['key' => 'topic', 'name' => 'Topic', 'active' => false, 'tags' => ['memory']]);
+        self::assertSame(0, $this->viewCount('topic_tags'));
+        $this->writer->saveTopicSet($this->theme, ['key' => 'topic', 'name' => 'Topic', 'active' => true, 'tags' => ['memory']]);
+        $this->writer->saveTheme(['id' => $this->theme, 'name' => 'Study', 'active' => false]);
+        self::assertSame(0, $this->viewCount('topic_tags'));
+        $columns = $this->database->connection()->query("SELECT column_name FROM information_schema.columns
+            WHERE table_schema='quiz_runtime_v1' AND table_name='topics' ORDER BY ordinal_position")->fetchAll(PDO::FETCH_COLUMN);
+        self::assertSame(['theme_id', 'topic_key', 'name', 'description', 'weight', 'active', 'created_at'], $columns);
     }
 
     public function testBackendAndLocaleMismatchBlockWriters(): void

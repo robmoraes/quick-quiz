@@ -6,6 +6,7 @@ API_TAG ?= $(TAG)
 ADS_API_TAG ?= $(TAG)
 SPA_DEV_TAG ?= $(TAG)
 SPA_DSLAB_TAG ?= $(TAG)
+WEB_TAG ?= $(TAG)
 MANAGER_FPM_TAG ?= $(TAG)
 MANAGER_WEB_TAG ?= $(TAG)
 PHP_BASE_TAG ?= 8.3.33-alpine3.24-r1
@@ -20,6 +21,7 @@ SPA_DSLAB_REPOSITORY ?= robmoraes/quick-quiz-dslab
 MANAGER_FPM_REPOSITORY ?= robmoraes/quick-quiz-manager-fpm
 MANAGER_WEB_REPOSITORY ?= robmoraes/quick-quiz-manager-web
 PHP_BASE_REPOSITORY ?= robmoraes/quick-quiz-php-base
+WEB_REPOSITORY ?= robmoraes/quick-quiz-web
 PHP_BASE_IMAGE ?= $(PHP_BASE_REPOSITORY):$(PHP_BASE_TAG)
 
 API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/api/Dockerfile
@@ -28,10 +30,20 @@ SPA_DEV_DOCKERFILE := $(ROOT_DIR)/deploy/docker/spa-dev/Dockerfile
 SPA_DSLAB_DOCKERFILE := $(ROOT_DIR)/deploy/docker/spa-dslab/Dockerfile
 MANAGER_DOCKERFILE := $(ROOT_DIR)/deploy/docker/manager/Dockerfile
 PHP_BASE_DOCKERFILE := $(ROOT_DIR)/deploy/docker/php-base/Dockerfile
+WEB_DOCKERFILE := $(ROOT_DIR)/deploy/docker/web/Dockerfile
 
-.PHONY: build-images api ads-api spa-dev spa-dslab manager-fpm manager-web php-base validate-output dist-dir
+.PHONY: build-images api ads-api spa-dev spa-dslab manager-fpm manager-web web php-base validate-output dist-dir
 
-build-images: api ads-api spa-dev spa-dslab manager-fpm manager-web
+build-images: api ads-api spa-dev spa-dslab manager-fpm manager-web web
+
+# Web image publication is independent of environment deployment.
+web: validate-output dist-dir
+	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
+		--platform "$(PLATFORM)" \
+		$(call image_tags,$(WEB_REPOSITORY),$(WEB_TAG)) \
+		--file "$(WEB_DOCKERFILE)" \
+		$(call output_args,web,$(WEB_TAG)) \
+		"$(ROOT_DIR)"
 
 api: validate-output dist-dir
 	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \

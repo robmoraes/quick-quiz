@@ -1,0 +1,85 @@
+{
+  "passed": true,
+  "browser": {
+    "checks": [
+      "SSR content, links, canonical, alternates, no-store and local noindex",
+      "Topic-tag cross-theme discovery and no personal API/storage during discovery",
+      "320px and 200% text resize without horizontal overflow",
+      "Create/answer/reload reconciliation, final exhaustion closure, bounded persisted summary and result reload",
+      "404/health/readiness/sitemap statuses and no browser runtime exceptions"
+    ],
+    "errors": []
+  },
+  "responsiveCases": [
+    {
+      "name": "home",
+      "width": 320,
+      "scrollWidth": 320,
+      "overflowCount": 0
+    },
+    {
+      "name": "explore",
+      "width": 320,
+      "scrollWidth": 320,
+      "overflowCount": 0
+    },
+    {
+      "name": "topic",
+      "width": 320,
+      "scrollWidth": 320,
+      "overflowCount": 0
+    },
+    {
+      "name": "game-welcome",
+      "width": 320,
+      "scrollWidth": 320,
+      "overflowCount": 0
+    },
+    {
+      "name": "game-levels",
+      "width": 320,
+      "scrollWidth": 320,
+      "overflowCount": 0
+    },
+    {
+      "name": "long-explore",
+      "width": 320,
+      "scrollWidth": 320,
+      "overflowCount": 0
+    },
+    {
+      "name": "long-topic",
+      "width": 320,
+      "scrollWidth": 320,
+      "overflowCount": 0
+    }
+  ],
+  "keyboardFocusVisible": true,
+  "extendedGameScenarios": [
+    {
+      "name": "hardcore-loss",
+      "passed": true,
+      "pageErrorCount": 0
+    },
+    {
+      "name": "unknown-create-response",
+      "passed": true,
+      "pageErrorCount": 0
+    },
+    {
+      "name": "answer-response-lost",
+      "passed": true,
+      "pageErrorCount": 0
+    },
+    {
+      "name": "reload-state-503",
+      "passed": true,
+      "pageErrorCount": 0
+    },
+    {
+      "name": "theme-and-locale-lock",
+      "passed": true,
+      "pageErrorCount": 0
+    }
+  ]
+}

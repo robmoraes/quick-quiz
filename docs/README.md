@@ -12,17 +12,22 @@ monorepo.
 - [API docs](api/README.md): backend responsibilities, local development, and
   OpenAPI entry point.
 - [SPA docs](spa/README.md): player frontend responsibilities and validation.
+- [Generic Web](../apps/web/README.md): server-rendered discovery and browser quiz.
+- [Generic Web local operation](runbooks/generic-quiz-web-local.md): optional
+  Compose profile, PostgreSQL reader grants and runtime configuration.
+- [Generic Web image release](runbooks/generic-quiz-web-image-release.md):
+  independent version tags and multi-platform Docker Hub publication.
 - [Manager docs](manager/README.md): quiz pack editing and validation app.
 - [Manager administration API](manager/admin-api.md): token-protected catalog and quiz CRUD for automation.
 - [Data docs](data/README.md): quiz pack structure, locale rules, and content
   editing risks.
 - [Specs](specs/README.md): product and implementation specifications.
 - [Timeline](timeline/): short development log entries.
-- [Runbooks](runbooks/): operational recovery and manual release procedures.
-- [PostgreSQL runtime deployment and recovery](runbooks/postgresql-quiz-runtime-release.md):
-  PostgreSQL runtime versions, validation, backups, and recovery.
-- [Latest SPA Dev release](runbooks/spa-dev-theme-caption-release.md):
-  version 0.9.1, layout correction, deployment checks, and SPA-only rollback.
+- [Runbooks](runbooks/): reusable application procedures and manual image builds.
+- [Deployment responsibilities](deployment.md): public application artifacts
+  and independently maintained private infrastructure.
+- [PostgreSQL runtime guide](runbooks/postgresql-quiz-runtime.md): configuration,
+  compatibility, export and rollback contracts.
 
 ## Stable Contracts
 

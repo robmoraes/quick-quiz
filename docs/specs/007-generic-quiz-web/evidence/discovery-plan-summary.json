@@ -1,0 +1,41 @@
+{
+  "fixture": {
+    "themes": 10,
+    "topics": 100,
+    "canonicalQuestionKeys": 100000,
+    "completeBank": false,
+    "scope": "Discovery metadata query plans only; transaction rolled back."
+  },
+  "queries": {
+    "themes": {
+      "planningMs": 6.26,
+      "executionMs": 98.74,
+      "limitRows": [
+        10
+      ],
+      "tempReadBlocks": 0,
+      "tempWrittenBlocks": 0,
+      "promptOrAnswerRelationsRead": false
+    },
+    "topics": {
+      "planningMs": 5.105,
+      "executionMs": 77.509,
+      "limitRows": [
+        24
+      ],
+      "tempReadBlocks": 0,
+      "tempWrittenBlocks": 0,
+      "promptOrAnswerRelationsRead": false
+    },
+    "tags": {
+      "planningMs": 5.243,
+      "executionMs": 72.547,
+      "limitRows": [
+        2
+      ],
+      "tempReadBlocks": 0,
+      "tempWrittenBlocks": 0,
+      "promptOrAnswerRelationsRead": false
+    }
+  }
+}

@@ -3,7 +3,8 @@
 The player SPA lives in `apps/spa-dev/` and is implemented with Quasar, Vue, and
 TypeScript.
 
-Production release: [SPA Dev 0.9.1 deployment and rollback](../runbooks/spa-dev-theme-caption-release.md).
+Production image selection and deployment/rollback records are maintained
+separately; see [deployment responsibilities](../deployment.md).
 
 ## Responsibilities
 

@@ -4,11 +4,16 @@
 
 This repository contains the QuickQuiz Dev MVP.
 
-Project premise: simple MVP, no database, no authentication. Still use robust architecture: clear boundaries, testable business logic, explicit contracts, and low coupling.
+Current runtime: PostgreSQL quiz content, Redis sessions/runs and an authenticated
+Manager. Local/S3 JSON providers remain compatibility paths. Keep clear
+boundaries, testable business logic, explicit contracts, and low coupling.
 
 - `apps/api/`: Go API. Entry point: `cmd/api/main.go`; business logic: `internal/app`; domain: `internal/domain`; HTTP: `internal/httpapi`; stores: `internal/store`.
 - `apps/manager/`: Symfony manager app for editing, validating, localizing, and publishing quiz packs.
 - `apps/spa-dev/`: Quasar/Vue app. Main page: `src/pages/IndexPage.vue`; layout: `src/layouts/MainLayout.vue`; API client: `src/services/api.ts`; styles: `src/css/app.scss`.
+- `apps/web/`: generic Nuxt/Vue Web. Discovery is SSR; personal gameplay is
+  client-only. See `apps/web/README.md` and spec 007. Run lint, typecheck, test
+  and build through Node 24 in Docker; no host package installation.
 - `docs/`: documentation, including `docs/openapi.yaml` and timeline files in `docs/timeline/YYYY-MM-DD.md`.
 - `docs/specs/`: product, architecture, and implementation specifications.
 - `apps/api/.local/themes.json`: local theme metadata, ignored by Git, simulating future S3 storage.

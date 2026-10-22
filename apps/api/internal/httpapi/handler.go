@@ -16,6 +16,7 @@ import (
 type Handler struct {
 	runs      *app.RunService
 	solutions *app.SolutionService
+	discovery *app.DiscoveryService
 	logger    *slog.Logger
 }
 
@@ -23,7 +24,7 @@ func NewHandler(runs *app.RunService, solutions *app.SolutionService, logger *sl
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return &Handler{runs: runs, solutions: solutions, logger: logger}
+	return &Handler{runs: runs, solutions: solutions, discovery: runs.Discovery(), logger: logger}
 }
 
 func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {

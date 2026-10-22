@@ -26,9 +26,15 @@ pnpm-debug.log*
 !.env.sample
 !.env.template
 
+# Local service data and backups
+/.local/
+
 # Dependencies and generated caches
 **/node_modules/
 **/.cache/
+apps/web/.nuxt/
+apps/web/.output/
+apps/web/coverage/
 
 # Local scratch files
 _temp/
@@ -46,3 +52,11 @@ deploy/content-demo/.manager/
 docs/.local
 
 .tmp
+
+# Infrastructure state and workstation leftovers after the private handoff
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tfplan

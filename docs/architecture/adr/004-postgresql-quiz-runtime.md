@@ -1,14 +1,20 @@
 # ADR-004: Read Playable Quiz Content From PostgreSQL
 
-- **Status:** accepted, implemented and deployed (2026-10-11); see the
-  [production record](../../runbooks/postgresql-quiz-runtime-release.md)
+- **Status:** accepted, implemented and deployed (2026-10-11); operational records
+  are maintained separately under the [deployment boundary](../../deployment.md)
 - **Date:** 2026-10-11
 - **Decision owners:** QuickQuiz maintainers
 - **Scope:** Manager publication, Quiz API content reads, and migration operations
 - **Supersedes:** the S3 runtime/publication boundary in
   [ADR 002](002-postgresql-quiz-authoring-s3-publication.md) and the startup
   snapshot constraints in [ADR 003](003-tagged-theme-discovery.md), partially
-- **Superseded by:** none
+- **Superseded by:** [ADR 005](005-generic-quiz-web.md), partially, for the
+  public topic-tag discovery boundary
+
+Accepted follow-up: [ADR 005](005-generic-quiz-web.md) extends topic tags into
+public discovery for the new generic Web. That follow-up is implemented and
+verified locally, without production deployment; the deployed runtime and
+recovery behavior recorded here remain current.
 
 ## Context
 

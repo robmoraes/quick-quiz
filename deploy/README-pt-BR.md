@@ -44,6 +44,16 @@ fica disponível somente na rede interna do Docker e persiste no volume
 `manager-db-data`. Configure-o com `MANAGER_DATABASE_URL` e as variáveis
 `MANAGER_DB_*`.
 
+Para guardar os arquivos do banco dentro do workspace, defina `MANAGER_DB_STORAGE`
+em `deploy/compose.local/.env`, por exemplo
+`MANAGER_DB_STORAGE=../../.local/services/postgres/quickquiz-dev`. Caminhos relativos
+partem de `deploy/compose.local`. A pasta `.local/` da raiz é ignorada pelo Git;
+use `.local/backups/postgres/` para backups lógicos. Cada banco/projeto Compose
+deve ter sua própria pasta. Alterar essa configuração não migra um volume existente:
+exporte com `pg_dump` e restaure no novo banco primeiro. Sem essa variável, permanece
+o volume nomeado `manager-db-data`. Pare o PostgreSQL antes de copiar sua pasta de
+dados; use `pg_dump` para backups com o banco em execução. O Redis continua efêmero.
+
 Crie um admin local do manager:
 
 ```sh
@@ -114,6 +124,7 @@ robmoraes/quick-quiz-dev
 robmoraes/quick-quiz-dslab
 robmoraes/quick-quiz-manager-fpm
 robmoraes/quick-quiz-manager-web
+robmoraes/quick-quiz-web
 robmoraes/quick-quiz-php-base
 ```
 
@@ -126,6 +137,7 @@ SPA_DEV_REPOSITORY=example/spa
 SPA_DSLAB_REPOSITORY=example/spa-dslab
 MANAGER_FPM_REPOSITORY=example/manager-fpm
 MANAGER_WEB_REPOSITORY=example/manager-web
+WEB_REPOSITORY=example/web
 PHP_BASE_REPOSITORY=example/php-base
 ```
 
@@ -148,7 +160,10 @@ export BUILDER=multiarch
 O Docker Desktop já fornece emulação; normalmente basta criar o builder e
 exportar `BUILDER`.
 
-Para o fluxo opcional de publicação em nuvem usando AWS EC2, Docker Compose, Traefik e os domínios do projeto, consulte [Cloud Publishing](./CLOUD-PUBLISHING.md).
+As configurações específicas de produção e seus registros operacionais ficam
+em um workspace privado de infraestrutura. Consulte
+[as responsabilidades de deploy](../docs/deployment.md) para a separação entre
+publicar imagens da aplicação e implantar um ambiente.
 
 ### Base PHP do Manager
 
@@ -166,7 +181,7 @@ A tag padrão é `8.3.33-alpine3.24-r1`; o push também atualiza `latest`.
 Atualizações de PHP, Alpine ou pacotes exigem revisão do Dockerfile, incremento
 da revisão e novo build das duas arquiteturas.
 
-Exporte as seis imagens como artefatos OCI em `deploy/dist`:
+Exporte as sete imagens da aplicação como artefatos OCI em `deploy/dist`:
 
 ```sh
 make -C deploy build-images \
@@ -174,7 +189,7 @@ make -C deploy build-images \
   OUTPUT=oci
 ```
 
-Publique as seis imagens com a mesma tag:
+Publique as sete imagens da aplicação com a mesma tag:
 
 ```sh
 make -C deploy build-images \
@@ -211,7 +226,7 @@ make -C deploy manager-fpm MANAGER_FPM_TAG=v0.1.1-beta OUTPUT=push
 make -C deploy manager-web MANAGER_WEB_TAG=v0.1.1-beta OUTPUT=push
 ```
 
-Construa as seis imagens com tags diferentes:
+Construa as sete imagens da aplicação com tags diferentes:
 
 ```sh
 make -C deploy build-images \
@@ -221,6 +236,7 @@ make -C deploy build-images \
   SPA_DSLAB_TAG=v0.1.0-dslab \
   MANAGER_FPM_TAG=v0.1.2-fpm \
   MANAGER_WEB_TAG=v0.1.2-web \
+  WEB_TAG=v0.1.0-web \
   OUTPUT=push
 ```
 
@@ -242,6 +258,12 @@ Hub das variáveis do environment:
 - `DOCKERHUB_SPA_DSLAB_IMAGE`
 - `DOCKERHUB_MANAGER_FPM_IMAGE`
 - `DOCKERHUB_MANAGER_WEB_IMAGE`
+- `DOCKERHUB_WEB_IMAGE`
+
+O Web usa tags independentes, como `web/v0.1.0`, e publica a versão e `latest`
+no repositório configurado, para ambas as arquiteturas. A validação com Node 24
+ocorre antes do push. Consulte o [guia de release da imagem Web](../docs/runbooks/generic-quiz-web-image-release.md).
+Publicar a imagem não executa o deploy em um ambiente.
 
 ## Runtime de quizzes no PostgreSQL
 
