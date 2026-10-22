@@ -9,6 +9,7 @@ The Web has no database credential, administrative token or persistent volume.
 
 See the [local runbook](../../docs/runbooks/generic-quiz-web-local.md),
 [image release guide](../../docs/runbooks/generic-quiz-web-image-release.md),
+[changelog](CHANGELOG.md),
 [spec 007](../../docs/specs/007-generic-quiz-web/spec.md) and
 [canonical API contract](../../docs/openapi.yaml).
 

@@ -23,7 +23,7 @@ no production configuration or secret is embedded in the image.
 
 Commit the implementation and workflow, review the PR and merge into `main`.
 Confirm the intended version in `apps/web/package.json` and its lockfile, then
-prepare the Web changelog: move the relevant
+prepare the [Web changelog](../../apps/web/CHANGELOG.md): move the relevant
 `Unreleased` entries into `## [<version>] - YYYY-MM-DD` with the actual release
 date. Link the first release to its tag/release page and update `Unreleased`
 to compare that tag with `HEAD`; later versions compare adjacent Web tags.
