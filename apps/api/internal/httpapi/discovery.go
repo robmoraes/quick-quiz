@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"quickquiz/api/internal/domain"
 )
@@ -20,7 +21,7 @@ func discoveryQuery(r *http.Request, allowed ...string) (domain.DiscoveryQuery, 
 	if err != nil {
 		return query, domain.ErrInvalidDiscoveryQuery
 	}
-	keys := map[string]bool{"locale": true}
+	keys := map[string]bool{"locale": true, "excludeThemes": true}
 	for _, key := range allowed {
 		keys[key] = true
 	}
@@ -44,6 +45,9 @@ func discoveryQuery(r *http.Request, allowed ...string) (domain.DiscoveryQuery, 
 	}
 	query.Locale, query.Search = values.Get("locale"), values.Get("q")
 	query.ThemeTag, query.TopicTag, query.Scope = values.Get("themeTag"), values.Get("topicTag"), values.Get("scope")
+	if excluded, ok := values["excludeThemes"]; ok {
+		query.ExcludedThemes = strings.SplitN(excluded[0], ",", 51)
+	}
 	if keys["theme"] {
 		query.Theme = values.Get("theme")
 	}

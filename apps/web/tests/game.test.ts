@@ -38,6 +38,23 @@ function deferred<T>() {
 }
 
 describe('isolated Web gameplay', () => {
+  it('preserves an excluded stored session without reading or mutating it through the API', async () => {
+    const item = await started()
+    const saved = item.data.get(GAME_STORAGE_KEY)
+    for (const operation of Object.values(item.api)) vi.mocked(operation).mockClear()
+    const restored = useQuizGame({ ...item.options, excludedThemeIds: ['science'] })
+    await restored.restore()
+    await restored.reconcile()
+    await restored.prepare('science', 'space', 'en-US')
+    expect(restored.state.themeExcluded).toBe(true)
+    expect(item.data.get(GAME_STORAGE_KEY)).toBe(saved)
+    for (const operation of Object.values(item.api)) expect(operation).not.toHaveBeenCalled()
+    const fresh = fixture()
+    await useQuizGame({ ...fresh.options, excludedThemeIds: ['science'] }).prepare('science', 'space', 'en-US')
+    expect(fresh.data.size).toBe(0)
+    expect(fresh.api.difficulties).not.toHaveBeenCalled()
+  })
+
   it('does not access storage, sessions or API during SSR construction or empty restoration', async () => {
     const item = fixture()
     expect(item.game.state.context.sessionId).toBe('')

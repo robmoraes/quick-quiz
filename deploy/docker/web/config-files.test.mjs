@@ -14,6 +14,11 @@ test('selected files override plain config; other environment stays untouched', 
     resolveConfigFiles(env)
     assert.equal(env.NUXT_API_BASE_URL, 'http://api:8080')
     assert.equal(env.OTHER__FILE, '/missing')
+    const exclusions = join(dir, 'exclusions')
+    writeFileSync(exclusions, 'dev,dslab\n')
+    const excludedEnv = { NUXT_PUBLIC_EXCLUDED_THEME_IDS: 'other', NUXT_PUBLIC_EXCLUDED_THEME_IDS__FILE: exclusions }
+    resolveConfigFiles(excludedEnv)
+    assert.equal(excludedEnv.NUXT_PUBLIC_EXCLUDED_THEME_IDS, 'dev,dslab')
     assert.doesNotThrow(() => resolveConfigFiles({ NUXT_API_BASE_URL__FILE: '' }))
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: QuickQuiz Public Discovery Additions
-  version: 0.1.0
+  version: 0.2.0
   description: >-
     Additive public contract implemented and verified locally for spec 007,
     incorporated into docs/openapi.yaml. This file does not claim production
@@ -48,6 +48,7 @@ paths:
         list. The response contains no nested unpaginated topic catalog.
       parameters:
         - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/ExcludedThemes'
         - $ref: '#/components/parameters/Search'
         - $ref: '#/components/parameters/ThemeTag'
         - $ref: '#/components/parameters/TopicTag'
@@ -81,10 +82,11 @@ paths:
         questions return 200 with playable false. No listing/search/tag/difficulty
         filters are accepted here. Read the paginated topic list with theme set
         to this theme ID to obtain its topics. Missing and inactive themes are
-        indistinguishable public 404 responses.
+        indistinguishable public 404 responses. The optional excludeThemes filter also applies here.
       parameters:
         - $ref: '#/components/parameters/ThemePath'
         - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/ExcludedThemes'
       responses:
         '200':
           description: Active theme metadata; the response does not embed its entire topic list.
@@ -122,6 +124,7 @@ paths:
         empty list; they are not errors and are not missing detail resources.
       parameters:
         - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/ExcludedThemes'
         - $ref: '#/components/parameters/Search'
         - $ref: '#/components/parameters/ThemeFilter'
         - $ref: '#/components/parameters/ThemeTag'
@@ -157,11 +160,12 @@ paths:
         false. No listing filters are accepted. An inactive/missing parent
         returns theme_not_found; an inactive/missing topic under an active parent
         returns topic_not_found. Both are public 404 responses without disclosing
-        inactive content. Topic IDs are scoped to the canonical parent ID.
+        inactive content. Topic IDs are scoped to the canonical parent ID. The optional excludeThemes filter also applies here.
       parameters:
         - $ref: '#/components/parameters/ThemePath'
         - $ref: '#/components/parameters/TopicPath'
         - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/ExcludedThemes'
       responses:
         '200':
           description: Active topic metadata and aggregate availability, without question bodies.
@@ -206,6 +210,7 @@ paths:
         in ascending ASCII order; tag slugs can exist in both scopes separately.
       parameters:
         - $ref: '#/components/parameters/Locale'
+        - $ref: '#/components/parameters/ExcludedThemes'
         - $ref: '#/components/parameters/TagScope'
         - $ref: '#/components/parameters/Search'
         - $ref: '#/components/parameters/ThemeFilter'
@@ -259,6 +264,32 @@ components:
         maxLength: 35
         pattern: '^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$'
       example: pt-BR
+    ExcludedThemes:
+      name: excludeThemes
+      in: query
+      required: false
+      style: form
+      explode: false
+      description: >-
+        Optional comma-separated canonical theme IDs excluded from this request.
+        Trim surrounding whitespace per item; IDs are case-sensitive. Omit for
+        the complete catalog. Empty items, duplicates, malformed IDs, more than
+        50 IDs, IDs longer than 128 characters, and repeated parameters return
+        invalid_query. Valid unknown IDs are allowed. Exclusions apply before
+        pagination, totals, descendant counts and tag facets. An excluded theme
+        or its topic detail returns theme_not_found (404). This is a presentation
+        filter, not an authorization policy or a global gameplay restriction.
+      schema:
+        type: array
+        minItems: 1
+        maxItems: 50
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+      example: [dev, dslab]
     Search:
       name: q
       in: query

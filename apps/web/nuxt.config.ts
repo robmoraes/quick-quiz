@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 export default defineNuxtConfig({
   compatibilityDate: '2026-10-11',
   modules: ['@nuxt/ui', '@nuxt/eslint'],
-  css: ['@fontsource-variable/manrope', '~/assets/css/main.css'],
+  css: ['@fontsource-variable/manrope', '@fontsource-variable/jetbrains-mono', '~/assets/css/main.css'],
   devtools: { enabled: false },
   ui: { fonts: false, colorMode: false },
   runtimeConfig: {
@@ -15,6 +15,7 @@ export default defineNuxtConfig({
       defaultLocale: 'pt-BR',
       supportedLocales: 'en-US,pt-BR',
       indexable: false,
+      excludedThemeIds: '',
     },
   },
   app: {

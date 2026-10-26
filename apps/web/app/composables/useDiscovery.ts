@@ -5,5 +5,5 @@ export function useDiscovery() {
   const config = useRuntimeConfig()
   const { locale } = useWebLocale()
   const publicSettings = parsePublicSettings(config.public)
-  return createDiscoveryClient(import.meta.server ? config.apiBaseUrl : publicSettings.apiBaseUrl, locale.value, fetch, Number(config.apiTimeoutMs) || 5000)
+  return createDiscoveryClient(import.meta.server ? config.apiBaseUrl : publicSettings.apiBaseUrl, locale.value, fetch, Number(config.apiTimeoutMs) || 5000, undefined, publicSettings.excludedThemeIds)
 }

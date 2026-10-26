@@ -276,6 +276,21 @@ Advertising and curated tag SEO pages are deferred to later increments.
 Production capacity and rollout remain future operational work, not a blocker
 to implementing and exercising this local slice.
 
+## Accepted Follow-up: Runtime Theme Exclusions — 2026-10-26
+
+Web deployments may configure `WEB_EXCLUDED_THEME_IDS` as a bounded CSV of
+canonical IDs. The default excludes nothing. Apply the list to SSR/client
+discovery, pickers, tags, searches and sitemaps, with direct theme/topic/play
+links returning 404. Previously stored excluded sessions must remain intact
+without API reads or resets. The selection is not shared API authorization.
+
+The additive API query `excludeThemes` applies to all five discovery routes
+before pagination, totals and aggregates. Requests without it preserve the
+complete active catalog and existing SPAs. Reject malformed, duplicate or empty
+items, lists over 50 IDs and IDs over 128 characters. No schema migration is
+required. Configuration supports the existing `__FILE` contract; changing a
+deployment's selection does not require an image rebuild.
+
 ## References
 
 - [Repository spec-driven standard](../standard.md).

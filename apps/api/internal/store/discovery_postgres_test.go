@@ -66,6 +66,48 @@ func testPostgresDiscovery(t *testing.T, ctx context.Context, admin *pgx.Conn, r
 			t.Fatalf("discovery query amplification: %d", calls)
 		}
 	})
+	t.Run("excluded themes disappear before counts pagination details and facets", func(t *testing.T) {
+		query := base
+		query.ExcludedThemes = []string{"web-one", "unknown-theme"}
+		query.PageSize = 1
+		page, err := reader.DiscoverThemes(ctx, query)
+		if err != nil || len(page.Themes) != 1 || page.Themes[0].ID != "web-two" || page.Pagination.Total != 2 || page.Pagination.TotalPages != 2 {
+			t.Fatalf("excluded theme pagination=%+v %v", page, err)
+		}
+		query.Page = 2
+		page, err = reader.DiscoverThemes(ctx, query)
+		if err != nil || len(page.Themes) != 1 || page.Themes[0].ID != "web-empty" {
+			t.Fatalf("excluded theme page 2=%+v %v", page, err)
+		}
+		query.Page = 1
+		query.PageSize = 24
+		topics, err := reader.DiscoverTopics(ctx, query)
+		if err != nil || len(topics.Topics) != 1 || topics.Topics[0].Theme.ID != "web-two" || topics.Pagination.Total != 1 {
+			t.Fatalf("excluded topic counts=%+v %v", topics, err)
+		}
+		query.Scope = "theme"
+		tags, err := reader.DiscoverTags(ctx, query)
+		if err != nil || len(tags.Tags) != 1 || tags.Tags[0].Slug != "web" || tags.Tags[0].ThemeCount != 2 || tags.Tags[0].TopicCount != 1 || tags.Tags[0].QuestionCount != 1 {
+			t.Fatalf("excluded theme facets=%+v %v", tags, err)
+		}
+		query.Scope = "topic"
+		tags, err = reader.DiscoverTags(ctx, query)
+		if err != nil || len(tags.Tags) != 1 || tags.Tags[0].Slug != "web-security" || tags.Tags[0].ThemeCount != 1 || tags.Tags[0].QuestionCount != 1 {
+			t.Fatalf("excluded topic facets=%+v %v", tags, err)
+		}
+		query.Theme = "web-one"
+		query.Topic = "shared"
+		if _, err := reader.DiscoveryTheme(ctx, query); !errors.Is(err, domain.ErrThemeNotFound) {
+			t.Fatal("excluded theme detail remained visible", err)
+		}
+		if _, err := reader.DiscoveryTopic(ctx, query); !errors.Is(err, domain.ErrThemeNotFound) {
+			t.Fatal("excluded topic detail remained visible", err)
+		}
+		unfiltered, err := reader.DiscoverThemes(ctx, base)
+		if err != nil || unfiltered.Pagination.Total != 3 {
+			t.Fatalf("exclusions changed the shared catalog: %+v %v", unfiltered, err)
+		}
+	})
 	t.Run("intersection and difficulty scope", func(t *testing.T) {
 		query := base
 		query.TopicTag = "web-security"

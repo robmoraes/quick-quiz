@@ -7,7 +7,7 @@ export default defineEventHandler(async event => {
   setResponseHeader(event, 'Content-Type', 'application/xml; charset=utf-8')
   if (!settings.indexable) return sitemapIndex([])
   try {
-    const api = createDiscoveryClient(settings.apiBaseUrl, settings.defaultLocale, fetch, settings.apiTimeoutMs, AbortSignal.timeout(settings.apiTimeoutMs))
+    const api = createDiscoveryClient(settings.apiBaseUrl, settings.defaultLocale, fetch, settings.apiTimeoutMs, AbortSignal.timeout(settings.apiTimeoutMs), settings.excludedThemeIds)
     const [themes, topics] = await Promise.all([api.themes({ pageSize: sitemapPageSize }), api.topics({ pageSize: sitemapPageSize })])
     const urls: string[] = []
     for (const [kind, totalPages] of [['themes', themes.pagination.totalPages], ['topics', topics.pagination.totalPages]] as const) {

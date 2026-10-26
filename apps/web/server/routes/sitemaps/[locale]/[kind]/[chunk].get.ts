@@ -10,7 +10,7 @@ export default defineEventHandler(async event => {
   if (!settings.supportedLocales.includes(locale as 'pt-BR' | 'en-US') || !['themes', 'topics'].includes(kind ?? '') || !Number.isInteger(chunk) || chunk < 1 || chunk > sitemapMaxApiPages / sitemapPagesPerChunk) throw createError({ statusCode: 404 })
   setResponseHeader(event, 'Content-Type', 'application/xml; charset=utf-8')
   if (!settings.indexable) return sitemapDocument([])
-  const api = createDiscoveryClient(settings.apiBaseUrl, locale, fetch, settings.apiTimeoutMs, AbortSignal.timeout(settings.apiTimeoutMs))
+  const api = createDiscoveryClient(settings.apiBaseUrl, locale, fetch, settings.apiTimeoutMs, AbortSignal.timeout(settings.apiTimeoutMs), settings.excludedThemeIds)
   try {
     return sitemapDocument(await collectSitemapChunk(api, kind as 'themes' | 'topics', chunk, settings.siteUrl, locale))
   } catch (error) {

@@ -12,16 +12,17 @@ var (
 // DiscoveryQuery is validated by the application before reaching a reader.
 // Empty optional strings and zero difficulty mean no filter.
 type DiscoveryQuery struct {
-	Locale     string
-	Search     string
-	Theme      string
-	Topic      string
-	ThemeTag   string
-	TopicTag   string
-	Difficulty Difficulty
-	Scope      string
-	Page       int
-	PageSize   int
+	Locale         string
+	Search         string
+	Theme          string
+	Topic          string
+	ThemeTag       string
+	TopicTag       string
+	ExcludedThemes []string
+	Difficulty     Difficulty
+	Scope          string
+	Page           int
+	PageSize       int
 }
 
 type DiscoveryPagination struct {

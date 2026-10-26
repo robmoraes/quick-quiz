@@ -59,6 +59,22 @@ func (s *DiscoveryService) validate(query domain.DiscoveryQuery) (domain.Discove
 		return query, domain.ErrInvalidDiscoveryQuery
 	}
 	query.Search = strings.TrimSpace(query.Search)
+	if len(query.ExcludedThemes) > 50 {
+		return query, domain.ErrInvalidDiscoveryQuery
+	}
+	seen := make(map[string]bool, len(query.ExcludedThemes))
+	excluded := make([]string, 0, len(query.ExcludedThemes))
+	for _, value := range query.ExcludedThemes {
+		id := strings.TrimSpace(value)
+		if len(id) > 128 || !discoveryIdentifier.MatchString(id) || seen[id] {
+			return query, domain.ErrInvalidDiscoveryQuery
+		}
+		seen[id] = true
+		excluded = append(excluded, id)
+	}
+	if len(excluded) > 0 {
+		query.ExcludedThemes = excluded
+	}
 	for _, id := range []string{query.Theme, query.Topic} {
 		if id != "" && !discoveryIdentifier.MatchString(id) {
 			return query, domain.ErrInvalidDiscoveryQuery

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useQuizGame } from '../../composables/useQuizGame'
+import { parsePublicSettings } from '#shared/config'
 
 const config = useRuntimeConfig()
 const { locale, localPath } = useWebLocale()
-const game = useQuizGame({ baseUrl: config.public.apiBaseUrl })
+const game = useQuizGame({ baseUrl: config.public.apiBaseUrl, excludedThemeIds: parsePublicSettings(config.public).excludedThemeIds })
 const { state, phase } = game
 const ready = ref(false)
 const copy = computed(() => locale.value === 'pt-BR' ? {
@@ -34,7 +35,14 @@ const copy = computed(() => locale.value === 'pt-BR' ? {
 })
 const playUrl = computed(() => ({ path: localPath('/play'), query: { theme: state.context.theme, topic: state.context.topic } }))
 useHead(() => ({ title: `${copy.value.accuracy} · QuickQuiz`, meta: [{ name: 'robots', content: 'noindex,nofollow' }] }))
-onMounted(async () => { await game.restore(); ready.value = true })
+onMounted(async () => {
+  await game.restore()
+  if (state.themeExcluded) {
+    showError({ statusCode: 404, statusMessage: 'Page not found' })
+    return
+  }
+  ready.value = true
+})
 onUnmounted(() => game.dispose())
 </script>
 

@@ -92,3 +92,16 @@ Source of truth: [spec.md](spec.md), [plan.md](plan.md),
 - [x] Include Web in the Makefile image targets and document release/deployment
   boundaries. Validate shell classification, configuration failures, old release
   paths and Makefile commands without publishing images or tags.
+
+## 6. Legibility and Runtime Theme Exclusions — 2026-10-26
+
+- [x] Improve code/punctuation fonts, disable ligatures, preserve bare operators
+  literally and validate responsive rendering with synthetic questions.
+- [x] Add bounded per-request API exclusions before pagination/counts/facets,
+  including filtered detail 404s and unfiltered backward compatibility.
+- [x] Add optional Web runtime/`__FILE` configuration and forward it through
+  SSR/browser discovery, sitemap and readiness without hardcoded exclusions.
+- [x] Reject direct excluded routes and preserve excluded stored sessions without
+  API reads or resets; confirm the same image restores visibility with empty config.
+- [x] Validate Go race/integration tests, Web tests/build, actual startup validation,
+  read-only SSR/sitemap checks, synthetic browser journeys and updated contracts.

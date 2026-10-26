@@ -3,10 +3,11 @@ import type { DiscoveryQuery, TagPage, ThemeDetail, ThemePage, TopicDetail, Topi
 export interface DiscoveryFailure extends Error { status: number; code: string }
 export type DiscoveryFetch = (url: string, options: { headers: Record<string, string>; signal: AbortSignal; cache: 'no-store' }) => Promise<Response>
 
-export function createDiscoveryClient(baseUrl: string, locale: string, fetcher: DiscoveryFetch = fetch, timeoutMs = 5000, parentSignal?: AbortSignal) {
+export function createDiscoveryClient(baseUrl: string, locale: string, fetcher: DiscoveryFetch = fetch, timeoutMs = 5000, parentSignal?: AbortSignal, excludedThemeIds: readonly string[] = []) {
   async function request<T>(path: string, query: Record<string, string | number | undefined> = {}): Promise<T> {
     const params = new URLSearchParams({ locale })
     for (const [key, value] of Object.entries(query)) if (value !== undefined) params.set(key, String(value))
+    if (excludedThemeIds.length) params.set('excludeThemes', excludedThemeIds.join(','))
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
