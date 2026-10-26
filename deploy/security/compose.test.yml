@@ -1,0 +1,56 @@
+# Disposable synthetic acceptance only. No host database ports or source mounts.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: quickquiz_manager_runtime_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: synthetic-security-only
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d quickquiz_manager_runtime_test']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  redis:
+    image: redis:7.4-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  manager-fpm:
+    image: ${SECURITY_FPM_IMAGE:?Set tested FPM image}
+    platform: ${SECURITY_PLATFORM:?Set tested platform}
+    user: '1000:1000'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+      - /app/var:rw,noexec,nosuid,size=64m,mode=1777
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: '0'
+      APP_SECRET: synthetic-security-acceptance-only
+      MANAGER_DATABASE_URL: postgresql://postgres:synthetic-security-only@db:5432/quickquiz_manager_runtime_test
+      MANAGER_QUIZ_PERSISTENCE_PROVIDER: postgres
+      MANAGER_QUIZ_PUBLICATION_PROVIDER: postgres
+      MANAGER_SESSION_REDIS_DSN: redis://redis:6379/1
+      MANAGER_ADMIN_API_TOKEN: synthetic-security-token-0000000000000000
+      FALLBACK_LOCALE: en-US
+      SUPPORTED_LOCALES: en-US,pt-BR
+      TRUSTED_PROXIES: REMOTE_ADDR
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+  manager-web:
+    image: ${SECURITY_WEB_IMAGE:?Set tested Nginx image}
+    platform: ${SECURITY_PLATFORM:?Set tested platform}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m,mode=1777
+    ports: ['127.0.0.1::8080']
+    depends_on: [manager-fpm]

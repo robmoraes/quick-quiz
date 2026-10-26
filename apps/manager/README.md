@@ -47,6 +47,14 @@ Sensitive values support `NAME__FILE`. When both forms are present, the file
 wins. Missing, unreadable, or empty files stop Manager startup. The development
 Compose mounts `${MANAGER_SECRETS_ROOT:-.secrets}` read-only at `/run/secrets`.
 
+## Runtime security
+
+The PHP base is maintained and published manually; Manager CI reuses that image
+and audits both supported architectures. Follow the
+[security procedure](../../docs/runbooks/manager-runtime-security.md) for local
+acceptance, dependency/image audits and release prerequisites. Application login
+and bearer tokens remain required alongside infrastructure-owned access controls.
+
 ## Commands
 
 ```sh

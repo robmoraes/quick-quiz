@@ -3,6 +3,10 @@
 Use this runbook to update and publish the PHP base used by the QuickQuiz
 Manager development and production images.
 
+For security updates, also follow the [runtime security procedure](manager-runtime-security.md):
+audit both architectures and the rebuilt Manager images, verify actual FPM startup
+settings, and hand off corrected digests and access requirements to infrastructure.
+
 ## Scope
 
 - Source: `deploy/docker/php-base/Dockerfile`
@@ -83,6 +87,12 @@ docker buildx inspect multiarch
 
 Only add extensions or operating-system packages required by every Manager
 image. Keep Composer, Git, unzip, and development tools in downstream layers.
+Keep `security.ini` applied in the base before request parsing. The base refreshes
+installed Alpine packages during build; only the audited immutable image digest
+identifies the resulting artifact, not the upstream tag alone.
+`make php-base` defaults to `PHP_BASE_NO_CACHE=true` so a security rebuild really
+refreshes installed packages even when the upstream digest is unchanged. Disable
+that only for an intentional local cache rehearsal, not a security release.
 
 ## Build and validate locally
 

@@ -9,10 +9,12 @@ SPA_DSLAB_TAG ?= $(TAG)
 WEB_TAG ?= $(TAG)
 MANAGER_FPM_TAG ?= $(TAG)
 MANAGER_WEB_TAG ?= $(TAG)
-PHP_BASE_TAG ?= 8.3.33-alpine3.24-r1
+PHP_BASE_TAG ?= 8.3.36-alpine3.24-r1
+PHP_BASE_NO_CACHE ?= true
 PLATFORM ?= linux/amd64,linux/arm64
 BUILDER ?=
 OUTPUT ?= oci
+TAG_LATEST ?= true
 
 API_REPOSITORY ?= robmoraes/quick-quiz-api
 ADS_API_REPOSITORY ?= robmoraes/quick-quiz-ads-api
@@ -101,6 +103,7 @@ manager-web: validate-output dist-dir
 # Publish a new revision manually after reviewing PHP or Alpine security updates.
 php-base: validate-output dist-dir
 	docker buildx build $(if $(strip $(BUILDER)),--builder "$(BUILDER)") \
+		$(if $(filter true,$(PHP_BASE_NO_CACHE)),--no-cache) \
 		--platform "$(PLATFORM)" \
 		$(call image_tags,$(PHP_BASE_REPOSITORY),$(PHP_BASE_TAG)) \
 		--file "$(PHP_BASE_DOCKERFILE)" \
@@ -126,5 +129,5 @@ $(if $(filter oci,$(OUTPUT)),--output=type=oci$(comma)dest=$(DIST_DIR)/$(1)-$(2)
 endef
 
 define image_tags
---tag "$(1):$(2)" $(if $(and $(filter push,$(OUTPUT)),$(filter-out latest,$(2))),--tag "$(1):latest")
+--tag "$(1):$(2)" $(if $(and $(filter true,$(TAG_LATEST)),$(filter push,$(OUTPUT)),$(filter-out latest,$(2))),--tag "$(1):latest")
 endef

@@ -4,6 +4,11 @@ This image is the shared PHP-FPM runtime for the QuickQuiz Manager development
 and production images. It contains OPcache, PDO PostgreSQL, PDO SQLite, and
 SimpleXML.
 
+Shared startup security settings disable session upload progress in local and
+production PHP. Installed Alpine packages are refreshed during base builds;
+scan the resulting artifacts, including PHP's actual runtime version, before
+approving release. See the [Manager security runbook](../../../docs/runbooks/manager-runtime-security.md).
+
 Publishing is intentionally manual and is not part of the GitHub Actions
 workflow or the `build-images` target. Tags follow
 `<php>-alpine<alpine>-r<revision>`; create a new revision instead of

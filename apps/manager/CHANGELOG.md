@@ -9,6 +9,18 @@ format.
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-10-26
+
+### Security
+
+- Upgrade the shared PHP runtime to 8.3.36 and disable session upload progress
+  before request parsing in development and FPM images.
+- Update Symfony HttpFoundation and YAML to 7.4.21 for CVE-2026-108082 and
+  CVE-2026-109413; upgrade the Manager Nginx image to pinned 1.30.6.
+- Audit locked production dependencies and both runtime architectures in PRs,
+  daily checks and Manager releases. Promote `latest` only after the release
+  audit passes; retain digest-based audit evidence and fail on incomplete scans.
+
 ## [0.15.0] - 2026-10-22
 
 ### Added
@@ -177,7 +189,8 @@ Cumulative notes retained from earlier releases.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.1...HEAD
+[0.15.1]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.0...manager%2Fv0.15.1
 [0.15.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.14.0...manager%2Fv0.15.0
 [0.14.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.13.0...manager%2Fv0.14.0
 [0.6.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.5.0...manager%2Fv0.6.0

@@ -1,0 +1,76 @@
+name: Manager security audit
+
+on:
+  pull_request:
+    paths:
+      - 'apps/manager/**'
+      - 'deploy/docker/manager/**'
+      - 'deploy/docker/php-base/**'
+      - 'deploy/security/**'
+      - 'deploy/Makefile'
+      - '.github/workflows/manager-security.yml'
+      - '.github/workflows/release-docker-images.yml'
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manager-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOCKERHUB_MANAGER_FPM_IMAGE: ${{ vars.DOCKERHUB_MANAGER_FPM_IMAGE }}
+      DOCKERHUB_MANAGER_WEB_IMAGE: ${{ vars.DOCKERHUB_MANAGER_WEB_IMAGE }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify audit failure policy
+        run: python3 -m unittest discover -s deploy/security -p 'test_*.py'
+      - name: Set up ARM emulation
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build isolated PR candidates
+        if: github.event_name == 'pull_request'
+        run: sh deploy/security/build-candidates.sh /tmp/manager-candidates --published-base
+      - name: Audit candidate or published artifacts
+        run: |
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            python3 deploy/security/audit.py --output /tmp/manager-audit \
+              --archive manager-fpm=/tmp/manager-candidates/manager-fpm.oci.tar \
+              --archive manager-web=/tmp/manager-candidates/manager-web.oci.tar
+          else
+            python3 deploy/security/audit.py --output /tmp/manager-audit
+          fi
+      - name: Summarize audit
+        if: always()
+        run: |
+          if [ -f /tmp/manager-audit/summary.md ]; then
+            cat /tmp/manager-audit/summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Audit incomplete: artifact build or policy verification failed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Verify audited candidate images over HTTP
+        if: github.event_name == 'pull_request' && success()
+        shell: bash
+        run: python3 deploy/security/smoke.py /tmp/manager-audit/summary.json | tee /tmp/manager-audit/smoke.jsonl
+      - name: Retain audit evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: manager-security-audit
+          path: |
+            /tmp/manager-audit/*.json
+            /tmp/manager-audit/*.md
+            /tmp/manager-audit/*.stderr
+            /tmp/manager-audit/*.jsonl
+          retention-days: 14
+          if-no-files-found: warn

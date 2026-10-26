@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-ARG PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.33-alpine3.24-r1
-ARG NGINX_VERSION=1.27
+ARG PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.36-alpine3.24-r1
+ARG NGINX_IMAGE=nginx:1.30.6-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951
 
 FROM --platform=$BUILDPLATFORM ${PHP_BASE_IMAGE} AS vendor
 
@@ -73,7 +73,9 @@ EXPOSE 9000
 
 CMD ["manager-fpm-entrypoint"]
 
-FROM nginx:${NGINX_VERSION}-alpine AS nginx
+FROM ${NGINX_IMAGE} AS nginx
+
+RUN apk upgrade --no-cache
 
 COPY deploy/docker/manager/nginx.conf /etc/nginx/nginx.conf
 COPY --from=vendor /app/public /app/public

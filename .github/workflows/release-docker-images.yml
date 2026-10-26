@@ -349,7 +349,7 @@ jobs:
         if: steps.tag.outputs.app == 'manager'
         env:
           MANAGER_FPM_TAG: ${{ steps.tag.outputs.version }}
-        run: make -C deploy manager-fpm MANAGER_FPM_TAG="${MANAGER_FPM_TAG}" MANAGER_FPM_REPOSITORY="${DOCKERHUB_MANAGER_FPM_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
+        run: make -C deploy manager-fpm MANAGER_FPM_TAG="${MANAGER_FPM_TAG}" MANAGER_FPM_REPOSITORY="${DOCKERHUB_MANAGER_FPM_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push TAG_LATEST=false
 
       - name: Build and push Web image
         if: steps.tag.outputs.app == 'web'
@@ -361,7 +361,57 @@ jobs:
         if: steps.tag.outputs.app == 'manager'
         env:
           MANAGER_WEB_TAG: ${{ steps.tag.outputs.version }}
-        run: make -C deploy manager-web MANAGER_WEB_TAG="${MANAGER_WEB_TAG}" MANAGER_WEB_REPOSITORY="${DOCKERHUB_MANAGER_WEB_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push
+        run: make -C deploy manager-web MANAGER_WEB_TAG="${MANAGER_WEB_TAG}" MANAGER_WEB_REPOSITORY="${DOCKERHUB_MANAGER_WEB_IMAGE}" PLATFORM="${DOCKER_PLATFORMS}" OUTPUT=push TAG_LATEST=false
+
+      - name: Audit published Manager candidates
+        if: steps.tag.outputs.app == 'manager'
+        env:
+          MANAGER_TAG: ${{ steps.tag.outputs.version }}
+        run: |
+          python3 -m unittest discover -s deploy/security -p 'test_*.py'
+          python3 deploy/security/audit.py --output /tmp/manager-release-audit \
+            --image "manager-fpm=${DOCKERHUB_MANAGER_FPM_IMAGE}:${MANAGER_TAG}" \
+            --image "manager-web=${DOCKERHUB_MANAGER_WEB_IMAGE}:${MANAGER_TAG}"
+
+      - name: Verify audited Manager release images over HTTP
+        if: steps.tag.outputs.app == 'manager'
+        shell: bash
+        run: python3 deploy/security/smoke.py /tmp/manager-release-audit/summary.json | tee /tmp/manager-release-audit/smoke.jsonl
+
+      - name: Promote approved Manager manifests
+        if: steps.tag.outputs.app == 'manager'
+        env:
+          MANAGER_TAG: ${{ steps.tag.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess
+          audit = json.load(open('/tmp/manager-release-audit/summary.json'))
+          assert audit['status'] == 'passed'
+          for kind, variable in [('manager-fpm', 'DOCKERHUB_MANAGER_FPM_IMAGE'), ('manager-web', 'DOCKERHUB_MANAGER_WEB_IMAGE')]:
+              refs = {item['index_reference'] for item in audit['images'] if item['artifact'] == kind}
+              assert len(refs) == 1 and None not in refs
+              subprocess.run(['docker', 'buildx', 'imagetools', 'create', '--tag', os.environ[variable] + ':latest', refs.pop()], check=True)
+          PY
+
+      - name: Retain Manager release audit
+        if: always() && steps.tag.outputs.app == 'manager'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: manager-release-audit
+          path: |
+            /tmp/manager-release-audit/*.json
+            /tmp/manager-release-audit/*.md
+            /tmp/manager-release-audit/*.stderr
+            /tmp/manager-release-audit/*.jsonl
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Summarize Manager audit
+        if: always() && steps.tag.outputs.app == 'manager'
+        run: |
+          if [ -f /tmp/manager-release-audit/summary.md ]; then
+            cat /tmp/manager-release-audit/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Summarize API image push
         if: steps.tag.outputs.app == 'api'

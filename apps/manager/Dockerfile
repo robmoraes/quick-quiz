@@ -1,4 +1,4 @@
-ARG MANAGER_DOCKER_PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.33-alpine3.24-r1
+ARG MANAGER_DOCKER_PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.36-alpine3.24-r1
 FROM ${MANAGER_DOCKER_PHP_BASE_IMAGE}
 
 RUN apk add --no-cache bash git unzip
