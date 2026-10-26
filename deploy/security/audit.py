@@ -86,7 +86,7 @@ def select_oci(source, platform, destination):
         return manifest["digest"], image["config"]["digest"]
 
 
-def docker_archive(source, destination):
+def docker_archive(source, destination, tag):
     """Docker's classic image store needs a Docker archive, not an OCI archive."""
     with tarfile.open(source) as archive:
         def blob(digest):
@@ -115,7 +115,7 @@ def docker_archive(source, destination):
                     member.size = unpacked.tell()
                     unpacked.seek(0)
                     output.addfile(member, unpacked)
-            add("manifest.json", json.dumps([{"Config": config, "RepoTags": None, "Layers": layers}]).encode())
+            add("manifest.json", json.dumps([{"Config": config, "RepoTags": [tag], "Layers": layers}]).encode())
 
 
 def scan(args):
@@ -174,11 +174,18 @@ def scan(args):
                 report_path = output / (name + ".json")
                 if kind in archives:
                     selected = output / (name + ".oci.tar")
-                    digest, runtime_ref = select_oci(Path(archives[kind]), platform, selected)
+                    digest, _ = select_oci(Path(archives[kind]), platform, selected)
+                    # Named imports work across Docker storage backends; a bare
+                    # config digest is not always addressable after docker load.
+                    runtime_ref = "quickquiz-security/" + kind + ":" + platform.split("/")[1] + "-" + digest.split(":", 1)[1]
                     converted = output / (name + ".docker.tar")
-                    docker_archive(selected, converted)
+                    docker_archive(selected, converted, runtime_ref)
                     selected.unlink()
                     run(["docker", "load", "-i", str(converted)], output / (name + "-load.stderr"))
+                    architecture, _ = run(["docker", "image", "inspect", runtime_ref, "--format", "{{.Architecture}}"],
+                                          output / (name + "-import.stderr"))
+                    if architecture.strip() != platform.split("/")[1]:
+                        raise ValueError("Imported runtime image architecture does not match the scanned archive")
                     scan_command = prefix + ["image", "--input", "/reports/" + converted.name]
                     reference = "oci:" + Path(archives[kind]).name
                 else:

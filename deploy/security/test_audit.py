@@ -9,7 +9,7 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from audit import ROOT, defaults, scan, select_oci
+from audit import ROOT, defaults, docker_archive, scan, select_oci
 
 
 class AuditFailureTest(unittest.TestCase):
@@ -76,13 +76,20 @@ class AuditFailureTest(unittest.TestCase):
                 add('index.json', {'manifests': [{'digest': 'sha256:index'}]})
                 add('blobs/sha256/index', {'manifests': [{'digest': 'sha256:amd'}, {'digest': 'sha256:arm'}]})
                 for architecture, name in [('amd64', 'amd'), ('arm64', 'arm')]:
-                    add('blobs/sha256/' + name, {'config': {'digest': 'sha256:config-' + name}})
+                    add('blobs/sha256/' + name, {'config': {'digest': 'sha256:config-' + name}, 'layers': []})
                     add('blobs/sha256/config-' + name, {'architecture': architecture, 'os': 'linux'})
             digest, config = select_oci(source, 'linux/arm64', selected)
             self.assertEqual('sha256:arm', digest)
             self.assertEqual('sha256:config-arm', config)
             with tarfile.open(selected) as archive:
                 self.assertEqual([{'digest': 'sha256:arm'}], json.load(archive.extractfile('index.json'))['manifests'])
+            named = Path(directory) / 'named-docker.tar'
+            tag = 'quickquiz-security/manager-fpm:arm64-synthetic'
+            docker_archive(selected, named, tag)
+            with tarfile.open(named) as archive:
+                manifest = json.load(archive.extractfile('manifest.json'))[0]
+                self.assertEqual([tag], manifest['RepoTags'])
+                self.assertEqual('arm64', json.load(archive.extractfile(manifest['Config']))['architecture'])
             with self.assertRaises(ValueError):
                 select_oci(source, 'linux/ppc64le', selected)
 

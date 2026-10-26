@@ -32,7 +32,8 @@ pending. See [verification.md](verification.md).
 
 5. [ ] Prepare and publish the corrected application release (R1; A1, A10).
    - Preparation complete: Manager 0.15.1 metadata/changelog, local multiarch
-     candidates and audit/HTTP evidence. Manager PR/merge/tag steps remain pending.
+     candidates and audit/HTTP evidence. [PR 54](https://github.com/robmoraes/quick-quiz/pull/54)
+     is open; Manager merge/tag steps remain pending.
    - Base `8.3.36-alpine3.24-r1` published manually and pinned by index digest
      across active consumers. Rebuilding candidates from that published base,
      auditing all six platform artifacts and HTTP acceptance passed. CI reuses
@@ -53,8 +54,8 @@ pending. See [verification.md](verification.md).
    - Validation: synthetic reports cover findings, errors, missing platforms,
      valid scoped exceptions and expiry; real checks emit sanitized evidence.
    - Workflow definitions pass actionlint; matching published-base build/audit/HTTP
-     commands pass locally. GitHub execution awaits PR; no scheduled workflow
-     execution is claimed from this working tree.
+     commands pass locally. GitHub integration checks are tracked on PR 54;
+     scheduled execution begins after merge to the default branch.
 
 ## Infrastructure-Owned Acceptance
 

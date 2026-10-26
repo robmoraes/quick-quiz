@@ -57,6 +57,11 @@ base. A dedicated helper test enforces that `--published-base` does not build th
 base. Local rehearsal can build a base before publication. No base build/push
 or production connectivity has been added to GitHub Actions.
 
+Candidate Docker archives carry explicit local tags scoped by architecture and
+manifest digest. The importer checks the loaded architecture before probing it;
+it does not assume that a bare image-config digest is addressable on every Docker
+storage backend. The same tagged imports feed HTTP acceptance.
+
 Manager release automation audits the actual versioned candidates and exercises
 them over HTTP before promoting the audited index references to `latest`.
 Failures retain an unsuccessful release and its evidence, without that promotion.
