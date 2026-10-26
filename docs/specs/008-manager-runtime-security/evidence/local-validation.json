@@ -1,0 +1,113 @@
+{
+  "status": "passed",
+  "checked_at": "2026-10-26T22:43:38.429456+00:00",
+  "source_revision": "d4c7e73f86232e66d61dd1d03b414a6ac51364f3",
+  "source_dirty": true,
+  "scanner": "aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c",
+  "composer_tool": "composer:2.10.1@sha256:7725eb4545c438629ae8bde3ef0bb9a5038ef566126ad878442a69007242d267",
+  "latest_php": "8.3.36",
+  "database": {
+    "Version": 2,
+    "NextUpdate": "2026-10-27T19:14:50.196573697Z",
+    "UpdatedAt": "2026-10-26T19:14:50.196574068Z",
+    "DownloadedAt": "2026-10-26T22:23:44.01773043Z"
+  },
+  "lock_sha256": "d4ea0ef18736f451c028d03a62ce2ce13f98f0644e86ee4283b32e3381dceffd",
+  "scope": "Local working-tree candidates only; not published or deployed.",
+  "prepared_manager_version": "0.15.1",
+  "composer_advisories": 0,
+  "high_critical_findings": 0,
+  "exceptions": [],
+  "checks": {
+    "phpunit_tests": 221,
+    "phpunit_assertions": 923,
+    "security_tests": 13,
+    "actionlint": "1.7.12",
+    "http_acceptance": [
+      {
+        "platform": "linux/amd64",
+        "passed": true,
+        "runtime": {
+          "php": "8.3.36",
+          "upload_progress": "0",
+          "memory_limit": "128M",
+          "post_max_size": "2M",
+          "upload_max_filesize": "2M"
+        },
+        "checks": [
+          "effective-fpm-pool-settings",
+          "login-rejection",
+          "session-renewal",
+          "bearer-auth",
+          "csrf",
+          "browser-crud",
+          "multipart-import",
+          "redis-session-after-fpm-replacement",
+          "logout",
+          "secure-cookie"
+        ]
+      },
+      {
+        "platform": "linux/arm64",
+        "passed": true,
+        "runtime": {
+          "php": "8.3.36",
+          "upload_progress": "0",
+          "memory_limit": "128M",
+          "post_max_size": "2M",
+          "upload_max_filesize": "2M"
+        },
+        "checks": [
+          "effective-fpm-pool-settings",
+          "login-rejection",
+          "session-renewal",
+          "bearer-auth",
+          "csrf",
+          "browser-crud",
+          "multipart-import",
+          "redis-session-after-fpm-replacement",
+          "logout",
+          "secure-cookie"
+        ]
+      }
+    ]
+  },
+  "images": [
+    {
+      "artifact": "php-base",
+      "platform": "linux/amd64",
+      "digest": "sha256:226b859837ffb8b2ab28af6fa75d276f357ab77ba14e5f9ca09be893289567a8",
+      "runtime_image": "sha256:df52fd0c0c451dc1752fe377c4ff25b6f0533857c3ca71151b7574a152bd23a1"
+    },
+    {
+      "artifact": "php-base",
+      "platform": "linux/arm64",
+      "digest": "sha256:2cb38d27e1a8f6b8c6cabbb8315846479ad0d5b184c9264ad794cdb70515935c",
+      "runtime_image": "sha256:1c26618ecc44a6a19c386eb073a3d82f7efd638105222c8461b34cb3882dc49a"
+    },
+    {
+      "artifact": "manager-fpm",
+      "platform": "linux/amd64",
+      "digest": "sha256:1fadcb9ce80151fdbb3062c009da673a1990cff19d790ffba2edf47cac024ab4",
+      "runtime_image": "sha256:a9ecc5b55bf28b27b82bede99caef5c6cd0816e491da3a259c881a61681be8b6"
+    },
+    {
+      "artifact": "manager-fpm",
+      "platform": "linux/arm64",
+      "digest": "sha256:e5c39bc01fcf73b90f7d1eda69798eee069b67ffe8564f4f5c5435d8510f2508",
+      "runtime_image": "sha256:8cec198c4eb54d0ed5e5d548090147f1c12b8f4a7984ed5454032f6a6df2a6c2"
+    },
+    {
+      "artifact": "manager-web",
+      "platform": "linux/amd64",
+      "digest": "sha256:c2016b5a001e3b4f5e926944ad8a4010928de140ff953a9d58d59b3c6e83260e",
+      "runtime_image": "sha256:a0bba28a39189a03ffd0f56f0655f3e691e5af67e513a88ba3df3b58616c0ebe"
+    },
+    {
+      "artifact": "manager-web",
+      "platform": "linux/arm64",
+      "digest": "sha256:519020f2a7a3387bb7bf06e31ba92779939d997ea98669496408d2e59d6c1850",
+      "runtime_image": "sha256:87088cac048c1130c9919aeeca715815699d4d6e326152f27bd9eef849f39ea0"
+    }
+  ]
+}

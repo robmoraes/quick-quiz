@@ -72,6 +72,13 @@ not require installing Spec Kit or a shared specification service.
   automated checks, screenshots, isolated local runtime and capacity limits.
 - [ADR 005](../architecture/adr/005-generic-quiz-web.md): accepted Nuxt service
   and public topic-tag discovery decision, implemented and verified locally.
+- [008-manager-runtime-security/spec.md](008-manager-runtime-security/spec.md):
+  proposed PHP security patch, dependency/image auditing and upstream Manager
+  access requirements.
+- [008-manager-runtime-security/plan.md](008-manager-runtime-security/plan.md):
+  corrected multiarch images, automated verification and infrastructure handoff.
+- [008-manager-runtime-security/tasks.md](008-manager-runtime-security/tasks.md):
+  ordered patch, recurring audit and infrastructure-owned acceptance tasks.
 
 ## Archive
 

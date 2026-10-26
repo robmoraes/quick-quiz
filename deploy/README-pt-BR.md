@@ -177,7 +177,7 @@ docker login
 make -C deploy php-base BUILDER=multiarch OUTPUT=push
 ```
 
-A tag padrão é `8.3.33-alpine3.24-r1`; o push também atualiza `latest`.
+A tag padrão é `8.3.36-alpine3.24-r1`; o push também atualiza `latest`.
 Atualizações de PHP, Alpine ou pacotes exigem revisão do Dockerfile, incremento
 da revisão e novo build das duas arquiteturas.
 
