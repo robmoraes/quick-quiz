@@ -9,10 +9,21 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from audit import scan, select_oci
+from audit import ROOT, defaults, scan, select_oci
 
 
 class AuditFailureTest(unittest.TestCase):
+    def test_default_base_reference_is_pinned_across_consumers(self):
+        with patch.dict(os.environ, {}, clear=True):
+            references, _ = defaults()
+        reference = references['php-base']
+        self.assertRegex(reference, r'@sha256:[a-f0-9]{64}$')
+        for name in ['deploy/docker/manager/Dockerfile', 'apps/manager/Dockerfile',
+                     'apps/manager/compose.yaml', 'apps/manager/.env-example']:
+            self.assertIn(reference, (ROOT / name).read_text())
+        with patch.dict(os.environ, {'PHP_BASE_IMAGE': 'example/php-base:custom@sha256:' + 'a' * 64}):
+            self.assertEqual(os.environ['PHP_BASE_IMAGE'], defaults()[0]['php-base'])
+
     def test_ci_candidates_reuse_published_base_without_building_it(self):
         with tempfile.TemporaryDirectory() as directory:
             folder = Path(directory)

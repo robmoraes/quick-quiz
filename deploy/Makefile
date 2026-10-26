@@ -10,6 +10,7 @@ WEB_TAG ?= $(TAG)
 MANAGER_FPM_TAG ?= $(TAG)
 MANAGER_WEB_TAG ?= $(TAG)
 PHP_BASE_TAG ?= 8.3.36-alpine3.24-r1
+PHP_BASE_DIGEST ?= sha256:7e4cd839953eba6479c23b77706d3a98a31aa7181e84efc9a30ef3f6cac033e3
 PHP_BASE_NO_CACHE ?= true
 PLATFORM ?= linux/amd64,linux/arm64
 BUILDER ?=
@@ -24,7 +25,7 @@ MANAGER_FPM_REPOSITORY ?= robmoraes/quick-quiz-manager-fpm
 MANAGER_WEB_REPOSITORY ?= robmoraes/quick-quiz-manager-web
 PHP_BASE_REPOSITORY ?= robmoraes/quick-quiz-php-base
 WEB_REPOSITORY ?= robmoraes/quick-quiz-web
-PHP_BASE_IMAGE ?= $(PHP_BASE_REPOSITORY):$(PHP_BASE_TAG)
+PHP_BASE_IMAGE ?= $(PHP_BASE_REPOSITORY):$(PHP_BASE_TAG)$(if $(strip $(PHP_BASE_DIGEST)),@$(PHP_BASE_DIGEST))
 
 API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/api/Dockerfile
 ADS_API_DOCKERFILE := $(ROOT_DIR)/deploy/docker/ads-api/Dockerfile

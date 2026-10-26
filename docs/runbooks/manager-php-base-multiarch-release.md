@@ -191,6 +191,13 @@ Confirm that:
 - `linux/amd64` and `linux/arm64` manifests are present;
 - no versioned tag from an earlier release was replaced.
 
+After publication, set `PHP_BASE_DIGEST` in `deploy/Makefile` to the approved
+index digest and pin the same tag/digest in the Manager Dockerfiles, local
+Compose and `.env-example`. Commit that reference before opening the application
+PR. The audit resolves the same pinned base, not a separate mutable tag.
+For a custom base, override `PHP_BASE_IMAGE` with its full reference, or update
+`PHP_BASE_REPOSITORY`, `PHP_BASE_TAG` and `PHP_BASE_DIGEST` together.
+
 Build the downstream Manager for both platforms without publishing it:
 
 ```bash

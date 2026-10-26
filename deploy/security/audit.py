@@ -44,8 +44,12 @@ def defaults():
     def get(name):
         return re.search(rf"^{name} \?= (.+)$", text, re.M)[1]
     release = re.search(r"^## \[(\d+\.\d+\.\d+)\]", (ROOT / "apps/manager/CHANGELOG.md").read_text(), re.M)[1]
+    digest = os.environ.get("PHP_BASE_DIGEST", get("PHP_BASE_DIGEST"))
+    base = os.environ.get("PHP_BASE_REPOSITORY", get("PHP_BASE_REPOSITORY")) + ":" + os.environ.get("PHP_BASE_TAG", get("PHP_BASE_TAG"))
+    if digest:
+        base += "@" + digest
     return {
-        "php-base": get("PHP_BASE_REPOSITORY") + ":" + get("PHP_BASE_TAG"),
+        "php-base": os.environ.get("PHP_BASE_IMAGE") or base,
         "manager-fpm": os.environ.get("DOCKERHUB_MANAGER_FPM_IMAGE") or get("MANAGER_FPM_REPOSITORY"),
         "manager-web": os.environ.get("DOCKERHUB_MANAGER_WEB_IMAGE") or get("MANAGER_WEB_REPOSITORY"),
     }, "v" + release
