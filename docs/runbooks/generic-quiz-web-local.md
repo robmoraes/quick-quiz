@@ -67,6 +67,7 @@ one shared deadline. Failure is 503, never a successful empty catalog.
 | `WEB_DEFAULT_LOCALE` | `NUXT_PUBLIC_DEFAULT_LOCALE` | `pt-BR` |
 | `WEB_SUPPORTED_LOCALES` | `NUXT_PUBLIC_SUPPORTED_LOCALES` | `en-US,pt-BR` |
 | `WEB_INDEXABLE` | `NUXT_PUBLIC_INDEXABLE` | `false` |
+| `WEB_EXCLUDED_THEME_IDS` | `NUXT_PUBLIC_EXCLUDED_THEME_IDS` | empty (all themes) |
 | `WEB_API_TIMEOUT_MS` | `NUXT_API_TIMEOUT_MS` | `5000` |
 
 Each table entry supports `NAME__FILE` with priority over `NAME`. The Docker
@@ -80,6 +81,26 @@ credentials, paths, query strings or fragments.
 container limit is 384 MiB with a 256 MiB Node heap ceiling; these are local
 guardrails, not evidence that production's existing node has spare capacity.
 Changing runtime configuration recreates the container with the same image.
+
+### Theme visibility per Web deployment
+
+Set `WEB_EXCLUDED_THEME_IDS=dev,dslab` to omit those canonical theme IDs from
+this Web. Empty/unset shows all themes. No ID is excluded by application defaults.
+The CSV accepts up to 50 distinct case-sensitive IDs, each up to 128 characters;
+surrounding whitespace is trimmed. Invalid lists fail startup. The corresponding
+`__FILE` variable follows the existing priority and validation rules.
+
+SSR, browser discovery, pickers, searches, sitemap and readiness use the same
+exclusion list. The API applies its optional `excludeThemes` query before
+pagination, totals and tag aggregates. Direct Web theme/topic routes and explicit
+play links for excluded IDs return 404. Restoring an excluded per-tab game shows
+404 without fetching, clearing or resetting that session.
+
+Deploy the compatible API before enabling this setting (API `0.11.0` or newer).
+It requires no new database migration. Existing API calls without the filter,
+Dev/DSLab SPAs and authored content remain available. This is Web catalog
+selection, not access control for the shared public API. Change the list by
+recreating only Web with the same image; a query string cannot override it.
 
 The Dockerfile uses multiarch Node bases, builds platform-independent Nitro
 output and runs the final service as the `node` user on a read-only filesystem.

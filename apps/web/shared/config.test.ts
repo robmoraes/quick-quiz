@@ -15,4 +15,12 @@ describe('runtime configuration boundary', () => {
     expect(() => parseWebSettings({ ...config, public: { ...config.public, indexable: 'yes' } })).toThrow('indexable')
     expect(() => parseWebSettings({ ...config, apiTimeoutMs: '0' })).toThrow('apiTimeoutMs')
   })
+  it('normalizes an optional bounded exclusion list without embedding site-specific defaults', () => {
+    expect(parseWebSettings(config).excludedThemeIds).toEqual([])
+    expect(parseWebSettings({ ...config, public: { ...config.public, excludedThemeIds: ' dev , dslab,My.Theme' } }).excludedThemeIds).toEqual(['dev', 'dslab', 'My.Theme'])
+    expect(parseWebSettings({ ...config, public: { ...config.public, excludedThemeIds: '' } }).excludedThemeIds).toEqual([])
+  })
+  it.each(['dev,', 'dev,,dslab', 'dev, dev', 'bad/id', 'x'.repeat(129), Array.from({ length: 51 }, (_, i) => `theme-${i}`).join(',')])('rejects invalid theme exclusions: %s', excludedThemeIds => {
+    expect(() => parseWebSettings({ ...config, public: { ...config.public, excludedThemeIds } })).toThrow('Invalid Web configuration: excludedThemeIds')
+  })
 })

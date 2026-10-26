@@ -15,6 +15,7 @@ export default defineNuxtConfig({
       defaultLocale: 'pt-BR',
       supportedLocales: 'en-US,pt-BR',
       indexable: false,
+      excludedThemeIds: '',
     },
   },
   app: {

@@ -2,11 +2,12 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useQuizGame } from '../../composables/useQuizGame'
 import type { Difficulty } from '../../types/game'
+import { parsePublicSettings } from '#shared/config'
 
 const route = useRoute()
 const config = useRuntimeConfig()
 const { locale, localPath } = useWebLocale()
-const game = useQuizGame({ baseUrl: config.public.apiBaseUrl })
+const game = useQuizGame({ baseUrl: config.public.apiBaseUrl, excludedThemeIds: parsePublicSettings(config.public).excludedThemeIds })
 const { state, phase, topicLabel } = game
 const mounted = ref(false)
 const confirmation = ref<'hardcore' | 'reset' | 'end' | ''>('')
@@ -115,6 +116,10 @@ function focusQuestion() {
 const onFocus = () => { if (phase.value === 'question' && !state.busy) void game.reconcile() }
 onMounted(async () => {
   await game.restore()
+  if (state.themeExcluded) {
+    showError({ statusCode: 404, statusMessage: 'Page not found' })
+    return
+  }
   mounted.value = true
   window.addEventListener('focus', onFocus)
 })

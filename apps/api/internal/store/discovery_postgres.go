@@ -15,6 +15,7 @@ import (
 const discoveryCTE = `WITH base_themes AS (
  SELECT t.* FROM quiz_runtime_v1.themes t
  WHERE ($4::text='' OR t.id=$4) AND ($5::text='' OR $5=ANY(t.tags))
+ AND NOT (t.id=ANY(COALESCE($10::text[],'{}'::text[])))
  AND (NOT $9::boolean OR $3::text='' OR t.name ILIKE ('%'||$3||'%') ESCAPE E'\\' OR t.description ILIKE ('%'||$3||'%') ESCAPE E'\\')
 ), topic_metadata AS (
  SELECT t.theme_id,t.topic_key,COALESCE(l.name,f.name,t.name) AS label,
@@ -62,7 +63,7 @@ const discoveryTopicJSON = `jsonb_build_object(
 func (s *PostgresQuestionStore) discoveryArgs(query domain.DiscoveryQuery, themeSearch bool) []any {
 	// Escape LIKE's metacharacters before adding the surrounding substring wildcards.
 	search := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(query.Search)
-	return []any{query.Locale, s.locales.Fallback(), search, query.Theme, query.ThemeTag, query.TopicTag, int(query.Difficulty), query.Topic, themeSearch}
+	return []any{query.Locale, s.locales.Fallback(), search, query.Theme, query.ThemeTag, query.TopicTag, int(query.Difficulty), query.Topic, themeSearch, query.ExcludedThemes}
 }
 
 func discoveryPagination(query domain.DiscoveryQuery, total int64) domain.DiscoveryPagination {
@@ -77,7 +78,7 @@ func (s *PostgresQuestionStore) DiscoverThemes(ctx context.Context, query domain
 		var payload []byte
 		err := tx.QueryRow(ctx, discoveryCTE+`SELECT (SELECT COUNT(*) FROM eligible_themes),
  COALESCE((SELECT jsonb_agg(item ORDER BY weight,id COLLATE "C") FROM (
- SELECT e.weight,e.id,`+discoveryThemeJSON+` AS item FROM eligible_themes e ORDER BY e.weight,e.id COLLATE "C" LIMIT $10 OFFSET $11
+ SELECT e.weight,e.id,`+discoveryThemeJSON+` AS item FROM eligible_themes e ORDER BY e.weight,e.id COLLATE "C" LIMIT $11 OFFSET $12
  ) page),'[]'::jsonb)`, args...).Scan(&total, &payload)
 		if err != nil {
 			return pgUnavailable("theme discovery")
@@ -119,7 +120,7 @@ func (s *PostgresQuestionStore) DiscoverTopics(ctx context.Context, query domain
 		err := tx.QueryRow(ctx, discoveryCTE+`SELECT (SELECT COUNT(*) FROM eligible_topics),
  COALESCE((SELECT jsonb_agg(item ORDER BY weight,theme_id COLLATE "C",topic_key COLLATE "C") FROM (
  SELECT e.weight,e.theme_id,e.topic_key,`+discoveryTopicJSON+` AS item FROM eligible_topics e JOIN base_themes parent ON parent.id=e.theme_id
- ORDER BY e.weight,e.theme_id COLLATE "C",e.topic_key COLLATE "C" LIMIT $10 OFFSET $11) page),'[]'::jsonb)`, args...).Scan(&total, &payload)
+ ORDER BY e.weight,e.theme_id COLLATE "C",e.topic_key COLLATE "C" LIMIT $11 OFFSET $12) page),'[]'::jsonb)`, args...).Scan(&total, &payload)
 		if err != nil {
 			return pgUnavailable("topic discovery")
 		}
@@ -173,7 +174,7 @@ func (s *PostgresQuestionStore) DiscoverTags(ctx context.Context, query domain.D
 		err := tx.QueryRow(ctx, discoveryCTE+`, facets AS (`+facets+`)
  SELECT (SELECT COUNT(*) FROM facets),COALESCE((SELECT jsonb_agg(item ORDER BY slug COLLATE "C") FROM (
  SELECT slug,jsonb_build_object('slug',slug,'themeCount',theme_count,'topicCount',topic_count,'questionCount',question_count) AS item
- FROM facets ORDER BY slug COLLATE "C" LIMIT $10 OFFSET $11) page),'[]'::jsonb)`, args...).Scan(&total, &payload)
+ FROM facets ORDER BY slug COLLATE "C" LIMIT $11 OFFSET $12) page),'[]'::jsonb)`, args...).Scan(&total, &payload)
 		if err != nil {
 			return pgUnavailable("tag discovery")
 		}

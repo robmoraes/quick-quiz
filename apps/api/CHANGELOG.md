@@ -8,6 +8,14 @@ API release tags use the app-scoped `api/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-26
+
+### Added
+
+- Optional bounded `excludeThemes` CSV on all five discovery endpoints, applied
+  before pagination, totals and theme/topic tag aggregates. Excluded detail
+  resources return 404; requests without the filter retain the full catalog.
+
 ## [0.10.0] - 2026-10-22
 
 ### Added
@@ -131,7 +139,8 @@ Cumulative notes retained from earlier releases.
 - The API release image repository is configurable through the
   `DOCKERHUB_API_IMAGE` production environment variable.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.10.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.11.0...HEAD
+[0.11.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.10.0...api%2Fv0.11.0
 [0.10.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.9.0...api%2Fv0.10.0
 [0.9.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.8.0...api%2Fv0.9.0
 [0.4.0]: https://github.com/robmoraes/quick-quiz/compare/api%2Fv0.3.2...api%2Fv0.4.0

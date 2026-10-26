@@ -134,3 +134,39 @@ Raw workflow fixtures and logs remain ignored under `_temp/web-release-validatio
 No release tag, image publication or production deploy was performed. The
 [release guide](../../runbooks/generic-quiz-web-image-release.md) documents
 the remaining merge/tag/publication process and the separate deployment boundary.
+
+## Legibility and theme visibility — 2026-10-26
+
+The follow-up prepares Web `0.2.0` and API `0.11.0`. Code uses a self-hosted
+JetBrains Mono font with ligatures disabled, larger alternative text and literal
+standalone symbols. Tests cover Markdown markers such as `+`, `*`, `-` and `>`
+that would otherwise render empty structure. Ordinary Markdown remains supported.
+
+`WEB_EXCLUDED_THEME_IDS` is empty by default. API `excludeThemes` filtering occurs
+before pagination, descendant aggregates and tag facets; excluded details return
+404. No database migration, Manager change or global catalog restriction is added.
+
+Validation passed:
+
+- Go `go test -race ./...` with a dedicated disposable PostgreSQL container and
+  the guarded `quickquiz_runtime_test` database. Integration assertions cover
+  correct filtered counts, pagination, detail status, tag facets and unchanged
+  subsequent unfiltered requests. Transport checks validate every discovery route.
+- Web lint, typecheck, 69 Vitest tests, Nitro production build and both
+  file-configuration tests, using Node 24 Docker.
+- Canonical API/Web Docker image builds and local preview startup. Read-only
+  checks confirm SSR exclusions, allowed unfiltered API reads, 404 theme/topic/play
+  routes and consistent sitemap index/chunks in both locales.
+- The same Web image with empty exclusions restores the original theme routes.
+  Invalid CSV fails actual container startup without reflecting the raw value.
+- Synthetic browser checks pass 24 typography states across both locales,
+  desktop/mobile and doubled text. Four excluded stored-session routes show 404
+  with unchanged storage and zero API requests. No hydration/runtime errors.
+
+Screenshots use synthetic content only:
+[desktop operators](screenshots/operator-legibility-1440.png) and
+[mobile operators](screenshots/operator-legibility-320.png).
+Temporary reports remain ignored under `_temp/web-exclusions-validation/`.
+Only the local Web/API containers were recreated; PostgreSQL, Redis, Manager and
+existing SPA containers retained their identities. No production deploy or
+release tag/image publication is part of this follow-up.

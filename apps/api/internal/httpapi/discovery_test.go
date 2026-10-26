@@ -100,6 +100,12 @@ func TestDiscoveryRejectsAmbiguousUnboundedAndUnsupportedQueries(t *testing.T) {
 		{"locale=en-US&pageSize=0", "invalid_query"}, {"locale=en-US&pageSize=101", "invalid_query"}, {"locale=en-US&pageSize=", "invalid_query"},
 		{"locale=en-US&difficulty=0", "invalid_query"}, {"locale=en-US&difficulty=5", "invalid_query"}, {"locale=en-US&difficulty=1e0", "invalid_query"},
 		{"locale=en-US&theme=bad%2Fid", "invalid_query"}, {"locale=en-US&theme=", "invalid_query"},
+		{"locale=en-US&excludeThemes=", "invalid_query"}, {"locale=en-US&excludeThemes=%20", "invalid_query"},
+		{"locale=en-US&excludeThemes=dev,", "invalid_query"}, {"locale=en-US&excludeThemes=dev,,dslab", "invalid_query"},
+		{"locale=en-US&excludeThemes=dev,dev", "invalid_query"}, {"locale=en-US&excludeThemes=bad%2Fid", "invalid_query"},
+		{"locale=en-US&excludeThemes=dev&excludeThemes=dslab", "invalid_query"},
+		{"locale=en-US&excludeThemes=" + strings.Repeat("x", 129), "invalid_query"},
+		{"locale=en-US&excludeThemes=" + strings.Repeat("x,", 50) + "x", "invalid_query"},
 	} {
 		t.Run(tc.query, func(t *testing.T) {
 			s.method = ""
@@ -115,6 +121,34 @@ func TestDiscoveryRejectsAmbiguousUnboundedAndUnsupportedQueries(t *testing.T) {
 		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		if w.Code != 400 || !strings.Contains(w.Body.String(), `"code":"invalid_query"`) {
 			t.Fatalf("%s: %d %s", path, w.Code, w.Body.String())
+		}
+	}
+}
+
+func TestDiscoveryExclusionsAreOptionalAndForwardedOnEveryRoute(t *testing.T) {
+	s := &discoveryTestStore{}
+	router := newDiscoveryTestRouter(s)
+	for _, path := range []string{"themes", "themes/My.Theme", "topics", "themes/My.Theme/topics/example", "tags"} {
+		endpoint := "/api/discovery/" + path + "?locale=en-US"
+		if path == "tags" {
+			endpoint += "&scope=theme"
+		}
+		for _, excluded := range []bool{true, false} {
+			request := endpoint
+			if excluded {
+				request += "&excludeThemes=%20dev%20,dslab"
+			}
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, request, nil))
+			if w.Code != 200 {
+				t.Fatalf("%s: %d %s", request, w.Code, w.Body.String())
+			}
+			if excluded && strings.Join(s.query.ExcludedThemes, ",") != "dev,dslab" {
+				t.Fatalf("exclusions not normalized/forwarded: %+v", s.query)
+			}
+			if !excluded && len(s.query.ExcludedThemes) != 0 {
+				t.Fatal("exclusions leaked into a later request", s.query)
+			}
 		}
 	}
 }

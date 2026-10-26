@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: QuickQuiz Dev API
-  version: 0.4.0
+  version: 0.11.0
   description: QuickQuiz Dev MVP API.
 servers:
   - url: http://localhost:8080
@@ -497,6 +497,7 @@ paths:
         valid unknown tag returns an empty list. The response contains no nested unpaginated topic catalog.
       parameters:
       - $ref: '#/components/parameters/DiscoveryLocale'
+      - $ref: '#/components/parameters/DiscoveryExcludedThemes'
       - $ref: '#/components/parameters/DiscoverySearch'
       - $ref: '#/components/parameters/DiscoveryThemeTag'
       - $ref: '#/components/parameters/DiscoveryTopicTag'
@@ -529,10 +530,11 @@ paths:
         and canonical question packages. Active themes without questions return 200 with playable false.
         No listing/search/tag/difficulty filters are accepted here. Read the paginated topic list with theme
         set to this theme ID to obtain its topics. Missing and inactive themes are indistinguishable public
-        404 responses.
+        404 responses. The optional excludeThemes filter also applies here.
       parameters:
       - $ref: '#/components/parameters/DiscoveryThemePath'
       - $ref: '#/components/parameters/DiscoveryLocale'
+      - $ref: '#/components/parameters/DiscoveryExcludedThemes'
       responses:
         '200':
           description: Active theme metadata; the response does not embed its entire topic list.
@@ -567,6 +569,7 @@ paths:
         theme/tag filters return an empty list; they are not errors and are not missing detail resources.
       parameters:
       - $ref: '#/components/parameters/DiscoveryLocale'
+      - $ref: '#/components/parameters/DiscoveryExcludedThemes'
       - $ref: '#/components/parameters/DiscoverySearch'
       - $ref: '#/components/parameters/DiscoveryThemeFilter'
       - $ref: '#/components/parameters/DiscoveryThemeTag'
@@ -601,11 +604,12 @@ paths:
         0, difficulties [] and playable false. No listing filters are accepted. An inactive/missing parent
         returns theme_not_found; an inactive/missing topic under an active parent returns topic_not_found.
         Both are public 404 responses without disclosing inactive content. Topic IDs are scoped to the canonical
-        parent ID.
+        parent ID. The optional excludeThemes filter also applies here.
       parameters:
       - $ref: '#/components/parameters/DiscoveryThemePath'
       - $ref: '#/components/parameters/DiscoveryTopicPath'
       - $ref: '#/components/parameters/DiscoveryLocale'
+      - $ref: '#/components/parameters/DiscoveryExcludedThemes'
       responses:
         '200':
           description: Active topic metadata and aggregate availability, without question bodies.
@@ -645,6 +649,7 @@ paths:
         ordered by canonical slug in ascending ASCII order; tag slugs can exist in both scopes separately.
       parameters:
       - $ref: '#/components/parameters/DiscoveryLocale'
+      - $ref: '#/components/parameters/DiscoveryExcludedThemes'
       - $ref: '#/components/parameters/DiscoveryTagScope'
       - $ref: '#/components/parameters/DiscoverySearch'
       - $ref: '#/components/parameters/DiscoveryThemeFilter'
@@ -746,6 +751,32 @@ components:
         maxLength: 35
         pattern: ^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$
       example: pt-BR
+    DiscoveryExcludedThemes:
+      name: excludeThemes
+      in: query
+      required: false
+      style: form
+      explode: false
+      description: >-
+        Optional comma-separated canonical theme IDs excluded from this request.
+        Trim surrounding whitespace per item; IDs are case-sensitive. Omit for
+        the complete catalog. Empty items, duplicates, malformed IDs, more than
+        50 IDs, IDs longer than 128 characters, and repeated parameters return
+        invalid_query. Valid unknown IDs are allowed. Exclusions apply before
+        pagination, totals, descendant counts and tag facets. An excluded theme
+        or its topic detail returns theme_not_found (404). This is a presentation
+        filter, not an authorization policy or a global gameplay restriction.
+      schema:
+        type: array
+        minItems: 1
+        maxItems: 50
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+          maxLength: 128
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$'
+      example: [dev, dslab]
     DiscoverySearch:
       name: q
       in: query

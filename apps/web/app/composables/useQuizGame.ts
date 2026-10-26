@@ -17,6 +17,7 @@ export function useQuizGame(options: {
   api?: GameApi
   storage?: () => StorageLike
   uuid?: () => string
+  excludedThemeIds?: readonly string[]
 }) {
   const state = reactive({
     context: initialContext(),
@@ -25,6 +26,7 @@ export function useQuizGame(options: {
     error: '',
     storageWarning: false,
     themeConflict: false,
+    themeExcluded: false,
     question: null as PublicQuestion | null,
     result: null as RunResult | null,
     levels: [] as DifficultyAvailability[],
@@ -71,7 +73,7 @@ export function useQuizGame(options: {
     return true
   }
   async function execute(action: (token: number) => Promise<void>) {
-    if (state.busy || disposed) return
+    if (state.busy || disposed || state.themeExcluded) return
     state.busy = true
     state.error = ''
     const token = generation
@@ -100,6 +102,8 @@ export function useQuizGame(options: {
         state.context = saved
       }
     } catch { state.storageWarning = true }
+    state.themeExcluded = options.excludedThemeIds?.includes(state.context.theme) ?? false
+    if (state.themeExcluded) return
     // Mount/reload only reads known player state. It never creates or resets.
     if (!state.context.sessionId || ['sessionResult', 'fatalLoss', 'expired', 'uncertainStart', 'closing'].includes(phase.value)) return
     await execute(async token => {
@@ -114,7 +118,7 @@ export function useQuizGame(options: {
     })
   }
   async function prepare(theme: string, topic: string, locale: string, difficulty?: Difficulty) {
-    if (!theme || !topic || state.busy) return
+    if (!theme || !topic || state.busy || options.excludedThemeIds?.includes(theme)) return
     if (state.context.sessionId && state.context.theme !== theme) {
       state.themeConflict = true
       return

@@ -8,6 +8,16 @@ Web release tags use the app-scoped `web/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-26
+
+### Added
+
+- Runtime `WEB_EXCLUDED_THEME_IDS` selection, with optional file-backed settings,
+  applied consistently to discovery, tags, counts, pagination and sitemaps.
+- Excluded theme/topic/play links return 404. Stored excluded sessions remain
+  intact without API reads or resets. Deploy API `0.11.0` before enabling the
+  filter; existing SPAs and the shared catalog remain available.
+
 ### Fixed
 
 - Improve quiz punctuation and code legibility with a self-hosted JetBrains Mono
@@ -44,5 +54,6 @@ grants. See the [local operation guide](../../docs/runbooks/generic-quiz-web-loc
 and [image release guide](../../docs/runbooks/generic-quiz-web-image-release.md).
 Image publication and production deployment are separate operations.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/web%2Fv0.1.0...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/web%2Fv0.2.0...HEAD
+[0.2.0]: https://github.com/robmoraes/quick-quiz/compare/web%2Fv0.1.0...web%2Fv0.2.0
 [0.1.0]: https://github.com/robmoraes/quick-quiz/releases/tag/web%2Fv0.1.0

@@ -7,6 +7,10 @@ after an explicit browser action and uses the existing Go gameplay API.
 Dependencies: Quiz API. The API uses the existing PostgreSQL and Redis services.
 The Web has no database credential, administrative token or persistent volume.
 
+`WEB_EXCLUDED_THEME_IDS` selects theme IDs hidden by each Web deployment;
+the default is empty. See the [runtime configuration](../../docs/runbooks/generic-quiz-web-local.md#theme-visibility-per-web-deployment)
+for API compatibility, CSV validation and the deployment boundary.
+
 See the [local runbook](../../docs/runbooks/generic-quiz-web-local.md),
 [image release guide](../../docs/runbooks/generic-quiz-web-image-release.md),
 [changelog](CHANGELOG.md),
