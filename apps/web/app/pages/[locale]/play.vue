@@ -327,10 +327,10 @@ watch(phase, value => {
 progress { flex: 1; width: 0; height: .45rem; accent-color: #147d64; }
 .question-card { padding: clamp(1.1rem, 4vw, 3rem); }
 .question-heading { font-size: .85rem; font-weight: 650; color: #587167; margin-bottom: 1rem; }
-.question-prompt { font-size: clamp(1.2rem, 2.4vw, 1.75rem); line-height: 1.6; letter-spacing: -.02em; margin-bottom: 2rem; overflow-wrap: anywhere; }
+.question-prompt { font-size: clamp(1.2rem, 2.4vw, 1.75rem); font-weight: 500; line-height: 1.6; letter-spacing: normal; margin-bottom: 2rem; overflow-wrap: anywhere; }
 .answer-list { border: 0; padding: 0; display: grid; gap: .8rem; min-width: 0; }
 .answer-list legend { font-weight: 650; margin-bottom: 1rem; font-size: .85rem; color: #587167; }
-.answer-option { display: flex; align-items: center; gap: 1rem; text-align: left; border: 1px solid #d9e3dd; background: #fff; padding: 1rem 1.2rem; border-radius: 1rem; width: 100%; min-width: 0; font: inherit; color: inherit; cursor: pointer; transition: background .12s, border-color .12s; }
+.answer-option { display: flex; align-items: center; gap: 1rem; text-align: left; border: 1px solid #d9e3dd; background: #fff; padding: 1rem 1.2rem; border-radius: 1rem; width: 100%; min-width: 0; font: inherit; font-size: 1.125rem; font-weight: 500; line-height: 1.7; color: inherit; cursor: pointer; transition: background .12s, border-color .12s; }
 .answer-option:hover { border-color: #147d64; background: #f4fbf7; }
 .answer-option > :last-child { min-width: 0; overflow-wrap: anywhere; }
 .option-letter { display: grid; place-items: center; flex: 0 0 2rem; width: 2rem; height: 2rem; background: #edf4ef; border-radius: .6rem; font-size: .82rem; font-weight: 750; color: #47685b; }

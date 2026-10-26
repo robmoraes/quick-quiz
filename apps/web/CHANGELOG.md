@@ -8,6 +8,13 @@ Web release tags use the app-scoped `web/v<MAJOR>.<MINOR>.<PATCH>` format.
 
 ## [Unreleased]
 
+### Fixed
+
+- Improve quiz punctuation and code legibility with a self-hosted JetBrains Mono
+  font, disabled programming ligatures, larger answer text and clearer standalone
+  symbols. Bare operators such as `+`, `*` and `>` remain visible instead of
+  being interpreted as Markdown structure.
+
 ## [0.1.0] - 2026-10-22
 
 ### Added
