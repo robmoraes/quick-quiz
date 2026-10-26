@@ -1,7 +1,7 @@
 # Tasks: Manager Runtime Security
 
-Status: Application implementation and local verification complete. Manual base
-publication, normal application PR/tag release and infrastructure acceptance are
+Status: Application implementation and manual PHP base publication verified.
+Normal application PR/tag release and infrastructure acceptance are
 pending. See [verification.md](verification.md).
 
 ## Stage 1 — Corrected Runtime
@@ -32,9 +32,11 @@ pending. See [verification.md](verification.md).
 
 5. [ ] Prepare and publish the corrected application release (R1; A1, A10).
    - Preparation complete: Manager 0.15.1 metadata/changelog, local multiarch
-     candidates and audit/HTTP evidence. Publication/PR/tag steps remain pending.
-   - Publish the base manually before the implementation PR's image checks;
-     CI reuses that base and must not build or publish it automatically.
+     candidates and audit/HTTP evidence. Manager PR/merge/tag steps remain pending.
+   - Base `8.3.36-alpine3.24-r1` published manually and pinned by index digest
+     across active consumers. Rebuilding candidates from that published base,
+     auditing all six platform artifacts and HTTP acceptance passed. CI reuses
+     the base without building or publishing it automatically.
    - Update PHP base/security release instructions, Manager changelog/version
      where applicable, then follow the normal commit/PR/release sequence.
    - Publish the base manually, rebuild Manager and record immutable image refs
@@ -50,8 +52,8 @@ pending. See [verification.md](verification.md).
      coverage and integrate results into Manager release approval.
    - Validation: synthetic reports cover findings, errors, missing platforms,
      valid scoped exceptions and expiry; real checks emit sanitized evidence.
-   - Workflow definitions pass actionlint; matching build/audit/HTTP commands
-     pass locally. GitHub execution awaits publication/PR; no scheduled workflow
+   - Workflow definitions pass actionlint; matching published-base build/audit/HTTP
+     commands pass locally. GitHub execution awaits PR; no scheduled workflow
      execution is claimed from this working tree.
 
 ## Infrastructure-Owned Acceptance

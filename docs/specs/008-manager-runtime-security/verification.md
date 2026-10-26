@@ -1,9 +1,11 @@
 # Verification: Manager Runtime Security
 
-Verified locally on 2026-10-26. Application changes are prepared on
-`fix/manager-php-security`; no registry publication, GitHub workflow execution or
-production change is claimed. The [sanitized evidence](evidence/local-validation.json)
-records local OCI platform manifests, not deployable registry release references.
+Verified on 2026-10-26. Application changes are prepared on
+`fix/manager-php-security`; the PHP base has been published manually and audited.
+Manager images still await the normal PR/merge/tag release; production deployment
+has not been performed by this change. The [initial local evidence](evidence/local-validation.json)
+records pre-commit OCI candidates; [publication evidence](evidence/php-base-publication.json)
+records the approved registry base and subsequent clean-source verification.
 
 ## Corrected Artifacts
 
@@ -24,7 +26,7 @@ records local OCI platform manifests, not deployable registry release references
 | Check | Result |
 | --- | --- |
 | Full Manager PHPUnit suite against dedicated PostgreSQL, final PHP base and source | 221 tests, 923 assertions; passed |
-| Security failure-policy, unavailable-feed/Composer/database and OCI coverage checks | 13 tests; passed |
+| Security failure-policy, unavailable-feed/Composer/database, OCI coverage and pinned-base checks | 14 tests; passed |
 | Local multiarch base, Manager FPM and Manager Nginx builds | AMD64 and ARM64; passed |
 | Trivy runtime image audit with complete OS inventory | All six platform artifacts passed; zero HIGH/CRITICAL findings |
 | Locked production Composer audit | No advisories; no install/plugins/scripts executed by the audit |
@@ -62,14 +64,27 @@ Scheduled checks cover source-selected artifacts, not arbitrary deployed version
 
 Raw local reports and OCI archives remain under ignored
 `_temp/manager-security/`. The working tree was not yet committed when these
-candidate images were built; source revision plus `source_dirty` in the evidence
-must not be represented as an immutable published release provenance record.
+initial candidate images were built; their source revision plus `source_dirty`
+must not be represented as immutable published release provenance. Subsequent
+published-base verification records clean source revision `0380e73`, all six
+audits and both-platform HTTP acceptance. The PHP base was built from `95b0395`.
 
-Pending normal release work: commit/PR, manually publish the base using the
-[base runbook](../../runbooks/manager-php-base-multiarch-release.md), resolve its
-registry digests and preferably pin current consumer references, then publish
-Manager 0.15.1 through the app-scoped tag workflow after merge. The base must be
-available before the implementation PR's candidate-image checks.
+## PHP Base Publication
+
+Published and approved `robmoraes/quick-quiz-php-base:8.3.36-alpine3.24-r1`:
+
+- Index digest: `sha256:7e4cd839953eba6479c23b77706d3a98a31aa7181e84efc9a30ef3f6cac033e3`.
+- AMD64 and ARM64 manifests are present. `latest` was promoted to that same
+  index only after the published-base audit and downstream HTTP acceptance passed.
+- All active default consumers pin the same tag/index digest. The audit uses
+  this same immutable reference and supports an explicit custom-base override.
+- Rebuilt Manager FPM/Nginx candidates from the published base passed six image
+  audits, 221 PHPUnit tests/923 assertions and both-platform HTTP acceptance.
+
+Pending normal release work: complete the PR/merge and publish Manager 0.15.1
+through the app-scoped tag workflow. Publishing the shared base does not upgrade
+already built or running Manager images. Follow the
+[base runbook](../../runbooks/manager-php-base-multiarch-release.md) for future updates.
 
 Production inventory, worker replacement, restricted ingress, no direct bypass
 and application recovery acceptance remain with the infrastructure owner. See

@@ -1,7 +1,7 @@
 # Feature: Manager Runtime Security
 
-Status: Approved on 2026-10-26. Application implementation and local verification
-complete; publication and infrastructure-owned acceptance remain pending.
+Status: Approved on 2026-10-26. Application implementation verified and the PHP
+base published/audited; Manager release and infrastructure acceptance remain pending.
 See [verification.md](verification.md).
 
 ## Intent

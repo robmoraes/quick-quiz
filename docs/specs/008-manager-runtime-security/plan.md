@@ -1,7 +1,7 @@
 # Plan: Manager Runtime Security
 
-Status: Application implementation verified locally against the approved
-[specification](spec.md). Publication and infrastructure acceptance remain
+Status: Application implementation and the published PHP base verified against the approved
+[specification](spec.md). Manager release and infrastructure acceptance remain
 pending; see [verification.md](verification.md).
 
 ## Ownership and Sequence
