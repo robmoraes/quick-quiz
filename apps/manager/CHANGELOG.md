@@ -9,6 +9,17 @@ format.
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-11-07
+
+### Security
+
+- Update affected Symfony components to 7.4.23 for the November security
+  advisories covering request handling, routing, HTTP clients, filesystem paths,
+  XML configuration and YAML parsing.
+- Require libexpat 2.10.0-r0 or newer in the Manager Nginx image to resolve
+  CVE-2026-113351, CVE-2026-115506, CVE-2026-117610 and CVE-2026-118370
+  on AMD64 and ARM64.
+
 ## [0.15.1] - 2026-10-26
 
 ### Security
@@ -189,7 +200,8 @@ Cumulative notes retained from earlier releases.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.1...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.2...HEAD
+[0.15.2]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.1...manager%2Fv0.15.2
 [0.15.1]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.0...manager%2Fv0.15.1
 [0.15.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.14.0...manager%2Fv0.15.0
 [0.14.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.13.0...manager%2Fv0.14.0

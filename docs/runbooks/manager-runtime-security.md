@@ -89,7 +89,18 @@ workflow artifacts; the release summary is the approval result.
 
 ## Base publication and infrastructure handoff
 
-Follow the [manual multiarch base runbook](manager-php-base-multiarch-release.md).
+For a dependency-only patch, first inspect the daily audit's package versions,
+advisories and exact affected artifacts. Resolve Composer updates using the
+supported PHP runtime, keeping compatibility dependencies within its supported
+Symfony line. Retain the published PHP base when its own two-platform checks
+pass; use `build-candidates.sh OUTPUT --published-base` and audit both resulting
+Manager archives as in the local acceptance procedure. Manager Nginx requires
+libexpat >=2.10.0-r0 so a rebuild cannot retain the older vulnerable package.
+Run the full PHPUnit/PostgreSQL suite and both-platform HTTP acceptance, prepare
+a Manager patch version and publish through the normal app-scoped tag workflow.
+
+When PHP or its base packages need an update, follow the
+[manual multiarch base runbook](manager-php-base-multiarch-release.md).
 Publish a fresh versioned base, verify both platform digests against local
 acceptance, update current consumer references (prefer tag plus index digest),
 then release rebuilt Manager FPM/Nginx images through the normal PR/tag workflow.

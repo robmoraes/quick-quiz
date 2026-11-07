@@ -1,8 +1,9 @@
 # Tasks: Manager Runtime Security
 
-Status: Application implementation and manual PHP base publication verified.
-Normal application PR/tag release and infrastructure acceptance are
-pending. See [verification.md](verification.md).
+Status: Initial application implementation, manual PHP base publication and
+Manager 0.15.1 release verified. The November dependency maintenance prepares
+Manager 0.15.2; its release and infrastructure acceptance remain separate.
+See [verification.md](verification.md).
 
 ## Stage 1 — Corrected Runtime
 
@@ -30,10 +31,11 @@ pending. See [verification.md](verification.md).
    - Validation: AMD64 full suite and both-platform runtime/HTTP smoke checks;
      no production connectivity or secrets in reports.
 
-5. [ ] Prepare and publish the corrected application release (R1; A1, A10).
-   - Preparation complete: Manager 0.15.1 metadata/changelog, local multiarch
-     candidates and audit/HTTP evidence. [PR 54](https://github.com/robmoraes/quick-quiz/pull/54)
-     is open; Manager merge/tag steps remain pending.
+5. [x] Prepare and publish the corrected application release (R1; A1, A10).
+   - [PR 54](https://github.com/robmoraes/quick-quiz/pull/54) merged; Manager
+     0.15.1 published through the app-scoped tag. The
+     [release workflow](https://github.com/robmoraes/quick-quiz/actions/runs/40422827256)
+     passed audits and HTTP acceptance before promoting the tested images.
    - Base `8.3.36-alpine3.24-r1` published manually and pinned by index digest
      across active consumers. Rebuilding candidates from that published base,
      auditing all six platform artifacts and HTTP acceptance passed. CI reuses
@@ -54,8 +56,8 @@ pending. See [verification.md](verification.md).
    - Validation: synthetic reports cover findings, errors, missing platforms,
      valid scoped exceptions and expiry; real checks emit sanitized evidence.
    - Workflow definitions pass actionlint; matching published-base build/audit/HTTP
-     commands pass locally. GitHub integration checks are tracked on PR 54;
-     scheduled execution begins after merge to the default branch.
+     commands pass locally. PR 54 and the release checks passed; scheduled
+     execution detected new dependency advisories after release, as required by A7.
 
 ## Infrastructure-Owned Acceptance
 
@@ -76,3 +78,26 @@ pending. See [verification.md](verification.md).
    - Confirm safe rollback guidance and any outstanding finding's owner/expiry.
    - Full completion requires tasks 1–8; a patch release may proceed after
      stage 1 without claiming that stage 2 or ingress hardening is complete.
+
+## November Dependency Maintenance — Manager 0.15.2
+
+10. [x] Triage the recurring audit failure (R3; A5, A7).
+    - The first failing scheduled run on 2026-11-03 identified libexpat in
+      Manager Nginx. By 2026-11-07 the audit also reported affected Symfony
+      production packages. Published PHP base/FPM OS scans remained approved.
+
+11. [x] Update the affected application/image dependencies (R2, R3; A3–A7).
+    - Resolve the lock with PHP 8.3.36, upgrading the eight affected Symfony
+      packages plus required Console/DependencyInjection dependencies to 7.4.23.
+    - Require libexpat >=2.10.0-r0 in Manager Nginx. Prepare 0.15.2 metadata
+      and retain the already approved shared PHP base.
+
+12. [x] Complete local acceptance (R2, R3; A3–A7, A10).
+    - PHPUnit/PostgreSQL: 221 tests, 923 assertions, no failures or skips.
+      Six image audits and both-platform HTTP acceptance passed without
+      blocking findings or exceptions. See the
+      [sanitized evidence](evidence/2026-11-07-dependency-maintenance.json).
+
+13. [ ] Publish the patch through the normal commit/PR/tag release (R3; A10).
+    - Hand approved release digests to the infrastructure owner after publication.
+      Local candidate evidence alone does not approve production deployment.
