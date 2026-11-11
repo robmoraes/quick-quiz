@@ -1,8 +1,8 @@
 # Tasks: Manager Runtime Security
 
 Status: Initial application implementation, manual PHP base publication and
-Manager 0.15.1 release verified. The November dependency maintenance prepares
-Manager 0.15.2; its release and infrastructure acceptance remain separate.
+Manager 0.15.1/0.15.2 releases verified. The libxslt and Node 24 maintenance
+prepares Manager 0.15.3; its release and infrastructure acceptance remain separate.
 See [verification.md](verification.md).
 
 ## Stage 1 — Corrected Runtime
@@ -98,6 +98,31 @@ See [verification.md](verification.md).
       blocking findings or exceptions. See the
       [sanitized evidence](evidence/2026-11-07-dependency-maintenance.json).
 
-13. [ ] Publish the patch through the normal commit/PR/tag release (R3; A10).
-    - Hand approved release digests to the infrastructure owner after publication.
-      Local candidate evidence alone does not approve production deployment.
+13. [x] Publish the patch through the normal commit/PR/tag release (R3; A10).
+    - [PR 55](https://github.com/robmoraes/quick-quiz/pull/55) merged and
+      [Manager 0.15.2 release](https://github.com/robmoraes/quick-quiz/actions/runs/42422544618)
+      passed all release-time image audits and both-platform HTTP acceptance.
+      Production deployment remains tracked by the infrastructure owner.
+
+## libxslt and Node 24 Maintenance — Manager 0.15.3
+
+14. [x] Triage the 2026-11-11 scheduled audit failure (R3; A5, A7).
+    - Two HIGH libxslt advisories affect Manager Nginx on both architectures.
+      The Node 20 deprecation warnings identify the Docker QEMU/Buildx actions;
+      PHP base/FPM and production Composer dependencies remain approved.
+
+15. [x] Prepare corrected image dependencies and automation (R2, R3; A3–A7).
+    - Require libxslt >=1.1.43-r4 alongside the existing libexpat floor.
+    - Pin QEMU 4.4.0 and Buildx 4.4.1, whose action manifests declare Node 24,
+      in both security and release workflows. Prepare Manager 0.15.3 defaults
+      and changelog without changing the PHP base or Composer lock.
+
+16. [x] Complete local acceptance (R2, R3; A3–A7, A10).
+    - PHPUnit/PostgreSQL: 221 tests, 923 assertions, no failures or skips.
+      Fourteen policy tests, actionlint, all six image audits and both-platform
+      HTTP acceptance passed. Both Nginx candidates contain libxslt 1.1.43-r4.
+      See the [sanitized evidence](evidence/2026-11-11-libxslt-node24.json).
+
+17. [ ] Release the patch through the normal commit/PR/tag flow (R3; A10).
+    - Verify the new action versions on GitHub and audit actual published images;
+      hand approved immutable release references to the infrastructure owner.

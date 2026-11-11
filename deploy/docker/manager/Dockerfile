@@ -76,7 +76,7 @@ CMD ["manager-fpm-entrypoint"]
 FROM ${NGINX_IMAGE} AS nginx
 
 RUN apk upgrade --no-cache \
-    && apk add --no-cache 'libexpat>=2.10.0-r0'
+    && apk add --no-cache 'libexpat>=2.10.0-r0' 'libxslt>=1.1.43-r4'
 
 COPY deploy/docker/manager/nginx.conf /etc/nginx/nginx.conf
 COPY --from=vendor /app/public /app/public

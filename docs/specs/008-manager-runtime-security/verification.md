@@ -142,3 +142,49 @@ versions and HTTP results. Raw artifacts are under ignored
 `_temp/manager-security-20261107/`. These are uncommitted working-tree candidates,
 not published registry releases or production inventory. Release-time audits must
 verify the actual published images before the infrastructure owner deploys them.
+
+## libxslt and Node 24 Maintenance — Manager 0.15.3
+
+The [2026-11-11 scheduled audit](https://github.com/robmoraes/quick-quiz/actions/runs/43048704122)
+completed all six platform checks and blocked the published 0.15.2 Manager Nginx
+image on CVE-2026-87636 and CVE-2026-9947 in libxslt 1.1.43-r3, on AMD64 and
+ARM64. PHP base/FPM and production Composer checks passed. The separate Node 20
+deprecation warnings named the Docker QEMU and Buildx actions; they did not
+cause the image-policy rejection.
+
+The patch requires libxslt >=1.1.43-r4 in the Nginx stage alongside the existing
+libexpat floor and prepares Manager 0.15.3 defaults/changelog. The PHP base and
+Composer lock remain unchanged. No API contract, migration or secret changes.
+
+Both security and release workflows now pin the following upstream action
+commits, whose `action.yml` files declare `using: 'node24'`:
+
+- [QEMU 4.4.0](https://github.com/docker/setup-qemu-action/blob/99012661954931238ded8c8b007157a8430204e1/action.yml):
+  `99012661954931238ded8c8b007157a8430204e1`.
+- [Buildx 4.4.1](https://github.com/docker/setup-buildx-action/blob/f87e5991a6d7451dcb8d9637bfbc97413f497069/action.yml):
+  `f87e5991a6d7451dcb8d9637bfbc97413f497069`.
+
+This changes the runtime of those two CI actions. The application Node runtimes,
+workflow permissions, manual PHP base publication and release audit gates are
+preserved. Actionlint validates the changed workflows locally; execution of the
+new action versions on GitHub remains part of PR/release verification.
+
+Verified locally on 2026-11-11 with the pinned published PHP base:
+
+| Check | Result |
+| --- | --- |
+| Full Manager PHPUnit suite on PHP 8.3.36 and dedicated PostgreSQL | 221 tests, 923 assertions; no failures, errors or skips |
+| Security failure-policy tests | 14 tests; passed |
+| Actionlint 1.7.12 on both changed workflows | Passed |
+| Manager FPM/Nginx builds | AMD64 and ARM64; passed |
+| Trivy audit of PHP base, FPM and Nginx | All six platform artifacts passed; zero HIGH/CRITICAL findings or exceptions |
+| Production Composer audit | No advisories; lock unchanged |
+| Nginx package inventory | libxslt 1.1.43-r4 and libexpat 2.10.0-r0 on both architectures |
+| Synthetic HTTP acceptance | Both platforms passed login, bearer/CSRF, CRUD, multipart import, Redis session continuity and logout checks |
+
+The [sanitized evidence](evidence/2026-11-11-libxslt-node24.json) identifies the
+upstream action commits, unchanged lock hash, exact candidate/platform digests,
+runtime settings and completed checks. Raw local artifacts remain under ignored
+`_temp/manager-security-20261111/`. These are uncommitted working-tree candidates;
+the normal PR and release workflow must verify GitHub execution and actual
+published artifacts before the infrastructure owner deploys them.

@@ -9,6 +9,18 @@ format.
 
 ## [Unreleased]
 
+## [0.15.3] - 2026-11-11
+
+### Security
+
+- Require libxslt 1.1.43-r4 or newer in the Manager Nginx image to resolve
+  CVE-2026-87636 and CVE-2026-9947 on AMD64 and ARM64.
+
+### Changed
+
+- Update the pinned Docker QEMU and Buildx actions in the security and release
+  workflows to versions using Node 24.
+
 ## [0.15.2] - 2026-11-07
 
 ### Security
@@ -200,7 +212,8 @@ Cumulative notes retained from earlier releases.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.2...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.3...HEAD
+[0.15.3]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.2...manager%2Fv0.15.3
 [0.15.2]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.1...manager%2Fv0.15.2
 [0.15.1]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.0...manager%2Fv0.15.1
 [0.15.0]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.14.0...manager%2Fv0.15.0

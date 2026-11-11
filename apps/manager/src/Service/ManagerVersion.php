@@ -9,7 +9,7 @@ final class ManagerVersion
     public function __construct(string $version)
     {
         $version = trim($version);
-        $this->version = $version !== '' ? $version : '0.15.2';
+        $this->version = $version !== '' ? $version : '0.15.3';
     }
 
     public function value(): string
