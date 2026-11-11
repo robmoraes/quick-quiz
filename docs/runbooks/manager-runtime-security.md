@@ -95,7 +95,8 @@ supported PHP runtime, keeping compatibility dependencies within its supported
 Symfony line. Retain the published PHP base when its own two-platform checks
 pass; use `build-candidates.sh OUTPUT --published-base` and audit both resulting
 Manager archives as in the local acceptance procedure. Manager Nginx requires
-libexpat >=2.10.0-r0 so a rebuild cannot retain the older vulnerable package.
+libexpat >=2.10.0-r0 and libxslt >=1.1.43-r4 so a rebuild cannot retain the
+older vulnerable packages.
 Run the full PHPUnit/PostgreSQL suite and both-platform HTTP acceptance, prepare
 a Manager patch version and publish through the normal app-scoped tag workflow.
 

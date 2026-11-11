@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "purpose": "Local verification of Manager 0.15.3 libxslt security and Node 24 action maintenance under spec 008",
+  "checked_at": "2026-11-11T22:35:25.711036+00:00",
+  "prepared_manager_version": "0.15.3",
+  "source_revision": "a457871139333f18dc7ee1260730dfc8e24d5aa3",
+  "source_dirty": true,
+  "source_branch": "fix/manager-libxslt-node24",
+  "provenance": "Uncommitted working-tree candidates; not published images or production inventory.",
+  "baseline_workflow": "https://github.com/robmoraes/quick-quiz/actions/runs/43048704122",
+  "corrected_advisories": [
+    "CVE-2026-87636",
+    "CVE-2026-9947"
+  ],
+  "lock_sha256": "18d2f8278be63ac06df9b4ec457ef0cf3d1c7c6424a4c4ad2f62ab6d68869ecd",
+  "composer_lock_changed": false,
+  "ci_actions": [
+    {
+      "repository": "docker/setup-qemu-action",
+      "version": "v4.4.0",
+      "commit": "99012661954931238ded8c8b007157a8430204e1",
+      "using": "node24"
+    },
+    {
+      "repository": "docker/setup-buildx-action",
+      "version": "v4.4.1",
+      "commit": "f87e5991a6d7451dcb8d9637bfbc97413f497069",
+      "using": "node24"
+    }
+  ],
+  "action_manifests_verified_using": "Pinned upstream action.yml files read through the GitHub API.",
+  "github_execution_status": "Pending PR/release execution; local workflow lint and upstream runtime declarations verified.",
+  "checks": {
+    "phpunit": {
+      "tests": 221,
+      "assertions": 923,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "failure_policy_tests": {
+      "tests": 14,
+      "passed": true
+    },
+    "actionlint": {
+      "version": "1.7.12",
+      "passed": true,
+      "workflows": [
+        ".github/workflows/manager-security.yml",
+        ".github/workflows/release-docker-images.yml"
+      ]
+    },
+    "audit": {
+      "status": "passed",
+      "platform_artifacts": 6,
+      "findings": [],
+      "errors": [],
+      "exceptions": [],
+      "latest_supported_php_8_3": "8.3.36",
+      "scanner": "aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c",
+      "composer_tool": "composer:2.10.1@sha256:7725eb4545c438629ae8bde3ef0bb9a5038ef566126ad878442a69007242d267",
+      "database": {
+        "Version": 2,
+        "NextUpdate": "2026-11-12T19:04:54.958468697Z",
+        "UpdatedAt": "2026-11-11T19:04:54.958468957Z",
+        "DownloadedAt": "2026-11-11T22:35:55.509243491Z"
+      }
+    },
+    "http_acceptance": [
+      {
+        "platform": "linux/amd64",
+        "passed": true,
+        "runtime": {
+          "php": "8.3.36",
+          "upload_progress": "0",
+          "memory_limit": "128M",
+          "post_max_size": "2M",
+          "upload_max_filesize": "2M"
+        },
+        "checks": [
+          "effective-fpm-pool-settings",
+          "login-rejection",
+          "session-renewal",
+          "bearer-auth",
+          "csrf",
+          "browser-crud",
+          "multipart-import",
+          "redis-session-after-fpm-replacement",
+          "logout",
+          "secure-cookie"
+        ]
+      },
+      {
+        "platform": "linux/arm64",
+        "passed": true,
+        "runtime": {
+          "php": "8.3.36",
+          "upload_progress": "0",
+          "memory_limit": "128M",
+          "post_max_size": "2M",
+          "upload_max_filesize": "2M"
+        },
+        "checks": [
+          "effective-fpm-pool-settings",
+          "login-rejection",
+          "session-renewal",
+          "bearer-auth",
+          "csrf",
+          "browser-crud",
+          "multipart-import",
+          "redis-session-after-fpm-replacement",
+          "logout",
+          "secure-cookie"
+        ]
+      }
+    ]
+  },
+  "candidate_archives": {
+    "manager-fpm": {
+      "name": "manager-fpm.oci.tar",
+      "sha256": "e0dec20f4546560e64748e01535056d4c348b6ccac90694f3c52059531fc8648"
+    },
+    "manager-web": {
+      "name": "manager-web.oci.tar",
+      "sha256": "b73881b8fab954699ef0ff4adf817868828eb27197e8c51e179b52fec3db0942"
+    }
+  },
+  "images": [
+    {
+      "artifact": "php-base",
+      "platform": "linux/amd64",
+      "reference": "robmoraes/quick-quiz-php-base:8.3.36-alpine3.24-r1@sha256:7e4cd839953eba6479c23b77706d3a98a31aa7181e84efc9a30ef3f6cac033e3",
+      "digest": "sha256:d299f29f4dd018856e3551a9d093c69e85a92a9d9a76990b721358cf49443d2f",
+      "runtime": {
+        "php": "8.3.36",
+        "upload_progress": "0",
+        "missing_extensions": [],
+        "fpm_upload_progress_off": true
+      }
+    },
+    {
+      "artifact": "php-base",
+      "platform": "linux/arm64",
+      "reference": "robmoraes/quick-quiz-php-base:8.3.36-alpine3.24-r1@sha256:7e4cd839953eba6479c23b77706d3a98a31aa7181e84efc9a30ef3f6cac033e3",
+      "digest": "sha256:1a6f556981633afa0a1168127c1e2861393c994293148b57b1c89b1960020ee2",
+      "runtime": {
+        "php": "8.3.36",
+        "upload_progress": "0",
+        "missing_extensions": [],
+        "fpm_upload_progress_off": true
+      }
+    },
+    {
+      "artifact": "manager-fpm",
+      "platform": "linux/amd64",
+      "reference": "oci:manager-fpm.oci.tar",
+      "digest": "sha256:4294637d9a11ab8dab88d44749818281cf9aafa2c64a17932f50fd87caaa4f5a",
+      "runtime": {
+        "php": "8.3.36",
+        "upload_progress": "0",
+        "missing_extensions": [],
+        "fpm_upload_progress_off": true
+      }
+    },
+    {
+      "artifact": "manager-fpm",
+      "platform": "linux/arm64",
+      "reference": "oci:manager-fpm.oci.tar",
+      "digest": "sha256:8bd5b1ed0b787e59b98d181e73767cb977ebe6ff8e65af59ec1a23b77de5c8a1",
+      "runtime": {
+        "php": "8.3.36",
+        "upload_progress": "0",
+        "missing_extensions": [],
+        "fpm_upload_progress_off": true
+      }
+    },
+    {
+      "artifact": "manager-web",
+      "platform": "linux/amd64",
+      "reference": "oci:manager-web.oci.tar",
+      "digest": "sha256:1dfffbed9bdbcd0f89bde25481b674387608f588a766f1813b435034180369a4",
+      "libxslt": "1.1.43-r4",
+      "libexpat": "2.10.0-r0"
+    },
+    {
+      "artifact": "manager-web",
+      "platform": "linux/arm64",
+      "reference": "oci:manager-web.oci.tar",
+      "digest": "sha256:29359470ebc70654500ecbf08184ae4ca2555659934c20cbc149d16a7848ccb4",
+      "libxslt": "1.1.43-r4",
+      "libexpat": "2.10.0-r0"
+    }
+  ],
+  "raw_artifacts_directory": "_temp/manager-security-20261111/",
+  "release_status": "Awaiting commit, PR, merge and Manager tag workflow.",
+  "deployment_owner": "dslab-infra",
+  "production_deployment": false,
+  "new_database_migrations": false,
+  "new_secrets": false
+}
