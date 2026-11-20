@@ -170,6 +170,19 @@ docker login
 make -C deploy php-base BUILDER=multiarch OUTPUT=push
 ```
 
+If the branch already pins the index of an audited OCI archive, publish that
+archive with its digests preserved. Use an authenticated Skopeo client and a
+fresh versioned tag. This command publishes only the specified tag.
+
+```sh
+skopeo copy --all --preserve-digests \
+  "oci-archive:${PHP_BASE_ARCHIVE}" \
+  "docker://robmoraes/quick-quiz-php-base:${PHP_BASE_TAG}"
+```
+
+Verify the published index and its two platform digests against the audited
+archive before promoting `latest`.
+
 The first authorized push can create the Docker Hub repository automatically.
 The repository is currently public.
 

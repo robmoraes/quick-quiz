@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-ARG PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.36-alpine3.24-r1@sha256:7e4cd839953eba6479c23b77706d3a98a31aa7181e84efc9a30ef3f6cac033e3
-ARG NGINX_IMAGE=nginx:1.30.6-alpine@sha256:47928bf67eb62a1863cb08d9ecb52d3e704304ba614eaee17884204677702951
+ARG PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.37-alpine3.24-r1@sha256:61f8500bd6b6a1416074db42eb3d40847f3033f5cb333faff5549b0ef760b56b
+ARG NGINX_IMAGE=nginx:1.30.7-alpine@sha256:bef154735288bc38d99fac41ae63730684bcc661503673a04a0f9bc526ba8598
 
 FROM --platform=$BUILDPLATFORM ${PHP_BASE_IMAGE} AS vendor
 
