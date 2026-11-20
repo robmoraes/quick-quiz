@@ -5,6 +5,7 @@ import re
 
 PLATFORMS = ("linux/amd64", "linux/arm64")
 KINDS = ("php-base", "manager-fpm", "manager-web")
+MINIMUM_PHP = "8.3.37"
 INCIDENTS = {"CVE-2026-109618", "CVE-2026-109619"}
 
 
@@ -17,7 +18,7 @@ def version(value):
 def evaluate(composer, images, exceptions, latest_php, today=None):
     today = today or datetime.now(timezone.utc).date()
     errors, findings, waived = [], [], []
-    if version(latest_php) < version("8.3.36"):
+    if version(latest_php) < version(MINIMUM_PHP):
         raise ValueError("Invalid upstream PHP release response")
     if not isinstance(exceptions, list):
         raise ValueError("Exceptions must be a list")
@@ -75,7 +76,7 @@ def evaluate(composer, images, exceptions, latest_php, today=None):
             errors.append(f"Incomplete/unsupported image report: {identity}")
         if identity[0] != "manager-web":
             runtime = image.get("runtime", {})
-            if (version(runtime.get("php")) < max(version("8.3.36"), version(latest_php))
+            if (version(runtime.get("php")) < max(version(MINIMUM_PHP), version(latest_php))
                     or runtime.get("upload_progress") != "0" or not runtime.get("fpm_upload_progress_off")
                     or runtime.get("missing_extensions") != []):
                 errors.append(f"Unpatched PHP or invalid startup configuration: {identity}")

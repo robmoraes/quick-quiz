@@ -34,7 +34,7 @@ It does not connect to an existing Manager, database or question bank.
 
 PHP in the official image is compiled outside the Alpine package manager.
 Therefore OS scanning alone cannot establish its patch status. The audit also
-checks actual PHP versions against both the incident minimum (8.3.36) and the
+checks actual PHP versions against both the minimum supported patch (8.3.37) and the
 current supported 8.3 release returned by PHP.net. An unavailable release feed
 is incomplete verification, not a clean result. Keep reviewing upstream advisories.
 
@@ -55,7 +55,7 @@ To audit explicit public release references without registry write credentials:
 
 ```sh
 python3 deploy/security/audit.py --output /tmp/quickquiz-manager-release-audit \
-  --image php-base=example/php-base:8.3.36-alpine3.24-r1 \
+  --image php-base=example/php-base:8.3.37-alpine3.24-r1 \
   --image manager-fpm=example/manager-fpm:vX.Y.Z \
   --image manager-web=example/manager-web:vX.Y.Z
 ```

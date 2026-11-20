@@ -188,3 +188,23 @@ runtime settings and completed checks. Raw local artifacts remain under ignored
 `_temp/manager-security-20261111/`. These are uncommitted working-tree candidates;
 the normal PR and release workflow must verify GitHub execution and actual
 published artifacts before the infrastructure owner deploys them.
+
+## Manager 0.15.4 local acceptance
+
+The [November 19 audit](https://github.com/robmoraes/quick-quiz/actions/runs/44568692816)
+identified outdated PHP, libpq and Nginx in the 0.15.3 images. The replacement
+images use [PHP 8.3.37](https://www.php.net/releases/8_3_37.php),
+Alpine libpq 18.7-r0 and [Nginx 1.30.7](https://nginx.org/en/security_advisories.html).
+
+| Local check | Result |
+| --- | --- |
+| PHP base and Manager FPM on AMD64 and ARM64 | PHP 8.3.37, libpq 18.7-r0, PDO PostgreSQL loaded, FPM upload progress off |
+| Manager Nginx on AMD64 and ARM64 | nginx 1.30.7-r1, libxslt 1.1.43-r4, libexpat 2.10.0-r0 |
+| Audit of all six platform images | Zero HIGH or CRITICAL findings, zero exceptions, zero production Composer advisories |
+| PHPUnit with a disposable PostgreSQL database | 221 tests, 923 assertions, zero skips |
+| Policy and audit unit tests | 14 passed |
+| HTTP acceptance on both architectures | Login, bearer authentication, CSRF, CRUD, multipart import, session continuity and logout passed |
+
+The audited base OCI index digest is
+`sha256:61f8500bd6b6a1416074db42eb3d40847f3033f5cb333faff5549b0ef760b56b`.
+The Manager release workflow verifies the published images separately.

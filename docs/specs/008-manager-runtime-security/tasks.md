@@ -1,8 +1,7 @@
 # Tasks: Manager Runtime Security
 
-Status: Initial application implementation, manual PHP base publication and
-Manager 0.15.1/0.15.2 releases verified. The libxslt and Node 24 maintenance
-prepares Manager 0.15.3; its release and infrastructure acceptance remain separate.
+Status: Manager releases through 0.15.3 verified. The 0.15.4 maintenance
+updates the PHP base and Manager Nginx following the November 19 audit.
 See [verification.md](verification.md).
 
 ## Stage 1 — Corrected Runtime
@@ -123,6 +122,17 @@ See [verification.md](verification.md).
       HTTP acceptance passed. Both Nginx candidates contain libxslt 1.1.43-r4.
       See the [sanitized evidence](evidence/2026-11-11-libxslt-node24.json).
 
-17. [ ] Release the patch through the normal commit/PR/tag flow (R3; A10).
-    - Verify the new action versions on GitHub and audit actual published images;
-      hand approved immutable release references to the infrastructure owner.
+17. [x] Release Manager 0.15.3 through the normal commit/PR/tag flow (R3; A10).
+    - [PR 56](https://github.com/robmoraes/quick-quiz/pull/56) merged and the
+      [release audit](https://github.com/robmoraes/quick-quiz/actions/runs/43114463560)
+      passed for the published AMD64 and ARM64 images.
+
+## PHP, libpq and Nginx maintenance — Manager 0.15.4
+
+18. [x] Update the PHP-FPM and Nginx upstream pins and the Alpine libpq floor.
+    The [November 19 audit](https://github.com/robmoraes/quick-quiz/actions/runs/44568692816)
+    reported 38 HIGH libpq advisories, three HIGH and three CRITICAL Nginx
+    advisories, and PHP 8.3.36 behind the current security release.
+19. [x] Verify the rebuilt base and both Manager images on AMD64 and ARM64.
+    See the [local acceptance results](verification.md#manager-0154-local-acceptance).
+20. [ ] Release Manager 0.15.4 through the normal PR and tag workflow.

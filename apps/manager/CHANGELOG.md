@@ -9,6 +9,14 @@ format.
 
 ## [Unreleased]
 
+## [0.15.4] - 2026-11-19
+
+### Security
+
+- Update the shared PHP-FPM base to PHP 8.3.37 and require Alpine libpq
+  18.7-r0 or newer for the PostgreSQL driver.
+- Update the Manager web image to Nginx 1.30.7 on AMD64 and ARM64.
+
 ## [0.15.3] - 2026-11-11
 
 ### Security
@@ -212,7 +220,8 @@ Cumulative notes retained from earlier releases.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.3...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.4...HEAD
+[0.15.4]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.3...manager%2Fv0.15.4
 [0.15.3]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.2...manager%2Fv0.15.3
 [0.15.2]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.1...manager%2Fv0.15.2
 [0.15.1]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.0...manager%2Fv0.15.1

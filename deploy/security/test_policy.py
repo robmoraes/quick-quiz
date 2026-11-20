@@ -11,11 +11,11 @@ class SecurityPolicyTest(unittest.TestCase):
         self.images = [{"artifact": kind, "platform": platform, "digest": "sha256:" + "a" * 64,
                         "report": {"SchemaVersion": 2, "Results": [{"Class": "os-pkgs", "Type": "alpine", "Packages": [{"Name": "synthetic"}]}], "Metadata": {
                             "ImageConfig": {"architecture": platform.split("/")[1]}, "OS": {"Family": "alpine"}}},
-                        "runtime": {"php": "8.3.36", "upload_progress": "0", "fpm_upload_progress_off": True,
+                        "runtime": {"php": "8.3.37", "upload_progress": "0", "fpm_upload_progress_off": True,
                                     "missing_extensions": []}} for kind in KINDS for platform in PLATFORMS]
 
     def check(self, exceptions=None):
-        return evaluate(self.composer, self.images, exceptions or [], "8.3.36", date(2026, 10, 26))
+        return evaluate(self.composer, self.images, exceptions or [], "8.3.37", date(2026, 10, 26))
 
     def finding(self, severity="HIGH"):
         self.images[0]["report"]["Results"][0]["Vulnerabilities"] = [{"VulnerabilityID": "CVE-test",
@@ -53,7 +53,7 @@ class SecurityPolicyTest(unittest.TestCase):
         for change in ({"expires": "2026-10-25"}, {"created": "2026-10-27"},
                        {"expires": "2026-12-26"}, {"id": "CVE-2026-109618"}, {"owner": ""}):
             with self.subTest(change=change), self.assertRaises(ValueError):
-                evaluate(self.composer, self.images, [self.exception() | change], "8.3.36", date(2026, 10, 26))
+                evaluate(self.composer, self.images, [self.exception() | change], "8.3.37", date(2026, 10, 26))
 
     def test_production_composer_and_ignored_advisories_block(self):
         for field in ("advisories", "ignored-advisories"):
@@ -74,18 +74,18 @@ class SecurityPolicyTest(unittest.TestCase):
         self.assertEqual("inconclusive", self.check()["status"])
 
     def test_php_patch_floor_upload_configuration_and_new_upstream_release(self):
-        for change in ({"php": "8.3.33"}, {"upload_progress": "1"},
+        for change in ({"php": "8.3.36"}, {"upload_progress": "1"},
                        {"fpm_upload_progress_off": False}, {"missing_extensions": ["pdo_pgsql"]}):
             self.setUp()
             self.images[0]["runtime"].update(change)
             self.assertEqual("inconclusive", self.check()["status"])
         self.setUp()
-        self.assertEqual("inconclusive", evaluate(self.composer, self.images, [], "8.3.37")["status"])
+        self.assertEqual("inconclusive", evaluate(self.composer, self.images, [], "8.3.38")["status"])
 
     def test_malformed_composer_or_upstream_does_not_pass(self):
-        self.assertEqual("inconclusive", evaluate({}, self.images, [], "8.3.36")["status"])
+        self.assertEqual("inconclusive", evaluate({}, self.images, [], "8.3.37")["status"])
         with self.assertRaises(ValueError):
-            evaluate(self.composer, self.images, [], "8.3.33")
+            evaluate(self.composer, self.images, [], "8.3.36")
 
 
 if __name__ == "__main__":
