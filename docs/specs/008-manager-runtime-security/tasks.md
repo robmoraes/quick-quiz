@@ -1,7 +1,7 @@
 # Tasks: Manager Runtime Security
 
-Status: Manager releases through 0.15.3 verified. The 0.15.4 maintenance
-updates the PHP base and Manager Nginx following the November 19 audit.
+Status: Manager releases through 0.15.4 verified. The 0.15.5 maintenance
+addresses CVE-2026-86144 in the PHP base and Manager Nginx.
 See [verification.md](verification.md).
 
 ## Stage 1 — Corrected Runtime
@@ -135,4 +135,16 @@ See [verification.md](verification.md).
     advisories, and PHP 8.3.36 behind the current security release.
 19. [x] Verify the rebuilt base and both Manager images on AMD64 and ARM64.
     See the [local acceptance results](verification.md#manager-0154-local-acceptance).
-20. [ ] Release Manager 0.15.4 through the normal PR and tag workflow.
+20. [x] Release Manager 0.15.4 through the normal PR and tag workflow.
+    [PR 57](https://github.com/robmoraes/quick-quiz/pull/57) and the
+    [release audit](https://github.com/robmoraes/quick-quiz/actions/runs/44662365425)
+    passed.
+
+## libxml2 maintenance — Manager 0.15.5
+
+21. [x] Require Alpine libxml2 2.13.9-r3 or newer in the shared PHP base
+    and Manager Nginx following the
+    [November 23 audit](https://github.com/robmoraes/quick-quiz/actions/runs/45248342338).
+22. [x] Verify the rebuilt base and both Manager images on AMD64 and ARM64.
+    See the [local acceptance results](verification.md#manager-0155-local-acceptance).
+23. [ ] Release Manager 0.15.5 through the normal PR and tag workflow.

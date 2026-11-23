@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
-ARG PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.37-alpine3.24-r1@sha256:61f8500bd6b6a1416074db42eb3d40847f3033f5cb333faff5549b0ef760b56b
-ARG NGINX_IMAGE=nginx:1.30.7-alpine@sha256:bef154735288bc38d99fac41ae63730684bcc661503673a04a0f9bc526ba8598
+ARG PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.37-alpine3.24-r2@sha256:0441b95273dff50c91c9a0da4d64d9bf8db14bc9c41b78629eaf98e815f1d81a
+ARG NGINX_IMAGE=nginx:1.30.7-alpine@sha256:caf4e1e032a20f9c3c5e28fc7f25ffd768ad8677b4975c54193075997b3a97e3
 
 FROM --platform=$BUILDPLATFORM ${PHP_BASE_IMAGE} AS vendor
 
@@ -76,7 +76,7 @@ CMD ["manager-fpm-entrypoint"]
 FROM ${NGINX_IMAGE} AS nginx
 
 RUN apk upgrade --no-cache \
-    && apk add --no-cache 'libexpat>=2.10.0-r0' 'libxslt>=1.1.43-r4'
+    && apk add --no-cache 'libexpat>=2.10.0-r0' 'libxslt>=1.1.43-r4' 'libxml2>=2.13.9-r3'
 
 COPY deploy/docker/manager/nginx.conf /etc/nginx/nginx.conf
 COPY --from=vendor /app/public /app/public
