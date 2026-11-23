@@ -55,7 +55,7 @@ To audit explicit public release references without registry write credentials:
 
 ```sh
 python3 deploy/security/audit.py --output /tmp/quickquiz-manager-release-audit \
-  --image php-base=example/php-base:8.3.37-alpine3.24-r1 \
+  --image php-base=example/php-base:8.3.37-alpine3.24-r2 \
   --image manager-fpm=example/manager-fpm:vX.Y.Z \
   --image manager-web=example/manager-web:vX.Y.Z
 ```
@@ -95,6 +95,7 @@ supported PHP runtime, keeping compatibility dependencies within its supported
 Symfony line. Retain the published PHP base when its own two-platform checks
 pass; use `build-candidates.sh OUTPUT --published-base` and audit both resulting
 Manager archives as in the local acceptance procedure. Manager Nginx requires
+libxml2 >=2.13.9-r3 (also required by the PHP base),
 libexpat >=2.10.0-r0 and libxslt >=1.1.43-r4 so a rebuild cannot retain the
 older vulnerable packages.
 Run the full PHPUnit/PostgreSQL suite and both-platform HTTP acceptance, prepare

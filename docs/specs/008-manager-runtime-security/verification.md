@@ -208,3 +208,20 @@ Alpine libpq 18.7-r0 and [Nginx 1.30.7](https://nginx.org/en/security_advisories
 The audited base OCI index digest is
 `sha256:61f8500bd6b6a1416074db42eb3d40847f3033f5cb333faff5549b0ef760b56b`.
 The Manager release workflow verifies the published images separately.
+
+## Manager 0.15.5 local acceptance
+
+The November 23 audit reported CVE-2026-86144 in Alpine libxml2 2.13.9-r2
+across the shared PHP base, Manager FPM and Manager Nginx on both platforms.
+[GitHub Actions audit](https://github.com/robmoraes/quick-quiz/actions/runs/45248342338)
+
+| Local check | Result |
+| --- | --- |
+| Package inventory on AMD64 and ARM64 | All six images contain libxml2 2.13.9-r3 |
+| Trivy and production Composer audit | Zero HIGH or CRITICAL image findings, zero exceptions and zero Composer advisories |
+| Manager PHPUnit with PostgreSQL | 221 tests, 923 assertions, zero skips |
+| Security policy and audit tests | 14 passed |
+| HTTP acceptance on both platforms | Login, bearer authentication, CSRF, CRUD, multipart import, session continuity after FPM replacement and logout passed |
+
+The audited index for PHP base `8.3.37-alpine3.24-r2` is
+`sha256:0441b95273dff50c91c9a0da4d64d9bf8db14bc9c41b78629eaf98e815f1d81a`.

@@ -9,6 +9,13 @@ format.
 
 ## [Unreleased]
 
+## [0.15.5] - 2026-11-23
+
+### Security
+
+- Require Alpine libxml2 2.13.9-r3 or newer in the shared PHP base and the
+  Manager Nginx image to fix CVE-2026-86144 in XInclude processing.
+
 ## [0.15.4] - 2026-11-19
 
 ### Security
@@ -220,7 +227,8 @@ Cumulative notes retained from earlier releases.
   `DOCKERHUB_MANAGER_FPM_IMAGE` and `DOCKERHUB_MANAGER_WEB_IMAGE` production
   environment variables.
 
-[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.4...HEAD
+[Unreleased]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.5...HEAD
+[0.15.5]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.4...manager%2Fv0.15.5
 [0.15.4]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.3...manager%2Fv0.15.4
 [0.15.3]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.2...manager%2Fv0.15.3
 [0.15.2]: https://github.com/robmoraes/quick-quiz/compare/manager%2Fv0.15.1...manager%2Fv0.15.2

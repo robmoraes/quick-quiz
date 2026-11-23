@@ -1,4 +1,4 @@
-ARG MANAGER_DOCKER_PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.37-alpine3.24-r1@sha256:61f8500bd6b6a1416074db42eb3d40847f3033f5cb333faff5549b0ef760b56b
+ARG MANAGER_DOCKER_PHP_BASE_IMAGE=robmoraes/quick-quiz-php-base:8.3.37-alpine3.24-r2@sha256:0441b95273dff50c91c9a0da4d64d9bf8db14bc9c41b78629eaf98e815f1d81a
 FROM ${MANAGER_DOCKER_PHP_BASE_IMAGE}
 
 RUN apk add --no-cache bash git unzip
